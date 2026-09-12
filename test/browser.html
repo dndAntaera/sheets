@@ -1,0 +1,83 @@
+<meta charset="utf-8">
+<title>Sheet Engine Tests</title>
+<link rel="stylesheet" href="../web/css/tokens.css">
+<style>
+  body { margin: 0; padding: var(--sp-5); background: var(--sky); color: var(--ink);
+         font: var(--text-body)/1.5 var(--font-body); }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1 { font: 400 var(--text-page-title)/1.2 var(--font-display); margin: 0 0 var(--sp-2); }
+  .tally { font-variant-numeric: tabular-nums; margin-bottom: var(--sp-5); }
+  .tally b { font-weight: 600; }
+  ol { list-style: none; padding: 0; margin: 0; }
+  li { padding: var(--sp-2) var(--sp-3); border-bottom: var(--hair) solid var(--rule);
+       display: grid; grid-template-columns: 2.5rem 1fr; gap: var(--sp-3); }
+  .mark { font-weight: 700; }
+  .pass .mark { color: var(--pass); }
+  .fail .mark { color: var(--fail); }
+  .why { grid-column: 2; color: var(--fail); font-family: var(--font-mono);
+         font-size: .85em; white-space: pre-wrap; margin-top: var(--sp-1); }
+  .loading { color: var(--ink-soft); }
+</style>
+
+<main>
+  <h1>Sheet engine</h1>
+  <p class="tally loading" id="tally">running…</p>
+  <ol id="results"></ol>
+</main>
+
+<script type="module">
+  // The browser runner for test/suite.js. It exists because this repository is
+  // worked on from a machine with Python but no Node: the same cases that run
+  // in CI can be run here by opening the page.
+  import { buildSuite } from './suite.js';
+  import { checker } from './assert.js';
+
+  const names = ['rules', 'classes', 'skills', 'backgrounds'];
+  const tally = document.getElementById('tally');
+  const list = document.getElementById('results');
+
+  try {
+    const entries = await Promise.all(names.map(async (name) => {
+      const res = await fetch(`../web/data/${name}.json`, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`data/${name}.json returned ${res.status}`);
+      return [name, await res.json()];
+    }));
+
+    let passed = 0;
+    const failed = [];
+
+    for (const testCase of buildSuite(Object.fromEntries(entries))) {
+      const t = checker();
+      let thrown = null;
+      try {
+        testCase.run(t);
+      } catch (err) {
+        thrown = err;
+      }
+      const problems = thrown ? [`threw ${thrown.message}`, ...t.failures] : t.failures;
+      const li = document.createElement('li');
+      li.className = problems.length ? 'fail' : 'pass';
+      li.innerHTML = `<span class="mark">${problems.length ? '✗' : '✓'}</span><span>${testCase.name}</span>`;
+      if (problems.length) {
+        const why = document.createElement('div');
+        why.className = 'why';
+        why.textContent = problems.join('\n');
+        li.append(why);
+        failed.push(testCase.name);
+      } else {
+        passed++;
+      }
+      list.append(li);
+    }
+
+    tally.classList.remove('loading');
+    tally.innerHTML = failed.length
+      ? `<b>${failed.length} failing</b>, ${passed} passing`
+      : `<b>${passed} passing</b>, none failing`;
+    document.title = failed.length ? `${failed.length} failing - Sheet Engine Tests` : 'All passing - Sheet Engine Tests';
+  } catch (err) {
+    tally.classList.remove('loading');
+    tally.textContent = `could not run: ${err.message}`;
+    document.title = 'Error - Sheet Engine Tests';
+  }
+</script>

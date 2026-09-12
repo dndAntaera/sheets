@@ -1,0 +1,228 @@
+{
+  "_comment": [
+    "Every background offered at 1st level, taken straight from the wiki's",
+    "rules/backgrounds.md so the two lists cannot drift apart. What each one",
+    "GRANTS is on the wiki; the sheet only records which one was chosen.",
+    "Regenerate with scripts/sync-backgrounds.py after the wiki changes."
+  ],
+  "source": "rules/backgrounds.md",
+  "link": "https://dndantaera.github.io/antaera-wiki/rules/backgrounds/",
+  "backgrounds": [
+    {
+      "name": "Artisan",
+      "category": "General"
+    },
+    {
+      "name": "Charlatan",
+      "category": "General"
+    },
+    {
+      "name": "Criminal",
+      "category": "General"
+    },
+    {
+      "name": "Diplomat",
+      "category": "General"
+    },
+    {
+      "name": "Disciple",
+      "category": "General"
+    },
+    {
+      "name": "Entertainer",
+      "category": "General"
+    },
+    {
+      "name": "Merchant",
+      "category": "General"
+    },
+    {
+      "name": "Noble",
+      "category": "General"
+    },
+    {
+      "name": "Recluse",
+      "category": "General"
+    },
+    {
+      "name": "Sailor",
+      "category": "General"
+    },
+    {
+      "name": "Scholar",
+      "category": "General"
+    },
+    {
+      "name": "Soldier",
+      "category": "General"
+    },
+    {
+      "name": "Ironpine Native",
+      "category": "Regional"
+    },
+    {
+      "name": "Antæran Plains Native",
+      "category": "Regional"
+    },
+    {
+      "name": "Desert Dweller",
+      "category": "Regional"
+    },
+    {
+      "name": "Gulf Native",
+      "category": "Regional"
+    },
+    {
+      "name": "Islander",
+      "category": "Regional"
+    },
+    {
+      "name": "Mountain Dweller",
+      "category": "Regional"
+    },
+    {
+      "name": "Sewich Adventurer",
+      "category": "Regional"
+    },
+    {
+      "name": "Artisan",
+      "category": "Guild"
+    },
+    {
+      "name": "Charlatan",
+      "category": "Guild"
+    },
+    {
+      "name": "Criminal",
+      "category": "Guild"
+    },
+    {
+      "name": "Diplomat",
+      "category": "Guild"
+    },
+    {
+      "name": "Disciple",
+      "category": "Guild"
+    },
+    {
+      "name": "Entertainer",
+      "category": "Guild"
+    },
+    {
+      "name": "Merchant",
+      "category": "Guild"
+    },
+    {
+      "name": "Sailor",
+      "category": "Guild"
+    },
+    {
+      "name": "Scholar",
+      "category": "Guild"
+    },
+    {
+      "name": "Soldier",
+      "category": "Guild"
+    },
+    {
+      "name": "Aqualorn Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Chaotic Planar Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Earthspire Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Evil Planar Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Good Planar Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Lawful Planar Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Shadowlands Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Sidhe Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Tainted Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Zephyr Native",
+      "category": "Extraplanar"
+    },
+    {
+      "name": "Astral Diplomat",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Astral Engineer",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Astral Entertainer",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Astral Merchant",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Astrologer",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Mask",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Outlaw",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Siege Gunner",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Shipboard Chaplain",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Spellsailor",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Star Noble",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Starborn",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Trooper",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Wildspace Navigator",
+      "category": "Spelljamming"
+    },
+    {
+      "name": "Wildspace Navigator, Talented",
+      "category": "Spelljamming"
+    }
+  ]
+}

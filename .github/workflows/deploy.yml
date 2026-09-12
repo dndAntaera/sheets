@@ -1,0 +1,75 @@
+name: Test and deploy the sheets
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  # The engine's arithmetic, on every push. The suite needs no dependencies -
+  # node:test and the four data files - so there is nothing to install.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
+
+  # What GitHub Pages publishes is web/ alone: the sheet, the engine and the
+  # data. The tests and the Worker are not part of the site.
+  build:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  # The campaign server, deployed only when the account is configured. Without
+  # CLOUDFLARE_API_TOKEN in the repository secrets this job skips, and the app
+  # goes on working as a local-only build.
+  worker:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Is Cloudflare configured?
+        id: check
+        run: echo "ready=${{ secrets.CLOUDFLARE_API_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+      - name: Deploy the Worker
+        if: steps.check.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config worker/wrangler.toml
+      - name: Say why it was skipped
+        if: steps.check.outputs.ready != 'true'
+        run: echo "No CLOUDFLARE_API_TOKEN secret, so the Worker was not deployed. See MAINTAINING.md."

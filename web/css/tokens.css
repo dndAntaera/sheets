@@ -1,0 +1,205 @@
+/* ===========================================================================
+   Antaera Sheets - design tokens
+   ===========================================================================
+
+   The wiki keeps every value its look depends on in one file and writes its
+   rules entirely in terms of them. This is that file for the sheets, and the
+   colours are deliberately the wiki's own: the same deep-blue sky, the same
+   parchment by day and slate by night, the same purple accent. The two sites
+   are siblings and should look it, so a player moving from a rules page to
+   their character sheet does not feel they have left.
+
+   Two rules, as next door:
+
+     1. No rule in sheet.css contains a literal colour or a literal spacing.
+        A value gets a name here first.
+     2. Tokens are grouped by what they mean, not by where they are used.
+
+   Only the surface tokens change with the theme. The sky, the type scale and
+   the spacing are the same by day and by night.
+   =========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* -------------------------------------------------------------------------
+     Type
+
+     A character sheet is a dense grid of small numbers, so the body size is a
+     touch smaller than the wiki's long prose pages, and every number on the
+     sheet is set with tabular figures - a column of totals that shifts left
+     and right as you type is unreadable.
+     ------------------------------------------------------------------------- */
+
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+
+  --text-body: .875rem;
+  --text-small: .78rem;
+  --text-tiny: .68rem;         /* field labels, in small caps */
+  --text-page-title: 1.6rem;
+  --text-panel-title: 1rem;
+  --text-total: 1.35rem;       /* the big derived numbers: AC, HP, saves */
+  --text-total-lg: 1.75rem;
+
+  --leading: 1.5;
+  --leading-tight: 1.25;
+
+  /* -------------------------------------------------------------------------
+     Space - four steps and two paddings, as on the wiki.
+     ------------------------------------------------------------------------- */
+
+  --sp-1: .25rem;
+  --sp-2: .5rem;
+  --sp-3: .7rem;
+  --sp-4: 1rem;
+  --sp-5: 1.4rem;
+  --sp-6: 2.5rem;
+
+  --pad-y: .8rem;
+  --pad-x: 1rem;
+  --pad-y-sm: .6rem;
+  --pad-x-sm: .7rem;
+
+  --gap: var(--sp-4);
+  --gap-sm: var(--sp-2);
+
+  --radius: .2rem;
+  --radius-lg: .35rem;
+  --hair: 1px;
+
+  --sheet-width: 74rem;        /* the widest the sheet grid ever gets */
+  --field-height: 1.9rem;
+
+  /* -------------------------------------------------------------------------
+     Colour: the sky
+
+     Straight from the wiki, and not redefined per theme for the same reason:
+     day and night are a property of the paper, not of what is outside.
+     ------------------------------------------------------------------------- */
+
+  --sky-near: #12172a;
+  --sky-mid: #0b0e1a;
+  --sky-far: #06070f;
+  --sky: radial-gradient(ellipse at 50% 0%,
+           var(--sky-near) 0%, var(--sky-mid) 45%, var(--sky-far) 100%);
+
+  --sky-ink: #d7dced;
+  --sky-ink-dim: #97a0bb;
+  --sky-link: #d773ff;
+
+  /* -------------------------------------------------------------------------
+     Colour: accent and status
+
+     The accent is the wiki's purple. The three status colours are new here,
+     because the wiki never has to tell you that you have overspent your skill
+     points. They are chosen to sit on both parchment and slate.
+     ------------------------------------------------------------------------- */
+
+  --accent: #bf00ff;
+  --accent-dark: #8f00bf;
+  --accent-on: #ffffff;
+
+  --fail: #b3261e;             /* an error: a DM would send this sheet back */
+  --warn: #9a6b00;             /* probably a mistake, but it has real cases */
+  --pass: #2f6f3e;             /* legal, and finished */
+  --fail-wash: rgba(179, 38, 30, .09);
+  --warn-wash: rgba(154, 107, 0, .10);
+  --pass-wash: rgba(47, 111, 62, .09);
+
+  /* Taint has its own scale, because the sheet shows it as a track that fills
+     as a character is corrupted, and it should read as dread rather than as a
+     validation error. */
+  --taint-mild: #7a6a2e;
+  --taint-moderate: #8a5323;
+  --taint-severe: #7b2d2d;
+  --taint-past: #4a1220;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, .18);
+  --shadow-float: 0 6px 24px rgba(0, 0, 0, .35);
+
+  --transition: 120ms ease;
+}
+
+/* ---------------------------------------------------------------------------
+   Surfaces - the only tokens the theme changes.
+
+   Light is the wiki's parchment; dark is its slate. Both are declared under a
+   :root that the app's own toggle can override with data-theme, so a player
+   who prefers paper at night gets paper at night.
+   --------------------------------------------------------------------------- */
+
+:root,
+:root[data-theme="light"] {
+  --surface: #f7f0dd;
+  --surface-raised: #fbf6e9;
+  --surface-sunk: #efe6cd;
+  --surface-edge: #cfc0a0;
+  --rule: #ded0b2;
+  --ink: #33291b;
+  --ink-soft: #6a5b42;
+  --ink-faint: #8d7d61;
+  --link: var(--accent-dark);
+  --field: #fffdf5;
+  --field-edge: #c9b994;
+  --field-focus: var(--accent-dark);
+  --readonly: #ece2c7;         /* a derived number, which nobody may type into */
+  --grain:
+    radial-gradient(ellipse at 15% 12%, rgba(196, 172, 122, .18), transparent 55%),
+    radial-gradient(ellipse at 85% 78%, rgba(176, 150, 100, .14), transparent 60%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #262b34;
+    --surface-raised: #2d333e;
+    --surface-sunk: #1f242c;
+    --surface-edge: #3c4453;
+    --rule: #3c4453;
+    --ink: #d7dced;
+    --ink-soft: #97a0bb;
+    --ink-faint: #7b849c;
+    --link: var(--sky-link);
+    --field: #1e232b;
+    --field-edge: #48515f;
+    --field-focus: var(--sky-link);
+    --readonly: #222831;
+    --grain:
+      radial-gradient(ellipse at 15% 12%, rgba(255, 255, 255, .022), transparent 55%),
+      radial-gradient(ellipse at 85% 78%, rgba(0, 0, 0, .10), transparent 60%);
+
+    --fail: #f2a5a0;
+    --warn: #e8c169;
+    --pass: #8fd3a1;
+    --fail-wash: rgba(242, 165, 160, .10);
+    --warn-wash: rgba(232, 193, 105, .10);
+    --pass-wash: rgba(143, 211, 161, .10);
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface: #262b34;
+  --surface-raised: #2d333e;
+  --surface-sunk: #1f242c;
+  --surface-edge: #3c4453;
+  --rule: #3c4453;
+  --ink: #d7dced;
+  --ink-soft: #97a0bb;
+  --ink-faint: #7b849c;
+  --link: var(--sky-link);
+  --field: #1e232b;
+  --field-edge: #48515f;
+  --field-focus: var(--sky-link);
+  --readonly: #222831;
+  --grain:
+    radial-gradient(ellipse at 15% 12%, rgba(255, 255, 255, .022), transparent 55%),
+    radial-gradient(ellipse at 85% 78%, rgba(0, 0, 0, .10), transparent 60%);
+
+  --fail: #f2a5a0;
+  --warn: #e8c169;
+  --pass: #8fd3a1;
+  --fail-wash: rgba(242, 165, 160, .10);
+  --warn-wash: rgba(232, 193, 105, .10);
+  --pass-wash: rgba(143, 211, 161, .10);
+}

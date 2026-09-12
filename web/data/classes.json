@@ -1,0 +1,598 @@
+{
+  "_comment": [
+    "Class progressions, for the arithmetic the sheet does on a player's behalf.",
+    "",
+    "This file holds only what is mechanical and fixed: the hit die, the three",
+    "progressions, the skill points, and the class skill list. Class FEATURES",
+    "(rage, sneak attack, spells per day) are not here. They are the interesting",
+    "half of a class and the half this campaign alters most, so they stay on the",
+    "wiki where they can be read, and the sheet keeps them as free text.",
+    "",
+    "  bab    good = +1/level, average = +3/4 level, poor = +1/2 level",
+    "  saves  good = 2 + level/2, poor = level/3, both rounded down",
+    "  srd    true when the numbers come from the SRD and need no checking",
+    "",
+    "A class not listed here is not a problem: a player adds it once, by hand,",
+    "under Custom Classes, and it then behaves exactly like one of these.",
+    "Splatbook and prestige classes are expected to arrive that way."
+  ],
+  "classes": [
+    {
+      "name": "Barbarian",
+      "hd": 12,
+      "bab": "good",
+      "saves": {
+        "fort": "good",
+        "ref": "poor",
+        "will": "poor"
+      },
+      "skillPoints": 4,
+      "srd": true,
+      "classSkills": [
+        "Climb",
+        "Craft",
+        "Handle Animal",
+        "Intimidate",
+        "Jump",
+        "Listen",
+        "Ride",
+        "Survival",
+        "Swim"
+      ]
+    },
+    {
+      "name": "Bard",
+      "hd": 6,
+      "bab": "average",
+      "saves": {
+        "fort": "poor",
+        "ref": "good",
+        "will": "good"
+      },
+      "skillPoints": 6,
+      "srd": true,
+      "casting": {
+        "ability": "cha",
+        "type": "arcane",
+        "spontaneous": true
+      },
+      "classSkills": [
+        "Appraise",
+        "Balance",
+        "Bluff",
+        "Climb",
+        "Concentration",
+        "Craft",
+        "Decipher Script",
+        "Diplomacy",
+        "Disguise",
+        "Escape Artist",
+        "Gather Information",
+        "Hide",
+        "Jump",
+        "Knowledge",
+        "Listen",
+        "Move Silently",
+        "Perform",
+        "Profession",
+        "Sense Motive",
+        "Sleight of Hand",
+        "Speak Language",
+        "Spellcraft",
+        "Swim",
+        "Tumble",
+        "Use Magic Device"
+      ]
+    },
+    {
+      "name": "Cleric",
+      "hd": 8,
+      "bab": "average",
+      "saves": {
+        "fort": "good",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "casting": {
+        "ability": "wis",
+        "type": "divine",
+        "spontaneous": false
+      },
+      "classSkills": [
+        "Concentration",
+        "Craft",
+        "Diplomacy",
+        "Heal",
+        "Knowledge (arcana)",
+        "Knowledge (history)",
+        "Knowledge (religion)",
+        "Knowledge (the planes)",
+        "Profession",
+        "Spellcraft"
+      ]
+    },
+    {
+      "name": "Druid",
+      "hd": 8,
+      "bab": "average",
+      "saves": {
+        "fort": "good",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 4,
+      "srd": true,
+      "casting": {
+        "ability": "wis",
+        "type": "divine",
+        "spontaneous": false
+      },
+      "classSkills": [
+        "Concentration",
+        "Craft",
+        "Diplomacy",
+        "Handle Animal",
+        "Heal",
+        "Knowledge (nature)",
+        "Listen",
+        "Profession",
+        "Ride",
+        "Spellcraft",
+        "Spot",
+        "Survival",
+        "Swim"
+      ]
+    },
+    {
+      "name": "Fighter",
+      "hd": 10,
+      "bab": "good",
+      "saves": {
+        "fort": "good",
+        "ref": "poor",
+        "will": "poor"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "classSkills": [
+        "Climb",
+        "Craft",
+        "Handle Animal",
+        "Intimidate",
+        "Jump",
+        "Ride",
+        "Swim"
+      ]
+    },
+    {
+      "name": "Monk",
+      "hd": 8,
+      "bab": "average",
+      "saves": {
+        "fort": "good",
+        "ref": "good",
+        "will": "good"
+      },
+      "skillPoints": 4,
+      "srd": true,
+      "classSkills": [
+        "Balance",
+        "Climb",
+        "Concentration",
+        "Craft",
+        "Diplomacy",
+        "Escape Artist",
+        "Hide",
+        "Jump",
+        "Knowledge (arcana)",
+        "Knowledge (religion)",
+        "Listen",
+        "Move Silently",
+        "Perform",
+        "Profession",
+        "Sense Motive",
+        "Spot",
+        "Swim",
+        "Tumble"
+      ]
+    },
+    {
+      "name": "Paladin",
+      "hd": 10,
+      "bab": "good",
+      "saves": {
+        "fort": "good",
+        "ref": "poor",
+        "will": "poor"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "casting": {
+        "ability": "wis",
+        "type": "divine",
+        "spontaneous": false
+      },
+      "classSkills": [
+        "Concentration",
+        "Craft",
+        "Diplomacy",
+        "Handle Animal",
+        "Heal",
+        "Knowledge (nobility and royalty)",
+        "Knowledge (religion)",
+        "Profession",
+        "Ride",
+        "Sense Motive"
+      ]
+    },
+    {
+      "name": "Ranger",
+      "hd": 8,
+      "bab": "good",
+      "saves": {
+        "fort": "good",
+        "ref": "good",
+        "will": "poor"
+      },
+      "skillPoints": 6,
+      "srd": true,
+      "casting": {
+        "ability": "wis",
+        "type": "divine",
+        "spontaneous": false
+      },
+      "classSkills": [
+        "Climb",
+        "Concentration",
+        "Craft",
+        "Handle Animal",
+        "Heal",
+        "Hide",
+        "Jump",
+        "Knowledge (dungeoneering)",
+        "Knowledge (geography)",
+        "Knowledge (nature)",
+        "Listen",
+        "Move Silently",
+        "Profession",
+        "Ride",
+        "Search",
+        "Spot",
+        "Survival",
+        "Swim",
+        "Use Rope"
+      ]
+    },
+    {
+      "name": "Rogue",
+      "hd": 6,
+      "bab": "average",
+      "saves": {
+        "fort": "poor",
+        "ref": "good",
+        "will": "poor"
+      },
+      "skillPoints": 8,
+      "srd": true,
+      "classSkills": [
+        "Appraise",
+        "Balance",
+        "Bluff",
+        "Climb",
+        "Craft",
+        "Decipher Script",
+        "Diplomacy",
+        "Disable Device",
+        "Disguise",
+        "Escape Artist",
+        "Forgery",
+        "Gather Information",
+        "Hide",
+        "Intimidate",
+        "Jump",
+        "Knowledge (local)",
+        "Listen",
+        "Move Silently",
+        "Open Lock",
+        "Perform",
+        "Profession",
+        "Search",
+        "Sense Motive",
+        "Sleight of Hand",
+        "Spot",
+        "Swim",
+        "Tumble",
+        "Use Magic Device",
+        "Use Rope"
+      ]
+    },
+    {
+      "name": "Sorcerer",
+      "hd": 4,
+      "bab": "poor",
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "casting": {
+        "ability": "cha",
+        "type": "arcane",
+        "spontaneous": true
+      },
+      "classSkills": [
+        "Bluff",
+        "Concentration",
+        "Craft",
+        "Knowledge (arcana)",
+        "Profession",
+        "Spellcraft"
+      ]
+    },
+    {
+      "name": "Wizard",
+      "hd": 4,
+      "bab": "poor",
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "casting": {
+        "ability": "int",
+        "type": "arcane",
+        "spontaneous": false
+      },
+      "classSkills": [
+        "Concentration",
+        "Craft",
+        "Decipher Script",
+        "Forgery",
+        "Knowledge",
+        "Profession",
+        "Spellcraft"
+      ]
+    },
+    {
+      "name": "Psion",
+      "hd": 4,
+      "bab": "poor",
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "psionic": true,
+      "manifesting": {
+        "ability": "int"
+      },
+      "classSkills": [
+        "Concentration",
+        "Craft",
+        "Knowledge",
+        "Profession",
+        "Psicraft"
+      ],
+      "note": "A psion's discipline adds its own class skills on top of these; pick the discipline under Class Features and add them by hand."
+    },
+    {
+      "name": "Psychic Warrior",
+      "hd": 8,
+      "bab": "average",
+      "saves": {
+        "fort": "good",
+        "ref": "poor",
+        "will": "poor"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "psionic": true,
+      "manifesting": {
+        "ability": "wis"
+      },
+      "classSkills": [
+        "Autohypnosis",
+        "Climb",
+        "Concentration",
+        "Craft",
+        "Jump",
+        "Knowledge (psionics)",
+        "Profession",
+        "Ride",
+        "Search",
+        "Swim"
+      ]
+    },
+    {
+      "name": "Wilder",
+      "hd": 6,
+      "bab": "average",
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 4,
+      "srd": true,
+      "psionic": true,
+      "manifesting": {
+        "ability": "cha"
+      },
+      "classSkills": [
+        "Autohypnosis",
+        "Balance",
+        "Bluff",
+        "Climb",
+        "Concentration",
+        "Craft",
+        "Escape Artist",
+        "Intimidate",
+        "Jump",
+        "Knowledge (psionics)",
+        "Listen",
+        "Profession",
+        "Psicraft",
+        "Sense Motive",
+        "Spot",
+        "Swim",
+        "Tumble"
+      ]
+    },
+    {
+      "name": "Soulknife",
+      "hd": 10,
+      "bab": "average",
+      "saves": {
+        "fort": "poor",
+        "ref": "good",
+        "will": "good"
+      },
+      "skillPoints": 4,
+      "srd": true,
+      "psionic": true,
+      "classSkills": [
+        "Autohypnosis",
+        "Climb",
+        "Concentration",
+        "Craft",
+        "Hide",
+        "Jump",
+        "Knowledge (psionics)",
+        "Listen",
+        "Move Silently",
+        "Profession",
+        "Spot",
+        "Tumble"
+      ]
+    },
+    {
+      "name": "Adept",
+      "hd": 6,
+      "bab": "poor",
+      "npcClass": true,
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "casting": {
+        "ability": "wis",
+        "type": "divine",
+        "spontaneous": false
+      },
+      "classSkills": [
+        "Concentration",
+        "Craft",
+        "Handle Animal",
+        "Heal",
+        "Knowledge",
+        "Profession",
+        "Spellcraft",
+        "Survival"
+      ]
+    },
+    {
+      "name": "Aristocrat",
+      "hd": 8,
+      "bab": "average",
+      "npcClass": true,
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 4,
+      "srd": true,
+      "classSkills": [
+        "Appraise",
+        "Bluff",
+        "Diplomacy",
+        "Disguise",
+        "Forgery",
+        "Gather Information",
+        "Handle Animal",
+        "Intimidate",
+        "Knowledge",
+        "Listen",
+        "Perform",
+        "Ride",
+        "Sense Motive",
+        "Speak Language",
+        "Spot",
+        "Survival",
+        "Swim"
+      ]
+    },
+    {
+      "name": "Commoner",
+      "hd": 4,
+      "bab": "poor",
+      "npcClass": true,
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "poor"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "classSkills": [
+        "Climb",
+        "Craft",
+        "Handle Animal",
+        "Jump",
+        "Listen",
+        "Profession",
+        "Ride",
+        "Spot",
+        "Swim",
+        "Use Rope"
+      ]
+    },
+    {
+      "name": "Expert",
+      "hd": 6,
+      "bab": "average",
+      "npcClass": true,
+      "saves": {
+        "fort": "poor",
+        "ref": "poor",
+        "will": "good"
+      },
+      "skillPoints": 6,
+      "srd": true,
+      "anyTenClassSkills": true,
+      "classSkills": []
+    },
+    {
+      "name": "Warrior",
+      "hd": 8,
+      "bab": "good",
+      "npcClass": true,
+      "saves": {
+        "fort": "good",
+        "ref": "poor",
+        "will": "poor"
+      },
+      "skillPoints": 2,
+      "srd": true,
+      "classSkills": [
+        "Climb",
+        "Handle Animal",
+        "Intimidate",
+        "Jump",
+        "Ride",
+        "Swim"
+      ]
+    }
+  ]
+}

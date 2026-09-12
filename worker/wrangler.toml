@@ -1,0 +1,32 @@
+# The campaign server.
+#
+# Deploying is two commands, and neither of them needs Node installed on your
+# own machine if you let GitHub Actions do it - see MAINTAINING.md.
+#
+#   wrangler d1 create antaera-sheets          # once, then paste the id below
+#   wrangler d1 execute antaera-sheets --file worker/schema.sql --remote
+#   wrangler deploy --config worker/wrangler.toml
+
+name = "antaera-sheets"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "antaera-sheets"
+database_id = "PASTE-THE-DATABASE-ID-HERE"
+
+[vars]
+# Where the sheets are served from. The Worker will only accept requests from
+# this origin, and sends players back here after they sign in.
+SITE_ORIGIN = "https://dndantaera.github.io"
+SITE_PATH = "/sheets/"
+
+# Discord ids of whoever runs the campaign. A GM sees every character and is
+# the only one who can move a campaign setting such as gestalt.
+GM_DISCORD_IDS = ""
+
+# DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET are secrets, not vars:
+#   wrangler secret put DISCORD_CLIENT_ID --config worker/wrangler.toml
+#   wrangler secret put DISCORD_CLIENT_SECRET --config worker/wrangler.toml
