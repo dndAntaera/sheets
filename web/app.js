@@ -1,5 +1,5 @@
-// The application: the roster, the sheet, and the wiring between a keystroke
-// and a recomputed number.
+// The application: the roster, the sheet, the content library, and the wiring
+// between a keystroke and a recomputed number.
 //
 // The shape of it is deliberately small. There is one character in memory, one
 // derived sheet beside it, and one rule: an edit writes to the character, the
@@ -8,14 +8,19 @@
 // hundred arithmetic operations, which is nothing, and the alternative - working
 // out which numbers a change affects - is where sheets get their wrong totals.
 
-import { loadRules, derive, blankCharacter, migrate } from './engine/index.js';
-import { h, paint, setPath, refill, button } from './ui/dom.js';
+import {
+  loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
+  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed,
+} from './engine/index.js';
+import { h, paint, refill, button, bindForm } from './ui/dom.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
   featsPanel, houserulesPanel, wealthPanel, textPanel, castingPanel,
+  effectsPanel, contentPanel, paintEffects, paintConditions, paintContent,
 } from './ui/sheet.js';
+import { showContent } from './ui/content.js';
 import { config } from './config.js';
-import { local, remote, save as saveEverywhere, newId } from './store.js';
+import { local, remote, library, preferences, save as saveEverywhere, newId } from './store.js';
 
 const PANELS = {
   identity: identityPanel,
@@ -27,17 +32,24 @@ const PANELS = {
   houserules: houserulesPanel,
   casting: castingPanel,
   wealth: wealthPanel,
+  effects: effectsPanel,
+  content: contentPanel,
   text: textPanel,
 };
 
+/** Where a notice about a field sends the reader. */
+const NOTICE_PANEL = { hp: 'combat' };
+
 const app = {
+  baseRules: null,   // every ruleset loaded; `rules` is the one in force
   rules: null,
   character: null,
   derived: null,
-  campaign: { gestalt: false, gm: false },
+  campaign: { gestalt: null },
   panels: {},
   status: null,
   user: null,
+  unbind: null,
 };
 
 /* =========================================================================
@@ -45,33 +57,35 @@ const app = {
    ========================================================================= */
 
 async function start() {
-  app.rules = await loadRules('./data/');
+  app.baseRules = await loadRules('./data/');
+  app.rules = app.baseRules;
 
-  // The campaign settings: the server's if there is one, otherwise whatever
-  // this browser was last told. Gestalt is a GM switch, so a player never
-  // decides it for themselves.
-  const stored = local.campaign();
-  app.campaign = {
-    gestalt: app.rules.rules.campaign.gestaltDefault,
-    gm: false,
-    ...(stored || {}),
-  };
+  // The Antaera campaign's own switches: the server's if there is one,
+  // otherwise whatever this browser was last told.
+  app.campaign = { gestalt: null, ...(local.campaign() || {}) };
 
   if (remote.enabled()) {
     try {
       app.user = await remote.me();
       const server = await remote.campaign();
-      app.campaign = { ...app.campaign, ...server, gm: Boolean(app.user?.gm) };
+      app.campaign = { ...app.campaign, ...server };
       local.setCampaign(app.campaign);
     } catch {
-      // Signed out, or the server is unreachable. The app carries on locally.
-      app.user = null;
+      app.user = null;   // signed out, or unreachable: carry on locally
     }
   }
 
-  document.body.append(header(), h('main#main'), datalists());
+  document.body.append(header(), h('main#main'), h('div#datalists.hidden'));
   window.addEventListener('hashchange', route);
   route();
+}
+
+/** The settings imposed on a sheet from outside it, under its ruleset. */
+function overridesFor(character) {
+  if (character?.ruleset === 'antaera' && app.campaign.gestalt !== null && app.campaign.gestalt !== undefined) {
+    return { gestalt: app.campaign.gestalt };
+  }
+  return {};
 }
 
 /* =========================================================================
@@ -82,7 +96,7 @@ function header() {
   app.status = h('span.status', { text: '' });
 
   const account = () => {
-    if (!remote.enabled()) return h('span.hint', { text: 'local to this browser' });
+    if (!remote.enabled()) return null;
     if (app.user) {
       return h('span.account',
         h('span', { text: app.user.name }),
@@ -95,106 +109,154 @@ function header() {
   };
 
   return h('header.top',
-    h('a.brand', { href: '#/', title: 'Every sheet in the campaign' },
+    h('a.brand', { href: '#/', title: config.tagline },
       h('span.brand-name', { text: config.title })),
     h('nav.top-nav',
-      h('a', { href: config.wikiUrl, target: '_blank', rel: 'noopener', text: 'The wiki' }),
-      h('a', { href: '#/', text: 'Characters' })),
+      h('a', { href: '#/', text: 'Characters', dataset: { nav: 'roster' } }),
+      h('a', { href: '#/content', text: 'Content', dataset: { nav: 'content' } })),
     h('div.top-right',
       app.status,
-      gestaltSwitch(),
       themeSwitch(),
       account()));
 }
 
-/**
- * The gestalt switch. Visible to everyone so a player can see which way the
- * campaign is playing, but only the GM can move it - and when there is a
- * server, moving it writes to the campaign rather than to this browser.
- */
-function gestaltSwitch() {
-  const input = h('input', {
-    type: 'checkbox',
-    checked: app.campaign.gestalt,
-    disabled: remote.enabled() && !app.campaign.gm,
-    onchange: async (ev) => {
-      app.campaign.gestalt = ev.target.checked;
-      local.setCampaign(app.campaign);
-      if (remote.enabled() && app.campaign.gm) {
-        await remote.setCampaign({ gestalt: app.campaign.gestalt }).catch(() => {});
-      }
-      // Gestalt changes the shape of the levels table, so the sheet is rebuilt.
-      if (app.character) openSheet(app.character.id, { keepScroll: true });
-    },
-  });
-  return h('label.check.gestalt', {
-    title: remote.enabled() && !app.campaign.gm
-      ? 'Gestalt is set by the DM for the whole campaign.'
-      : 'Gestalt: every level takes two classes and the better of each is kept.',
-  }, input, h('span', { text: 'Gestalt' }));
-}
-
 function themeSwitch() {
-  const stored = localStorage.getItem('antaera-sheets/theme');
+  const stored = preferences.get('theme');
   if (stored) document.documentElement.dataset.theme = stored;
-  return button(stored === 'dark' ? 'Day' : 'Night', (ev) => {
+  const label = () => (document.documentElement.dataset.theme === 'dark' ? 'Day' : 'Night');
+  const btn = button(label(), () => {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
-    localStorage.setItem('antaera-sheets/theme', next);
-    ev.target.textContent = next === 'dark' ? 'Day' : 'Night';
+    preferences.set('theme', next);
+    btn.textContent = label();
   }, { subtle: true, title: 'Parchment or slate' });
+  return btn;
 }
 
-/** Datalists, so class names complete as they are typed. */
-function datalists() {
-  return h('div.hidden',
-    h('datalist#class-names',
-      app.rules.classes.classes.map((c) => h('option', { value: c.name }))),
-    h('datalist#skill-names',
-      app.rules.skills.skills.map((s) => h('option', { value: s.name }))));
+function markNav(which) {
+  for (const a of document.querySelectorAll('[data-nav]')) a.classList.toggle('is-active', a.dataset.nav === which);
+}
+
+/**
+ * The name lists that let a field complete as it is typed: the SRD's own, the
+ * character's embedded content, and the player's whole library.
+ */
+function refreshDatalists() {
+  const host = document.getElementById('datalists');
+  if (!host) return;
+  const shelf = library.load();
+  const idx = app.derived?.index;
+  const names = (...lists) => [...new Set(lists.flat().filter(Boolean))].sort();
+
+  const lists = {
+    'class-names': names(app.rules.classes.classes.map((c) => c.name), idx ? [...idx.classByName.keys()] : [], shelf.classes.map((c) => c.name)),
+    'race-names': names((app.rules.races?.races || []).map((r) => r.name), idx ? [...idx.raceByName.keys()] : [], shelf.races.map((r) => r.name)),
+    'feat-names': names(idx ? [...idx.featByName.keys()] : [], shelf.feats.map((f) => f.name)),
+    'item-names': names(idx ? [...idx.itemByName.keys()] : [], shelf.items.map((i) => i.name)),
+    'template-names': names(idx ? [...idx.templateByName.keys()] : [], shelf.templates.map((t) => t.name)),
+    'feature-names': names(idx ? [...idx.featureByName.keys()] : [], shelf.features.map((f) => f.name)),
+  };
+  const signature = JSON.stringify(lists);
+  if (host.dataset.signature === signature) return;
+  host.dataset.signature = signature;
+  refill(host, Object.entries(lists).map(([id, values]) =>
+    h(`datalist#${id}`, values.map((value) => h('option', { value })))));
 }
 
 /* =========================================================================
-   Routing: the roster, or one sheet
+   Routing: the roster, one sheet, or the content library
    ========================================================================= */
 
 function route() {
-  const hash = location.hash.replace(/^#\/?/, '');
-  const [view, id] = hash.split('/');
-  if (view === 'sheet' && id) openSheet(id);
-  else showRoster();
+  const [view, a, b] = location.hash.replace(/^#\/?/, '').split('/');
+  app.unbind?.();
+  app.unbind = null;
+  if (view === 'sheet' && a) {
+    markNav('sheet');
+    openSheet(a);
+  } else if (view === 'content') {
+    markNav('content');
+    app.character = null;
+    app.rules = app.baseRules;
+    showContent(document.getElementById('main'), app, a || 'race', b ?? null);
+    document.title = `Content - ${config.title}`;
+  } else {
+    markNav('roster');
+    showRoster();
+  }
 }
+
+/* =========================================================================
+   The roster
+   ========================================================================= */
 
 async function showRoster() {
   app.character = null;
+  document.title = config.title;
   const main = document.getElementById('main');
 
   let rows = local.list();
-  let source = local.name;
+  let source = 'Kept in this browser.';
   if (remote.enabled() && app.user) {
     try {
       rows = await remote.list();
-      source = app.user.gm ? 'every character in the campaign' : 'your characters';
+      source = app.user.gm ? 'Every character on the campaign server.' : 'Your characters, from the server.';
     } catch { /* the local list stands */ }
   }
 
+  const chosen = preferences.get('newRuleset', config.defaultRuleset);
+  const rulesetPicker = rulesetToggle(chosen, (id) => {
+    preferences.set('newRuleset', id);
+    showRoster();
+  });
+  const rs = app.baseRules.rulesets[chosen] || app.baseRules.rulesets.srd;
+
   refill(main, h('div.roster',
-    h('div.roster-head',
+    h('div.roster-intro',
       h('h1', { text: 'Characters' }),
+      h('p.hint', { text: config.tagline })),
+    h('div.roster-new',
+      h('div.roster-new-rules',
+        h('span.label', { text: 'Build under' }),
+        rulesetPicker,
+        h('p.ruleset-blurb', { text: rs.description })),
       h('div.roster-actions',
-        button('New character', createCharacter),
+        button(`New ${rs.shortName} character`, () => createCharacter(chosen)),
         importButton())),
-    h('p.hint', { text: `Showing ${source}.` }),
+    h('p.hint', { text: source }),
     rows.length
       ? h('ul.roster-list', rows.map(rosterRow))
-      : h('p.empty', { text: 'No characters yet. The campaign starts at level 3.' })));
+      : h('p.empty', { text: 'No characters yet.' })));
+}
+
+/**
+ * The ruleset switch: SRD first, and the default. It is a pair of buttons
+ * rather than a dropdown because there are two choices and both should be
+ * visible at once.
+ */
+function rulesetToggle(current, onPick, opts = {}) {
+  return h('div.segmented', { role: 'radiogroup', 'aria-label': 'Ruleset' },
+    RULESET_IDS.map((id) => {
+      const rs = app.baseRules.rulesets[id];
+      return h('button.segment', {
+        type: 'button',
+        role: 'radio',
+        'aria-checked': String(id === current),
+        class: id === current ? 'is-on' : '',
+        title: rs.tagline,
+        disabled: opts.disabled,
+        onclick: () => { if (id !== current) onPick(id); },
+      }, rs.shortName);
+    }));
 }
 
 function rosterRow(row) {
+  const rs = app.baseRules.rulesets[row.ruleset || 'srd'];
   return h('li.roster-row',
     h('a.roster-link', { href: `#/sheet/${row.id}` },
       h('span.roster-name', { text: row.name || 'Unnamed' }),
       h('span.roster-meta', { text: [row.player, row.build || `level ${row.level || '?'}`].filter(Boolean).join(' - ') })),
+    h(`span.badge.ruleset-${rs?.id || 'srd'}`, { text: rs?.shortName || 'SRD' }),
     h('span.roster-updated', { text: row.updated ? new Date(row.updated).toLocaleDateString() : '' }),
     button('Delete', async () => {
       if (!confirm(`Delete ${row.name || 'this character'}? This cannot be undone.`)) return;
@@ -204,8 +266,9 @@ function rosterRow(row) {
     }, { subtle: true, danger: true }));
 }
 
-function createCharacter() {
-  const character = blankCharacter(app.rules);
+function createCharacter(rulesetId) {
+  const rules = withRuleset(app.baseRules, rulesetId);
+  const character = blankCharacter(rules);
   character.id = newId();
   character.meta = { ...character.meta, created: new Date().toISOString(), owner: app.user?.id || null };
   local.save(character);
@@ -220,7 +283,8 @@ function importButton() {
       if (!file) return;
       try {
         const parsed = migrate(JSON.parse(await file.text()));
-        parsed.id = parsed.id || newId();
+        if (!Array.isArray(parsed.levels)) throw new Error('it has no levels, so it is not a character');
+        parsed.id = newId();
         local.save(parsed);
         location.hash = `#/sheet/${parsed.id}`;
       } catch (err) {
@@ -228,7 +292,7 @@ function importButton() {
       }
     },
   });
-  return h('span', input, button('Import a file', () => input.click(), { subtle: true }));
+  return h('span', input, button('Import a character', () => input.click(), { subtle: true }));
 }
 
 /* =========================================================================
@@ -237,49 +301,56 @@ function importButton() {
 
 async function openSheet(id, opts = {}) {
   const scroll = opts.keepScroll ? window.scrollY : 0;
+  // A sheet reopened in place - after a variant switch - must not leave the
+  // old listeners on <main>, or every edit would be applied twice.
+  app.unbind?.();
+  app.unbind = null;
 
   let character = local.load(id);
   if (!character && remote.enabled() && app.user) {
     character = await remote.load(id).catch(() => null);
     if (character) local.save(character);
   }
+  const main = document.getElementById('main');
   if (!character) {
-    refill(document.getElementById('main'), h('p.empty', { text: 'No character with that address.' }));
+    refill(main, h('p.empty', { text: 'No character with that address.' }));
     return;
   }
 
   app.character = migrate(character);
   app.character.id = app.character.id || id;
-  app.panels = {};
+  app.rules = withRuleset(app.baseRules, app.character.ruleset);
 
-  const noticeRail = h('aside.notices', { id: 'notices' });
+  // Panels are drawn from a derived sheet, so it is computed before any of them.
+  app.derived = derive(app.character, app.rules, { overrides: overridesFor(app.character) });
+  refreshDatalists();
+
+  app.panels = {};
   const sheet = h('div.sheet');
   for (const [key, build] of Object.entries(PANELS)) {
-    const panel = build(app);
-    app.panels[key] = panel;
-    sheet.append(panel);
+    const panelEl = build(app);
+    if (!panelEl) continue;
+    app.panels[key] = panelEl;
+    sheet.append(panelEl);
   }
 
-  refill(document.getElementById('main'),
+  refill(main,
     h('div.sheet-layout',
-      h('div.sheet-main',
-        sheetToolbar(),
-        sheet),
-      noticeRail));
+      h('div.sheet-main', sheetToolbar(), variantsStrip(), sheet),
+      h('aside#notices.notices')));
 
-  const root = document.getElementById('main');
-  root.addEventListener('input', onEdit);
-  root.addEventListener('change', onEdit);
-
+  app.unbind = bindForm(main, () => app.character, onEdit);
   recompute();
   window.scrollTo(0, scroll);
 }
 
 function sheetToolbar() {
+  const rs = app.rules.ruleset;
   return h('div.toolbar',
     h('a.back', { href: '#/', text: 'All characters' }),
+    rs.wiki ? h('a.back', { href: rs.wiki, target: '_blank', rel: 'noopener', text: `${rs.shortName} wiki` }) : null,
     h('span.grow'),
-    button('Export', exportCharacter, { subtle: true, title: 'Download this sheet as a file, to post in your character thread.' }),
+    button('Export', exportCharacter, { subtle: true, title: 'Download this sheet as a file. Any homebrew it uses goes with it.' }),
     button('Duplicate', () => {
       const copy = structuredClone(app.character);
       copy.id = newId();
@@ -289,6 +360,77 @@ function sheetToolbar() {
       location.hash = `#/sheet/${copy.id}`;
     }, { subtle: true }),
     button('Print', () => window.print(), { subtle: true }));
+}
+
+/**
+ * The rules this sheet is built under, and the optional systems within them.
+ *
+ * Under the SRD each variant is a checkbox the player may tick. Under Antaera
+ * they are listed, not offered: the campaign decides, and gestalt is the DM's.
+ */
+function variantsStrip() {
+  const c = app.character;
+  const rs = app.rules.ruleset;
+  const overrides = overridesFor(c);
+
+  const switchRuleset = (id) => {
+    const target = app.baseRules.rulesets[id];
+    const note = target.startingLevel > (c.levels?.length || 0)
+      ? ` ${target.name} characters start at level ${target.startingLevel}; this one has ${c.levels.length}, and no levels will be added for you.`
+      : '';
+    if (!confirm(`Rebuild ${c.name || 'this character'} under ${target.name}?${note} Nothing you have typed is lost, and you can switch back.`)) return;
+    c.ruleset = id;
+    flush();
+    openSheet(c.id, { keepScroll: true });
+  };
+
+  const modules = MODULES.map((name) => {
+    const state = moduleState(app.rules, c, name, overrides);
+    if (!state.available) return null;
+    if (state.choosable) {
+      return h('label.check.variant', { title: rs.variantNotes?.[name] || '' },
+        h('input', {
+          type: 'checkbox',
+          checked: state.on,
+          onchange: (ev) => {
+            c.options = { ...c.options, [name]: ev.target.checked };
+            flush();
+            openSheet(c.id, { keepScroll: true });
+          },
+        }),
+        h('span', { text: MODULE_LABELS[name] }));
+    }
+    // Locked. Gestalt under Antaera is the DM's; everywhere else the ruleset's.
+    const gmCanMove = name === 'gestalt' && state.lockedBy === 'gm' && (!remote.enabled() || app.user?.gm);
+    if (gmCanMove) {
+      return h('label.check.variant.is-gm', { title: 'The DM’s switch for the whole campaign.' },
+        h('input', {
+          type: 'checkbox',
+          checked: state.on,
+          onchange: async (ev) => {
+            app.campaign.gestalt = ev.target.checked;
+            local.setCampaign(app.campaign);
+            if (remote.enabled()) await remote.setCampaign({ gestalt: app.campaign.gestalt }).catch(() => {});
+            openSheet(c.id, { keepScroll: true });
+          },
+        }),
+        h('span', { text: `${MODULE_LABELS[name]} (DM)` }));
+    }
+    return h(`span.variant-locked${state.on ? '.is-on' : ''}`, {
+      title: state.lockedBy === 'gm' ? 'Set by the DM.' : `Set by the ${rs.name} rules.`,
+    }, `${MODULE_LABELS[name]}: ${state.on ? 'on' : 'off'}`);
+  }).filter(Boolean);
+
+  return h('div.variants',
+    h('div.variants-rules',
+      h('span.label', { text: 'Rules' }),
+      rulesetToggle(c.ruleset, switchRuleset),
+      h('span.hint', { text: rs.tagline })),
+    modules.length
+      ? h('div.variants-modules',
+        h('span.label', { text: rs.variantsChosenBy === 'player' ? 'Variants' : 'In play' }),
+        modules)
+      : null);
 }
 
 function exportCharacter() {
@@ -307,61 +449,72 @@ function exportCharacter() {
    ========================================================================= */
 
 /**
- * A few fields do not just change a number - they change the shape of another
- * panel. Choosing rolled hit points means every level after the first needs a
- * box to type the roll into; adding a racial hit die can be what earns the
- * ability increase at 4th level, which needs a selector that was not there
- * before. Those panels are rebuilt, and only those.
+ * Fields whose value can name a piece of content, and the kind they name.
+ * When a player types or picks a name that is on their library shelf, the
+ * entry is copied onto the sheet - so choosing "Warblade" from the list is all
+ * it takes for a homebrew class to count.
  */
-const RESHAPES = {
-  'hp.method': ['levels'],
-  'race.racialHD': ['levels', 'abilities'],
-};
+const NAMES_CONTENT = [
+  [/^race\.name$/, 'race'],
+  [/^levels\.\d+\.[ab]$/, 'class'],
+  [/^nextLevel\.[ab]$/, 'class'],
+  [/^feats\.\d+\.name$/, 'feat'],
+  [/^features\.\d+\.name$/, 'feature'],
+  [/^templates\.\d+\.name$/, 'template'],
+  [/^wealth\.items\.\d+\.name$/, 'item'],
+];
 
-function onEdit(ev) {
-  const el = ev.target;
-  const path = el.dataset?.field;
-  if (!path) return;
+/**
+ * A few fields change the shape of a panel, not just a number in it. Those
+ * panels are rebuilt - but only on `change`, which fires when a field is left
+ * or a list option is picked, never on each keystroke, so nobody loses their
+ * caret halfway through typing a race.
+ */
+const RESHAPES = [
+  [/^hp\.method$/, ['levels']],
+  [/^race\.name$/, ['identity']],
+  [/^race\.racialHD$/, ['levels', 'abilities']],
+  [/^abilities\.method$/, ['abilities']],
+  [/^feats\.\d+\.name$/, ['feats']],
+  [/^features\.\d+\.name$/, ['feats']],
+  [/^wealth\.items\.\d+\.name$/, ['wealth']],
+  [/^levels\.\d+\.[ab]$/, ['casting']],
+];
 
-  setValue(path, el);
+function onEdit(path, value, el, ev) {
+  // Adopt library content the name points at, before recomputing.
+  let embedded = false;
+  for (const [pattern, kind] of NAMES_CONTENT) {
+    if (!pattern.test(path) || !value) continue;
+    const entry = library.find(kind, value);
+    const carried = (app.character.content?.[CONTENT_TYPES[kind].plural] || []).find((e) => e.name === value);
+    if (entry && !carried) {
+      embed(app.character, kind, entry);
+      embedded = true;
+    }
+  }
+
   recompute();
-  for (const key of RESHAPES[path] || []) app.rebuildPanel(key);
+  if (ev.type === 'change' || embedded) {
+    const rebuild = new Set();
+    for (const [pattern, keys] of RESHAPES) if (pattern.test(path)) keys.forEach((k) => rebuild.add(k));
+    // Only on change: rebuilding the panel holding a focused field mid-typing
+    // would move the caret.
+    if (ev.type === 'change') for (const key of rebuild) app.rebuildPanel(key);
+  }
   scheduleSave();
 }
 
-/**
- * Write one field into the character, coercing it to the type the engine
- * expects. An empty number field becomes null rather than "" or 0: null means
- * "not entered", which the engine already treats as nothing, while 0 would be
- * a real zero and "" would poison every sum it joined.
- */
-function setValue(path, el) {
-  const kind = el.dataset.kind;
-  let value;
-
-  if (kind === 'bool') value = el.checked;
-  else if (kind === 'int' || kind === 'number') value = el.value === '' ? null : Number(el.value);
-  else value = el.value;
-
-  // Two fields are stored differently from the way they are typed.
-  if (path.endsWith('classSkills')) {
-    value = String(value).split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  if (path.startsWith('abilities.levelUps.') && value === '') {
-    const level = path.split('.').pop();
-    delete app.character.abilities.levelUps[level];
-    return;
-  }
-
-  setPath(app.character, path, value);
-}
-
 function recompute() {
-  app.derived = derive(app.character, app.rules, { gestalt: app.campaign.gestalt });
+  app.derived = derive(app.character, app.rules, { overrides: overridesFor(app.character) });
   const root = document.getElementById('main');
   paint(root, app.derived);
   paintNotices();
   paintCasting();
+  paintEffects(root, app.derived);
+  paintConditions(root, app.derived);
+  paintContent(root, app, library);
+  refreshDatalists();
   document.title = `${app.character.name || 'Unnamed'} - ${config.title}`;
 }
 
@@ -391,9 +544,11 @@ function paintNotices() {
         text: n.text,
         onclick: (ev) => {
           ev.preventDefault();
-          app.panels[n.field]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          app.panels[n.field]?.classList.add('flash');
-          setTimeout(() => app.panels[n.field]?.classList.remove('flash'), 1200);
+          const target = app.panels[NOTICE_PANEL[n.field] || n.field];
+          if (!target) return;
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          target.classList.add('flash');
+          setTimeout(() => target.classList.remove('flash'), 1200);
         },
       })))));
 }
@@ -407,27 +562,31 @@ function paintCasting() {
     refill(host, h('p.empty', { text: 'No casting or manifesting class taken.' }));
     return;
   }
+  const sign = (n) => (n >= 0 ? `+${n}` : String(n));
   refill(host, classes.map((c) => h('div.casting-row',
     h('span.casting-name', { text: `${c.name} ${c.levels}` }),
-    h('span.hint', { text: `${c.kind === 'casting' ? 'Caster' : 'Manifester'} - ${c.ability.toUpperCase()} ${c.mod >= 0 ? '+' : ''}${c.mod}` }),
-    h('span.hint', { text: `Save DC 10 + spell level ${c.mod >= 0 ? '+' : ''}${c.mod}` }),
+    h('span.hint', { text: `${c.kind === 'casting' ? 'Caster' : 'Manifester'} - ${c.ability.toUpperCase()} ${sign(c.mod)}` }),
+    h('span.hint', { text: `Save DC 10 + level ${sign(c.mod)}` }),
     h('div.slots',
       h('span.label', { text: 'Bonus slots' }),
-      Object.entries(c.bonusSlots)
-        .filter(([, n]) => n > 0)
-        .map(([level, n]) => h('span.slot', { text: `${level}: +${n}` })),
+      Object.entries(c.bonusSlots).filter(([, n]) => n > 0).map(([level, n]) => h('span.slot', { text: `${level}: +${n}` })),
       Object.values(c.bonusSlots).every((n) => n === 0) ? h('span.hint', { text: 'none' }) : null),
     c.note ? h('p.hint', { text: c.note }) : null)));
 }
 
-/** Rebuild one panel in place - used when a list of rows changes shape. */
+/** Rebuild one panel in place - used when a list or a field changes its shape. */
 app.rebuildPanel = (key) => {
   const old = app.panels[key];
-  if (!old) return;
+  if (!old || !PANELS[key]) return;
   const fresh = PANELS[key](app);
+  if (!fresh) {
+    old.remove();
+    delete app.panels[key];
+    return;
+  }
   app.panels[key] = fresh;
   old.replaceWith(fresh);
-  paint(document.getElementById('main'), app.derived);
+  recompute();
 };
 
 app.recompute = () => {
@@ -442,6 +601,7 @@ app.recompute = () => {
 let saveTimer = null;
 
 function scheduleSave() {
+  if (!app.status) return;
   app.status.textContent = 'editing';
   app.status.dataset.state = 'editing';
   clearTimeout(saveTimer);
@@ -449,14 +609,13 @@ function scheduleSave() {
 }
 
 async function flush() {
+  clearTimeout(saveTimer);
   if (!app.character) return;
-  app.character.meta = {
-    ...app.character.meta,
-    build: app.derived?.summary.label || '',
-  };
+  app.character.meta = { ...app.character.meta, build: app.derived?.summary.label || '' };
   const result = await saveEverywhere(app.character);
-  app.status.textContent = result.synced ? 'saved' : `saved here (${result.reason})`;
-  app.status.dataset.state = result.synced ? 'saved' : 'local';
+  if (!app.status) return;
+  app.status.textContent = result.synced ? 'saved' : (remote.enabled() ? `saved here (${result.reason})` : 'saved');
+  app.status.dataset.state = result.synced || !remote.enabled() ? 'saved' : 'local';
 }
 
 // A sheet being edited when the tab closes should still be on disk.

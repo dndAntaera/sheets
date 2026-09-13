@@ -92,6 +92,9 @@ a { color: var(--sky-link); }
 .btn:hover { border-color: var(--accent); }
 .btn.subtle { background: transparent; color: var(--sky-ink-dim); border-color: transparent; }
 .btn.subtle:hover { color: var(--sky-link); }
+/* On parchment, a subtle button takes the paper's ink, not the sky's. */
+.panel .btn.subtle, .roster .btn.subtle, .content-page .btn.subtle, .variants .btn.subtle { color: var(--ink-soft); }
+.panel .btn.subtle:hover, .roster .btn.subtle:hover, .content-page .btn.subtle:hover { color: var(--link); }
 .btn.danger:hover { color: var(--fail); border-color: var(--fail); }
 
 .field {
@@ -113,8 +116,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 
 .check { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-small); white-space: nowrap; }
 .check input { accent-color: var(--accent); }
-.gestalt { color: var(--sky-ink-dim); }
-.gestalt input:disabled + span { opacity: .6; }
+
 
 /* ---------------------------------------------------------------------------
    The roster
@@ -283,8 +285,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   gap: var(--sp-2);
   align-items: center;
 }
-body:has(.gestalt input:checked) .levels-head,
-body:has(.gestalt input:checked) .level-row {
+.levels-head.gestalt, .level-row.gestalt {
   grid-template-columns: 2rem minmax(6rem, 1fr) minmax(6rem, 1fr) 4rem 4.5rem 4rem;
 }
 .level-row { padding: .1rem 0; border-top: var(--hair) solid var(--rule); }
@@ -320,7 +321,7 @@ body:has(.gestalt input:checked) .level-row {
 
 .save-grid {
   display: grid;
-  grid-template-columns: 6rem repeat(4, minmax(3.2rem, 4rem)) 4.5rem;
+  grid-template-columns: 6rem repeat(5, minmax(3.2rem, 4rem)) 4.5rem;
   gap: var(--sp-1) var(--sp-2);
   align-items: center;
 }
@@ -345,7 +346,7 @@ body:has(.gestalt input:checked) .level-row {
 
 .skill-head, .skill-row {
   display: grid;
-  grid-template-columns: 1.2rem minmax(8rem, 1fr) 3.5rem 3.5rem 4rem 4rem 3rem 3rem 1.6rem;
+  grid-template-columns: 1.2rem minmax(8rem, 1fr) 3.5rem 3.5rem 4rem 4rem 3.5rem 3rem 3rem 1.6rem;
   gap: var(--sp-2);
   align-items: center;
 }
@@ -453,6 +454,214 @@ body:has(.gestalt input:checked) .level-row {
 .notice.info { border-left-color: var(--rule); color: var(--ink-soft); }
 
 /* ---------------------------------------------------------------------------
+   Rulesets and variants
+
+   The ruleset is a segmented control, not a dropdown: there are two, and a
+   player should see both at once and see which one is lit.
+   --------------------------------------------------------------------------- */
+
+.segmented {
+  display: inline-flex;
+  border: var(--hair) solid var(--surface-edge);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-sunk);
+}
+.segment {
+  font: inherit;
+  font-size: var(--text-small);
+  padding: .3rem .9rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.segment + .segment { border-left: var(--hair) solid var(--surface-edge); }
+.segment.is-on { background: var(--accent-dark); color: var(--accent-on); }
+.segment:not(.is-on):hover { color: var(--ink); background: var(--surface-raised); }
+
+.variants {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-5);
+  padding: var(--pad-y-sm) var(--pad-x);
+  margin-bottom: var(--gap);
+  background: var(--surface) var(--grain);
+  border: var(--hair) solid var(--surface-edge);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+}
+.variants .hint { color: var(--ink-faint); }
+.variants-rules, .variants-modules { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.variant { color: var(--ink); }
+.variant.is-gm span { color: var(--accent-dark); }
+.variant-locked {
+  font-size: var(--text-small);
+  color: var(--ink-faint);
+  border: var(--hair) dashed var(--rule);
+  border-radius: var(--radius);
+  padding: 0 .4rem;
+}
+.variant-locked.is-on { color: var(--ink-soft); border-style: solid; }
+
+.badge {
+  font-size: var(--text-tiny);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  padding: .05rem .4rem;
+  border-radius: var(--radius);
+  border: var(--hair) solid var(--rule);
+  color: var(--ink-soft);
+}
+.badge.ruleset-antaera { border-color: var(--accent-dark); color: var(--accent-dark); }
+
+.top-nav a.is-active { color: var(--sky-ink); }
+
+/* The roster's new-character block. */
+.roster-intro h1 { font: 400 var(--text-page-title)/1.2 var(--font-display); margin: 0; }
+.roster-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0 var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface-sunk);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--radius);
+}
+.roster-new-rules { display: flex; flex-direction: column; gap: var(--sp-1); max-width: 34rem; }
+.ruleset-blurb { margin: 0; font-size: var(--text-small); color: var(--ink-soft); }
+
+/* ---------------------------------------------------------------------------
+   Race facts, conditions, effects
+   --------------------------------------------------------------------------- */
+
+.race-facts { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; }
+.race-traits { flex: 1 1 16rem; margin: 0; }
+
+/* A conditional bonus, pencilled in the margin beside the number it affects. */
+.conditions { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: .1rem; }
+.conditions:empty { display: none; }
+.conditions li { font-size: var(--text-small); font-style: italic; color: var(--ink-soft); }
+.conditions li::before { content: "\2020  "; color: var(--ink-faint); font-style: normal; }
+.cond-mark { color: var(--accent-dark); cursor: help; }
+
+.effects-editor { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+.effects-rows { width: 100%; display: flex; flex-direction: column; gap: var(--sp-1); }
+.effect-head, .effect-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.4fr) minmax(6rem, 1fr) 4rem minmax(6rem, 1.4fr) auto 1.6rem;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.effect-row > * { min-width: 0; }
+.effects-empty { margin: 0; }
+
+.effect-list-row { border-bottom: var(--hair) solid var(--rule); }
+.effect-list-row > .list-row { border-bottom: 0; }
+.row-effects { padding: 0 0 var(--sp-2) var(--sp-4); }
+.row-effects > summary { font-size: var(--text-small); color: var(--ink-faint); cursor: pointer; }
+.row-effects[open] > summary { margin-bottom: var(--sp-2); }
+.item-row .check { align-self: center; }
+
+.table-scroll { overflow-x: auto; }
+.effects-table { width: 100%; border-collapse: collapse; font-size: var(--text-small); }
+.effects-table th, .effects-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--sp-1) var(--sp-2);
+  border-bottom: var(--hair) solid var(--rule);
+}
+.effects-table thead th { font-size: var(--text-tiny); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-weight: 400; }
+.effects-table tbody th { font-weight: 600; white-space: nowrap; }
+.effects-total { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.effect-sources { list-style: none; margin: 0; padding: 0; }
+.effect-sources .is-suppressed { text-decoration: line-through; color: var(--ink-faint); }
+.effect-sources .is-conditional { font-style: italic; color: var(--ink-soft); }
+.effects-table tr.is-unknown th { color: var(--warn); }
+
+.carried-list { list-style: none; margin: 0; padding: 0; }
+.carried { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; border-bottom: var(--hair) solid var(--rule); flex-wrap: wrap; }
+.carried-kind { font-size: var(--text-tiny); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); min-width: 4.5rem; }
+.tag.is-stale { color: var(--warn); border-color: var(--warn); }
+
+/* ---------------------------------------------------------------------------
+   The content library
+   --------------------------------------------------------------------------- */
+
+.content-page {
+  max-width: var(--sheet-width);
+  margin: 0 auto var(--sp-6);
+  padding: var(--pad-y) var(--pad-x) var(--sp-5);
+  background: var(--surface) var(--grain);
+  border: var(--hair) solid var(--surface-edge);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+}
+.content-page a { color: var(--link); }
+.content-page .hint { color: var(--ink-faint); }
+.content-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--sp-3); align-items: flex-start; }
+.content-head h1 { font: 400 var(--text-page-title)/1.2 var(--font-display); margin: 0; }
+.content-head p { margin: var(--sp-1) 0 0; max-width: 40rem; }
+.content-actions { display: flex; gap: var(--sp-2); }
+
+.content-tabs { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-4) 0 var(--sp-3); border-bottom: var(--hair) solid var(--rule); }
+.content-page .content-tab {
+  padding: var(--sp-2) var(--sp-3);
+  text-decoration: none;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: inline-flex;
+  gap: var(--sp-1);
+  align-items: baseline;
+}
+.content-page .content-tab.is-active { color: var(--ink); border-bottom-color: var(--accent-dark); }
+.content-tab .count { font-size: var(--text-tiny); color: var(--ink-faint); }
+
+.content-body { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--sp-5); align-items: start; }
+.content-side { display: flex; flex-direction: column; gap: var(--sp-2); }
+.content-blurb { margin: 0; font-size: var(--text-small); color: var(--ink-soft); }
+.content-list { list-style: none; margin: 0; padding: 0; }
+.content-page .content-item {
+  display: flex; flex-direction: column;
+  padding: var(--sp-2);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--ink);
+}
+.content-item:hover { background: var(--surface-raised); }
+.content-item.is-active { background: var(--surface-sunk); box-shadow: inset 2px 0 0 var(--accent-dark); }
+.content-item-meta { font-size: var(--text-small); color: var(--ink-faint); }
+
+.content-form { display: flex; flex-direction: column; gap: var(--sp-4); }
+.content-form-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.content-form-head h2 { font: 400 var(--text-panel-title)/1.2 var(--font-display); margin: 0; }
+.content-form-head .status { color: var(--ink-faint); }
+.content-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--sp-3); }
+.content-fields .cell.wide { grid-column: 1 / -1; }
+.content-fields .cell .hint { font-size: var(--text-tiny); }
+.cell-check { justify-content: flex-end; }
+.ability-adjust { display: grid; grid-template-columns: repeat(6, minmax(2.8rem, 1fr)); gap: var(--sp-1); }
+.ability-adjust-cell { display: flex; flex-direction: column; gap: .1rem; }
+.content-effects h3, .primer h3 { font: 600 var(--text-small)/1 var(--font-display); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); margin: var(--sp-3) 0 var(--sp-1); }
+.content-form-actions { display: flex; gap: var(--sp-2); border-top: var(--hair) solid var(--rule); padding-top: var(--sp-3); }
+.content-empty { color: var(--ink-soft); }
+
+.primer { max-width: 44rem; }
+.primer h2 { font: 400 var(--text-panel-title)/1.2 var(--font-display); margin: var(--sp-4) 0 var(--sp-2); }
+.primer p { margin: 0 0 var(--sp-2); }
+.primer-example { margin: var(--sp-3) 0; }
+.primer-table { border-collapse: collapse; font-size: var(--text-small); }
+.primer-table th, .primer-table td { text-align: left; padding: .15rem var(--sp-3) .15rem 0; border-bottom: var(--hair) solid var(--rule); }
+.primer-table th { font-weight: 400; color: var(--ink-faint); font-size: var(--text-tiny); text-transform: uppercase; letter-spacing: .06em; }
+.primer-targets { font-size: var(--text-small); color: var(--ink-soft); }
+
+/* ---------------------------------------------------------------------------
    Narrow screens
 
    A phone at the table is the common case, so the sheet has to work at 375px:
@@ -488,6 +697,8 @@ body:has(.gestalt input:checked) .level-row {
   }
   .skill-head .label:nth-child(7),
   .skill-head .label:nth-child(8),
+  .skill-head .label:nth-child(9),
+  .skill-row .out[data-out$="bonuses"],
   .skill-row .out[data-out$="maxRanks"],
   .skill-row .out[data-out$="cost"] { display: none; }
   /* The armour and trained marks are reference, not data. The column is
@@ -495,16 +706,23 @@ body:has(.gestalt input:checked) .level-row {
   .skill-name .tag { display: none; }
 
   .levels-head, .level-row { grid-template-columns: 1.4rem minmax(0, 1fr) 2.4rem 3rem; }
-  body:has(.gestalt input:checked) .levels-head,
-  body:has(.gestalt input:checked) .level-row {
+  .levels-head.gestalt, .level-row.gestalt {
     grid-template-columns: 1.4rem minmax(0, 1fr) minmax(0, 1fr) 2.4rem 3rem;
   }
   .level-row > .out[data-out^="hp.perLevel"]:not([data-out$="gained"]) { display: none; }
   .levels-head .label:nth-child(5) { display: none; }
 
   .save-grid { grid-template-columns: 4.4rem repeat(4, minmax(0, 1fr)) 3rem; }
+  .save-grid > .label:nth-child(6), .save-grid .out[data-out$=".bonuses"] { display: none; }
   .taint-grid { grid-template-columns: 4.6rem minmax(0, 3.2rem) 2.6rem minmax(0, 1fr) 2.6rem; }
   .taint-grid > .label:nth-child(6), .taint-grid > .hint { display: none; }
+
+  .content-body { grid-template-columns: minmax(0, 1fr); }
+  .effect-head { display: none; }
+  .effect-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 3.2rem; }
+  .effect-row .effect-condition { grid-column: 1 / 3; }
+  .effect-row .check { white-space: normal; min-width: 0; }
+  .variants { padding: var(--pad-y-sm) var(--pad-x-sm); }
 
   /* A grid item that still cannot fit shrinks rather than pushes. */
   .ability-grid > *, .save-grid > *, .taint-grid > *, .skill-row > *, .level-row > * { min-width: 0; }
@@ -524,7 +742,7 @@ body:has(.gestalt input:checked) .level-row {
 
 @media print {
   body { background: #fff; color: #000; }
-  .top, .toolbar, .notices, .btn, .aside { display: none !important; }
+  .top, .toolbar, .notices, .btn, .aside, .variants, .row-effects, #panel-content { display: none !important; }
   .sheet-layout { display: block; max-width: none; padding: 0; }
   .panel {
     background: #fff;

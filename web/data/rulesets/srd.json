@@ -1,0 +1,92 @@
+{
+  "_comment": [
+    "The default ruleset: 3.5 as published, with nothing added and nothing",
+    "forbidden. This is what a character is built under unless someone chooses",
+    "otherwise, and it is deliberately permissive - a public creator has no",
+    "business telling a stranger's table what it may play.",
+    "",
+    "Every optional system is off. Gestalt is available because it is a printed",
+    "variant a table may want, but it starts off and is the player's choice, not",
+    "a campaign's imposition."
+  ],
+  "id": "srd",
+  "name": "3.5 SRD",
+  "shortName": "SRD",
+  "tagline": "Third edition, revised. No house rules.",
+  "description": "Standard 3.5 character creation. Every class and skill from the SRD, no campaign restrictions, and anything the SRD does not cover can be added yourself under Content.",
+  "startingLevel": 1,
+  "maxLevel": 20,
+  "variantsChosenBy": "player",
+  "abilityGeneration": {
+    "methods": ["pointBuy", "rolled", "array", "manual"],
+    "default": "pointBuy",
+    "pointBuy": {
+      "budget": 32,
+      "budgetChoices": [
+        {"points": 22, "label": "22 - low powered"},
+        {"points": 25, "label": "25 - standard fantasy"},
+        {"points": 28, "label": "28 - tougher heroes"},
+        {"points": 32, "label": "32 - high powered"},
+        {"points": 36, "label": "36 - epic fantasy"}
+      ],
+      "base": 8,
+      "minScore": 8,
+      "maxScore": 18,
+      "note": "The DMG's buy table. The budget is yours to pick; 25 is the DMG's standard."
+    },
+    "rolled": {
+      "note": "4d6, drop the lowest, six times. Nothing here checks the total - that is between you and whoever runs your game.",
+      "sumMin": null,
+      "sumMax": null
+    },
+    "array": {"note": "The DMG's standard array."}
+  },
+  "hitPoints": {
+    "maxAtFirst": true,
+    "afterFirst": ["average", "roll"],
+    "lockChoice": false,
+    "lockNote": "Switch between average and rolled whenever you like; nothing here holds you to one."
+  },
+  "wealth": {
+    "showExpected": true,
+    "enforceCaps": false,
+    "note": "Wealth by level is shown as guidance. Nothing is flagged for being over it."
+  },
+  "levelAdjustment": {
+    "cap": null,
+    "note": "Level adjustment counts towards ECL. No limit is imposed on how much you take."
+  },
+  "modules": {
+    "gestalt": {"enabled": false, "available": true, "lockedBy": null},
+    "actionPoints": {"enabled": false, "available": true},
+    "taint": {"enabled": false, "available": false},
+    "traitsFlaws": {"enabled": false, "available": true},
+    "backgrounds": {"enabled": false, "available": false},
+    "training": {"enabled": false, "available": false},
+    "psionics": {"enabled": true, "available": true}
+  },
+  "variantNotes": {
+    "gestalt": "Unearthed Arcana's gestalt variant: every level takes two classes and you keep the better of each. Off unless your table uses it.",
+    "actionPoints": "Unearthed Arcana's action points: a small pool of points that add a d6 to a roll.",
+    "traitsFlaws": "Unearthed Arcana's traits and flaws: each flaw buys an extra feat."
+  },
+  "actionPoints": {
+    "source": "Unearthed Arcana",
+    "mode": "refresh",
+    "firstLevel": 5,
+    "diceByLevel": [
+      {"from": 1, "to": 7, "dice": 1},
+      {"from": 8, "to": 14, "dice": 2},
+      {"from": 15, "to": 20, "dice": 3}
+    ],
+    "note": "5 + half your level, renewed at each new level. One point adds the best of the listed d6 to a d20 roll."
+  },
+  "traitsFlaws": {
+    "source": "Unearthed Arcana",
+    "traits": 2,
+    "flaws": 2,
+    "featPerFlaw": 1,
+    "note": "Up to two traits and two flaws. Each flaw buys a bonus feat."
+  },
+  "restrictions": {}
+}

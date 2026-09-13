@@ -32,21 +32,22 @@
   import { buildSuite } from './suite.js';
   import { checker } from './assert.js';
 
-  const names = ['rules', 'classes', 'skills', 'backgrounds'];
+  import { loadData } from './load-data.js';
+
   const tally = document.getElementById('tally');
   const list = document.getElementById('results');
 
   try {
-    const entries = await Promise.all(names.map(async (name) => {
-      const res = await fetch(`../web/data/${name}.json`, { cache: 'no-cache' });
-      if (!res.ok) throw new Error(`data/${name}.json returned ${res.status}`);
-      return [name, await res.json()];
-    }));
+    const data = await loadData(async (path) => {
+      const res = await fetch(`../web/data/${path}`, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`web/data/${path} returned ${res.status}`);
+      return res.json();
+    });
 
     let passed = 0;
     const failed = [];
 
-    for (const testCase of buildSuite(Object.fromEntries(entries))) {
+    for (const testCase of buildSuite(data)) {
       const t = checker();
       let thrown = null;
       try {

@@ -1,7 +1,8 @@
 // Skills: the points you have to spend, the ranks you may put in one place,
 // and what each line on the sheet adds up to.
 
-import { abilityMod, num, floorDiv } from './util.js';
+import { num } from './util.js';
+import { bonusToSkill, conditionsFor } from './effects.js';
 
 /**
  * The skill point budget for the whole build.
@@ -12,10 +13,12 @@ import { abilityMod, num, floorDiv } from './util.js';
  *
  * Under gestalt the per-level figure is the better of the two classes taken
  * at that level, which buildSummary has already worked out.
+ *
+ * @param extraPerLevel  a race's bonus (a human's +1), added before the x4
  */
-export function skillPointBudget(summary, intMod, racialPerLevel = 0) {
+export function skillPointBudget(summary, intMod, extraPerLevel = 0) {
   const rows = summary.skillPointsPerLevel.map(({ level, base }) => {
-    const perLevel = Math.max(1, base + intMod + num(racialPerLevel));
+    const perLevel = Math.max(1, base + intMod + num(extraPerLevel));
     const points = level === 1 ? perLevel * 4 : perLevel;
     return { level, base, perLevel, points, quadrupled: level === 1 };
   });
@@ -45,24 +48,31 @@ export const rankCost = (ranks, classSkill) => (classSkill ? ranks : ranks * 2);
 /**
  * One line of the skill table, totalled.
  *
- * The armour check penalty is stored as a positive number and subtracted here,
- * twice for Swim, which is the only skill that suffers it double.
+ * `misc` is what the player typed; `bonuses` is what effects add - a race's
+ * +2, a feat's +2, an item's +5 competence. Both count, and the bonuses are
+ * already stacked by type before they get here.
+ *
+ * The armour check penalty is stored as a positive number and subtracted,
+ * twice for Swim, the only skill that suffers it double.
  */
 export function skillLine(entry, ctx) {
-  const def = ctx.skillsByName.get(entry.name) || { name: entry.name, ability: null };
+  const def = ctx.skillsByName.get(entry.name) || { name: entry.name, ability: null, unknown: true };
   const classSkill = isClassSkill(ctx.classSkills, entry.name, entry.subtype);
   const ranks = num(entry.ranks);
   const ability = def.ability ? ctx.abilities[def.ability] : null;
   const acp = def.acp ? ctx.armorCheckPenalty * (def.acpDouble ? 2 : 1) : 0;
   const sizeMod = def.sizeMod ? num(ctx.sizeHideMod) : 0;
   const misc = num(entry.misc);
+  const bonuses = ctx.resolved ? bonusToSkill(ctx.resolved, entry.name) : 0;
+  const conditions = ctx.resolved ? conditionsFor(ctx.resolved, `skill.${entry.name}`, 'skill.*') : [];
 
-  const total = (ability ? ability.mod : 0) + ranks + misc + sizeMod - acp;
+  const total = (ability ? ability.mod : 0) + ranks + misc + bonuses + sizeMod - acp;
   const cap = maxRanks(ctx.hitDice, classSkill);
 
   return {
     ...entry,
     def,
+    label: entry.subtype ? `${entry.name} (${entry.subtype})` : entry.name,
     classSkill,
     ranks,
     abilityKey: def.ability,
@@ -70,10 +80,12 @@ export function skillLine(entry, ctx) {
     acp,
     sizeMod,
     misc,
+    bonuses,
+    conditions,
     cost: rankCost(ranks, classSkill),
     maxRanks: cap,
     overCap: ranks > cap,
-    untrained: def.trainedOnly && ranks <= 0,
+    untrained: Boolean(def.trainedOnly) && ranks <= 0,
     total: def.noCheck ? null : total,
   };
 }
@@ -86,10 +98,3 @@ export function skillTable(character, ctx) {
     spent: lines.reduce((t, l) => t + l.cost, 0),
   };
 }
-
-/** Ranks that count as "5 or more ranks" synergies, for the notes column. */
-export function synergies(lines) {
-  return lines.filter((l) => l.ranks >= 5).map((l) => l.name);
-}
-
-export { abilityMod, floorDiv };

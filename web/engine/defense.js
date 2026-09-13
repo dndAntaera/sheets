@@ -2,6 +2,7 @@
 // armour check penalty the skill table needs.
 
 import { num } from './util.js';
+import { resolveEffects, AC_OFF_TOUCH, AC_OFF_FLATFOOTED } from './effects.js';
 
 /**
  * Dexterity reaching Armour Class is capped by the most restrictive thing worn.
@@ -21,28 +22,72 @@ export function armorCheckPenalty(gear) {
 }
 
 /**
- * Armour Class, touch, and flat-footed.
+ * The sheet's own armour fields, as effects.
  *
- * Touch drops the things a touch attack ignores: armour, shield, and natural
- * armour. Flat-footed drops Dexterity and dodge bonuses, which are exactly the
- * things you cannot use before you have acted.
+ * Treating the typed-in armour, shield and natural armour exactly like an
+ * item's effects is what makes stacking honest: a +2 deflection typed on the
+ * sheet and a ring of protection +1 carried as an item do not add to +3. The
+ * better one counts, as the rules say.
  */
-export function armorClass(gear, dexMod, sizeAC, rules) {
-  const dex = dexToAC(dexMod, gear);
-  const armor = num(gear.armor?.bonus);
-  const shield = num(gear.shield?.bonus);
-  const natural = num(gear.natural);
-  const deflection = num(gear.deflection);
-  const dodge = num(gear.dodge);
-  const misc = num(gear.misc);
+export function gearEffects(gear) {
+  const source = 'typed on the sheet';
+  const list = [
+    { target: 'ac', type: 'armor', value: num(gear.armor?.bonus), source: gear.armor?.name || 'armour' },
+    { target: 'ac', type: 'shield', value: num(gear.shield?.bonus), source: gear.shield?.name || 'shield' },
+    { target: 'ac', type: 'natural', value: num(gear.natural), source },
+    { target: 'ac', type: 'deflection', value: num(gear.deflection), source },
+    { target: 'ac', type: 'dodge', value: num(gear.dodge), source },
+    { target: 'ac', type: 'untyped', value: num(gear.misc), source },
+  ];
+  return list.filter((e) => e.value !== 0);
+}
 
-  const common = 10 + sizeAC + dex.applied + deflection + dodge + misc;
+/**
+ * Armour Class, touch, and flat-footed, from typed bonuses.
+ *
+ * Touch drops armour, shield and natural armour. Flat-footed drops Dexterity
+ * and dodge - but a Dexterity PENALTY still applies when flat-footed, because
+ * being caught unawares does not make a clumsy character less clumsy.
+ *
+ * Everything else - deflection, luck, insight, sacred, untyped - counts towards
+ * all three, which is the rule people most often get wrong.
+ *
+ * @param acBucket  the resolved `ac` target: { byType, applied, suppressed, conditional }
+ */
+export function armorClass(gear, dexMod, sizeAC, acBucket = null) {
+  const dex = dexToAC(dexMod, gear);
+  const bucket = acBucket || resolveEffects(gearEffects(gear)).ac || { byType: {}, applied: [], suppressed: [], conditional: [] };
+  const byType = bucket.byType || {};
+
+  const sum = (skip) => Object.entries(byType)
+    .filter(([type]) => !skip.has(type))
+    .reduce((t, [, v]) => t + v, 0);
+
+  const all = sum(new Set());
+  const touchBonuses = sum(AC_OFF_TOUCH);
+  const flatBonuses = sum(AC_OFF_FLATFOOTED);
+
   return {
     dex,
-    parts: { base: 10, armor, shield, natural, deflection, dodge, size: sizeAC, dex: dex.applied, misc },
-    total: common + armor + shield + natural,
-    touch: common,
-    flatFooted: 10 + sizeAC + armor + shield + natural + deflection + misc,
+    byType,
+    parts: {
+      base: 10,
+      size: sizeAC,
+      dex: dex.applied,
+      armor: byType.armor || 0,
+      shield: byType.shield || 0,
+      natural: byType.natural || 0,
+      deflection: byType.deflection || 0,
+      dodge: byType.dodge || 0,
+      other: all - (byType.armor || 0) - (byType.shield || 0) - (byType.natural || 0)
+        - (byType.deflection || 0) - (byType.dodge || 0),
+    },
+    total: 10 + sizeAC + dex.applied + all,
+    touch: 10 + sizeAC + dex.applied + touchBonuses,
+    flatFooted: 10 + sizeAC + Math.min(0, dex.applied) + flatBonuses,
+    applied: bucket.applied || [],
+    suppressed: bucket.suppressed || [],
+    conditional: bucket.conditional || [],
     acp: armorCheckPenalty(gear),
     arcaneSpellFailure: num(gear.armor?.asf) + num(gear.shield?.asf),
     maxSpeed: gear.armor?.speed ?? null,
@@ -50,6 +95,6 @@ export function armorClass(gear, dexMod, sizeAC, rules) {
 }
 
 /** Initiative is Dexterity plus whatever a feat or item adds. */
-export function initiative(dexMod, misc) {
-  return { dexMod, misc: num(misc), total: dexMod + num(misc) };
+export function initiative(dexMod, misc, bonuses = 0) {
+  return { dexMod, misc: num(misc), bonuses, total: dexMod + num(misc) + bonuses };
 }

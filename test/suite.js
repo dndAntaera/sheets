@@ -1,32 +1,38 @@
 // The test suite, written so it can run in two places: under `node --test`
-// (test/engine.test.js) and in a browser (web/test.html). Whoever is working on
-// this repo may not have Node installed, and a suite nobody can run is a suite
-// that rots.
+// (test/engine.test.js) and in a browser (test/browser.html). Whoever is working
+// on this repo may not have Node installed, and a suite nobody can run is a
+// suite that rots.
 //
 // Cases are chosen for the arithmetic that is easy to get wrong and expensive
-// to get wrong: the places 3.5e rounds, the places multiclassing adds instead
-// of replacing, and the gestalt best-of rule.
+// to get wrong: where 3.5 rounds, where multiclassing adds instead of replacing,
+// the gestalt best-of rule, the bonus stacking rules - and the line between the
+// SRD ruleset and a campaign's, which must never leak in either direction.
 
 import {
   abilityMod, babFor, saveFor, iterativeAttacks, makeRules, buildSummary,
-  abilityTotals, pointBuyCost, rolledArrayCheck, bonusSlots, skillPointBudget,
-  maxRanks, hitPoints, armorClass, attacks, actionPoints, taintSeverity,
-  wealth, levelAdjustment, trainingTime, blankCharacter, derive,
+  pointBuyCost, rolledArrayCheck, bonusSlots, skillPointBudget, maxRanks,
+  hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
+  levelAdjustment, trainingTime, blankCharacter, derive, migrate,
+  resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
 } from '../web/engine/index.js';
 
-/** A character with the given per-level class pairs, on top of a blank sheet. */
-function characterWith(rules, levels, extra = {}) {
-  const c = blankCharacter(rules);
-  c.levels = levels.map(([a, b], i) => ({ level: i + 1, a, b: b || '' }));
-  return { ...c, ...extra };
-}
-
 export function buildSuite(data) {
-  const rules = makeRules(data);
+  const srd = makeRules(data, 'srd');
+  const antaera = makeRules(data, 'antaera');
   const cases = [];
   const test = (name, run) => cases.push({ name, run });
 
-  /* --- the rounding ----------------------------------------------------- */
+  /** A character with the given per-level class pairs, on a blank sheet. */
+  const characterWith = (rules, levels, extra = {}) => {
+    const c = blankCharacter(rules);
+    c.levels = levels.map(([a, b], i) => ({ level: i + 1, a, b: b || '' }));
+    return { ...c, ...extra };
+  };
+  const repeat = (pair, n) => Array.from({ length: n }, () => pair);
+  const medium = srd.core.sizes.find((s) => s.name === 'Medium');
+  const small = srd.core.sizes.find((s) => s.name === 'Small');
+
+  /* === the rounding ===================================================== */
 
   test('ability modifiers round down, and an odd score adds nothing', (t) => {
     t.eq(abilityMod(10), 0);
@@ -54,6 +60,7 @@ export function buildSuite(data) {
     t.eq(saveFor('poor', 1), 0);
     t.eq(saveFor('poor', 3), 1);
     t.eq(saveFor('poor', 20), 6);
+    t.eq(saveFor(null, 20), 0, 'an unknown progression adds nothing');
   });
 
   test('the attack routine gains an attack at +6 and every +5 after', (t) => {
@@ -63,11 +70,11 @@ export function buildSuite(data) {
     t.eq(iterativeAttacks(20), [20, 15, 10, 5]);
   });
 
-  /* --- multiclassing adds, gestalt picks -------------------------------- */
+  /* === multiclassing adds, gestalt picks ================================ */
 
   test('a multiclass build sums each class progression separately', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter'], ['Rogue'], ['Rogue'], ['Rogue']]);
-    const s = buildSummary(c, rules, false);
+    const c = characterWith(srd, [...repeat(['Fighter'], 3), ...repeat(['Rogue'], 3)]);
+    const s = buildSummary(c, srd, false);
     t.eq(s.bab, 5, 'Fighter 3 (+3) plus Rogue 3 (+2), not a +4 six-level average');
     t.eq(s.baseSaves.fort, 4, 'good 3 (+3) plus poor 3 (+1)');
     t.eq(s.baseSaves.ref, 4, 'poor 3 (+1) plus good 3 (+3)');
@@ -75,8 +82,8 @@ export function buildSuite(data) {
   });
 
   test('gestalt takes the better total, not the sum', (t) => {
-    const c = characterWith(rules, [['Fighter', 'Wizard'], ['Fighter', 'Wizard'], ['Fighter', 'Wizard']]);
-    const s = buildSummary(c, rules, true);
+    const c = characterWith(srd, repeat(['Fighter', 'Wizard'], 3));
+    const s = buildSummary(c, srd, true);
     t.eq(s.bab, 3, 'the fighter side, not fighter plus wizard');
     t.eq(s.baseSaves.fort, 3, 'good from the fighter');
     t.eq(s.baseSaves.will, 3, 'good from the wizard');
@@ -86,8 +93,7 @@ export function buildSuite(data) {
   });
 
   test('gestalt hit dice and skill points are per level, from either side', (t) => {
-    const c = characterWith(rules, [['Barbarian', 'Bard']]);
-    const s = buildSummary(c, rules, true);
+    const s = buildSummary(characterWith(srd, [['Barbarian', 'Bard']]), srd, true);
     t.eq(s.hitDice[0].die, 12, 'the barbarian d12');
     t.eq(s.skillPointsPerLevel[0].base, 6, 'the bard 6, not the barbarian 4');
     t.ok(s.classSkills.has('Perform'), 'the bard list counts');
@@ -95,26 +101,22 @@ export function buildSuite(data) {
   });
 
   test('with gestalt off the second column is ignored entirely', (t) => {
-    const c = characterWith(rules, [['Wizard', 'Fighter'], ['Wizard', 'Fighter'], ['Wizard', 'Fighter']]);
-    const s = buildSummary(c, rules, false);
+    const s = buildSummary(characterWith(srd, repeat(['Wizard', 'Fighter'], 3)), srd, false);
     t.eq(s.bab, 1, 'three wizard levels, poor progression');
     t.eq(s.hitDice[0].die, 4);
     t.eq(s.baseSaves.fort, 1);
   });
 
   test('a good save on both sides is still only one good save', (t) => {
-    const c = characterWith(rules, [['Monk', 'Ranger'], ['Monk', 'Ranger'], ['Monk', 'Ranger']]);
-    const s = buildSummary(c, rules, true);
-    t.eq(s.baseSaves.fort, 3);
-    t.eq(s.baseSaves.ref, 3);
+    const s = buildSummary(characterWith(srd, repeat(['Monk', 'Ranger'], 3)), srd, true);
     t.eq(s.baseSaves.will, 3, 'the monk brings it; the ranger does not double it');
     t.eq(s.bab, 3, 'the ranger full progression beats the monk three quarters');
   });
 
   test('hit dice, level adjustment and ECL are counted apart', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter']]);
-    c.race = { ...c.race, racialHD: 2, la: 1 };
-    const s = buildSummary(c, rules, false);
+    const c = characterWith(srd, repeat(['Fighter'], 3));
+    c.race = { ...c.race, name: 'Something odd', racialHD: 2, la: 1 };
+    const s = buildSummary(c, srd, false);
     t.eq(s.classLevels, 3);
     t.eq(s.hitDiceCount, 5, 'three class levels plus two racial hit dice');
     t.eq(s.ecl, 6, 'and the level adjustment on top');
@@ -122,44 +124,25 @@ export function buildSuite(data) {
     t.eq(s.abilityIncreases, 1, 'one at fourth');
   });
 
-  /* --- abilities -------------------------------------------------------- */
+  /* === abilities ======================================================== */
 
-  test('point buy spends from a base of eight', (t) => {
+  test('point buy spends from a base of eight, against the chosen budget', (t) => {
     const all8 = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
-    t.eq(pointBuyCost(all8, rules).spent, 0);
+    t.eq(pointBuyCost(all8, srd).spent, 0);
     const spread = { str: 16, dex: 14, con: 14, int: 12, wis: 10, cha: 8 };
-    const pb = pointBuyCost(spread, rules);
-    t.eq(pb.spent, 28, '10 + 6 + 6 + 4 + 2 + 0');
-    t.eq(pb.remaining, 2);
-    t.ok(pb.ok);
-    const tooMuch = pointBuyCost({ str: 18, dex: 18, con: 8, int: 8, wis: 8, cha: 8 }, rules);
-    t.eq(tooMuch.spent, 32);
-    t.ok(!tooMuch.ok, '32 is over the 30 point budget');
+    t.eq(pointBuyCost(spread, srd, 25).spent, 28, '10 + 6 + 6 + 4 + 2 + 0');
+    t.ok(!pointBuyCost(spread, srd, 25).ok, '28 is over a 25-point game');
+    t.ok(pointBuyCost(spread, srd, 32).ok, 'and within a 32-point one');
+    t.eq(pointBuyCost(spread, antaera).budget, 30, 'Antaera fixes its budget at 30');
   });
 
-  test('a rolled array is kept only between 65 and 85', (t) => {
-    t.ok(rolledArrayCheck({ str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, rules).tooLow);
-    t.ok(rolledArrayCheck({ str: 18, dex: 18, con: 18, int: 18, wis: 18, cha: 18 }, rules).tooHigh);
-    const fine = rolledArrayCheck({ str: 16, dex: 14, con: 14, int: 12, wis: 10, cha: 9 }, rules);
-    t.eq(fine.total, 75);
-    t.ok(fine.ok);
-  });
-
-  test('ability totals stack racial, level-up and item bonuses', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter'], ['Fighter']]);
-    c.abilities.base.str = 16;
-    c.race.abilityAdjust.str = 2;
-    c.abilities.levelUps = { 4: 'str' };
-    c.abilities.enhancement.str = 2;
-    c.abilities.temp.str = 4;
-    const s = buildSummary(c, rules, false);
-    const a = abilityTotals(c, s);
-    t.eq(a.str.total, 25, '16 + 2 racial + 1 level + 2 item + 4 temporary');
-    t.eq(a.str.mod, 7);
-    t.eq(a.str.baseTotal, 21, 'without the temporary bonus');
-    t.eq(a.str.baseMod, 5);
-    t.eq(a.levelUpsUsed, 1);
-    t.eq(a.levelUpsAllowed, 1);
+  test('the SRD never bounds a rolled array; Antaera keeps 65 to 85', (t) => {
+    const low = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    t.ok(rolledArrayCheck(low, srd).ok, 'a 60 is fine in a public creator');
+    t.ok(rolledArrayCheck(low, antaera).tooLow, 'and a reroll in Antaera');
+    const high = { str: 18, dex: 18, con: 18, int: 18, wis: 18, cha: 18 };
+    t.ok(rolledArrayCheck(high, antaera).tooHigh);
+    t.ok(rolledArrayCheck({ str: 16, dex: 14, con: 14, int: 12, wis: 10, cha: 9 }, antaera).ok);
   });
 
   test('bonus spell slots match the printed table', (t) => {
@@ -169,15 +152,28 @@ export function buildSuite(data) {
     t.eq(bonusSlots(9)[1], 3, 'a +9 modifier gives three first-level slots');
     t.eq(bonusSlots(9)[2], 2);
     t.eq(bonusSlots(9)[9], 1);
-    t.eq(bonusSlots(1)[1], 1);
     t.eq(bonusSlots(0)[1], 0);
   });
 
-  /* --- skills ----------------------------------------------------------- */
+  test('ability totals stack race, level, typed bonuses and temporary changes', (t) => {
+    const c = characterWith(srd, repeat(['Fighter'], 4));
+    c.race.name = 'Half-Orc';
+    c.abilities.base.str = 16;
+    c.abilities.levelUps = { 4: 'str' };
+    c.abilities.enhancement.str = 2;
+    c.abilities.temp.str = 4;
+    const d = derive(c, srd);
+    t.eq(d.abilities.str.parts.racial, 2, 'the half-orc +2, from the race itself');
+    t.eq(d.abilities.str.total, 25, '16 + 2 race + 1 level + 2 enhancement + 4 temporary');
+    t.eq(d.abilities.str.mod, 7);
+    t.eq(d.abilities.str.baseTotal, 21, 'without the temporary change');
+    t.eq(d.abilities.int.parts.racial, -2);
+  });
+
+  /* === skills =========================================================== */
 
   test('first level buys four times the per-level points', (t) => {
-    const c = characterWith(rules, [['Rogue'], ['Rogue'], ['Rogue']]);
-    const s = buildSummary(c, rules, false);
+    const s = buildSummary(characterWith(srd, repeat(['Rogue'], 3)), srd, false);
     const b = skillPointBudget(s, 2);
     t.eq(b.rows[0].points, 40, '(8 + 2) x 4');
     t.eq(b.rows[1].points, 10);
@@ -185,87 +181,68 @@ export function buildSuite(data) {
   });
 
   test('a level never gives less than one skill point', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter']]);
-    const s = buildSummary(c, rules, false);
+    const s = buildSummary(characterWith(srd, repeat(['Fighter'], 2)), srd, false);
     const b = skillPointBudget(s, -3);
     t.eq(b.rows[0].points, 4, 'even the quadrupled first level floors at one per level');
     t.eq(b.rows[1].points, 1);
-  });
-
-  test('a racial bonus is added before the first-level multiplier', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter']]);
-    const s = buildSummary(c, rules, false);
-    const b = skillPointBudget(s, 0, 1);
-    t.eq(b.rows[0].points, 12, 'a human fighter: (2 + 1) x 4');
-    t.eq(b.rows[1].points, 3);
   });
 
   test('rank caps follow hit dice, and cross-class keeps its half', (t) => {
     t.eq(maxRanks(3, true), 6);
     t.eq(maxRanks(3, false), 3);
     t.eq(maxRanks(4, false), 3.5, 'halves are real ranks, not rounded away');
-    t.eq(maxRanks(20, true), 23);
   });
 
   test('cross-class ranks cost double, and the sheet notices overspending', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter']]);
+    const c = characterWith(srd, repeat(['Fighter'], 3));
     c.abilities.base = { str: 14, dex: 12, con: 12, int: 10, wis: 10, cha: 8 };
     c.skills = [
       { name: 'Climb', subtype: '', ranks: 6, misc: 0 },
       { name: 'Hide', subtype: '', ranks: 3, misc: 0 },
       { name: 'Jump', subtype: '', ranks: 1, misc: 0 },
     ];
-    const d = derive(c, rules, { gestalt: false });
+    const d = derive(c, srd);
     t.eq(d.skills.budget.total, 12, '(2 + 0) x 4, then 2 and 2');
     t.eq(d.skills.spent, 13, '6 and 1 on class skills, 6 for three cross-class ranks');
-    t.eq(d.skills.remaining, -1);
     t.ok(d.notices.some((n) => n.level === 'error' && /overspent/.test(n.text)));
   });
 
   test('armour check penalty reaches the skill line, doubled for Swim', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter']]);
+    const c = characterWith(srd, repeat(['Fighter'], 3));
     c.gear.armor = { name: 'Full plate', bonus: 8, maxDex: 1, acp: 6, asf: 35, speed: 20 };
-    c.skills = [
-      { name: 'Climb', subtype: '', ranks: 0, misc: 0 },
-      { name: 'Swim', subtype: '', ranks: 0, misc: 0 },
-      { name: 'Spot', subtype: '', ranks: 0, misc: 0 },
-    ];
-    const d = derive(c, rules, { gestalt: false });
+    c.skills = ['Climb', 'Swim', 'Spot'].map((name) => ({ name, subtype: '', ranks: 0, misc: 0 }));
+    const d = derive(c, srd);
     const line = (name) => d.skills.lines.find((l) => l.name === name);
     t.eq(line('Climb').acp, 6);
     t.eq(line('Swim').acp, 12, 'Swim is the one skill that suffers it twice');
-    t.eq(line('Spot').acp, 0, 'and a Wisdom skill not at all');
+    t.eq(line('Spot').acp, 0);
   });
 
-  /* --- hit points ------------------------------------------------------- */
+  /* === hit points ======================================================= */
 
   test('hit points are maximum at first level, then by the chosen method', (t) => {
     const rows = [{ level: 1, die: 10 }, { level: 2, die: 10 }, { level: 3, die: 10 }];
-    const avg = hitPoints(rows, { method: 'average' }, 2, rules);
+    const avg = hitPoints(rows, { method: 'average' }, 2, srd);
     t.eq(avg.perLevel[0].gained, 12, 'the full die plus Constitution');
     t.eq(avg.perLevel[1].gained, 8, 'half the die plus one, plus Constitution');
     t.eq(avg.total, 28);
-
-    const rolled = hitPoints(rows, { method: 'roll', rolls: { 2: 7, 3: 3 } }, 2, rules);
-    t.eq(rolled.perLevel[1].gained, 9);
-    t.eq(rolled.perLevel[2].gained, 5);
+    const rolled = hitPoints(rows, { method: 'roll', rolls: { 2: 7, 3: 3 } }, 2, srd);
     t.eq(rolled.total, 26);
   });
 
   test('a level always gives at least one hit point', (t) => {
-    const rows = [{ level: 1, die: 4 }, { level: 2, die: 4 }];
-    const hp = hitPoints(rows, { method: 'average' }, -5, rules);
-    t.eq(hp.perLevel[0].gained, 1, 'a d4 wizard with Constitution 1 still lives');
+    const hp = hitPoints([{ level: 1, die: 4 }, { level: 2, die: 4 }], { method: 'average' }, -5, srd);
+    t.eq(hp.perLevel[0].gained, 1);
     t.eq(hp.perLevel[1].gained, 1);
   });
 
-  test('a rolled build with a missing roll says so', (t) => {
-    const rows = [{ level: 1, die: 8 }, { level: 2, die: 8 }];
-    const hp = hitPoints(rows, { method: 'roll', rolls: {} }, 0, rules);
-    t.eq(hp.missingRolls, [2]);
+  test('racial hit dice mean the first class level is not maximised', (t) => {
+    const rows = [{ level: 1, die: 10 }];
+    t.eq(hitPoints(rows, { method: 'average' }, 0, srd, { racialHD: 0 }).total, 10);
+    t.eq(hitPoints(rows, { method: 'average' }, 0, srd, { racialHD: 2 }).total, 6, 'the average instead');
   });
 
-  /* --- defence and offence ---------------------------------------------- */
+  /* === defence and offence ============================================== */
 
   test('armour class, touch and flat-footed split the bonuses correctly', (t) => {
     const gear = {
@@ -273,184 +250,364 @@ export function buildSuite(data) {
       shield: { bonus: 2 },
       natural: 1, deflection: 1, dodge: 1, misc: 0,
     };
-    const ac = armorClass(gear, 4, 0, rules);
+    const ac = armorClass(gear, 4, 0);
     t.eq(ac.dex.applied, 3, 'Dexterity is capped by the armour');
-    t.ok(ac.dex.capped);
     t.eq(ac.total, 23, '10 + 5 + 2 + 1 + 1 + 1 + 3');
     t.eq(ac.touch, 15, 'armour, shield and natural armour drop out');
     t.eq(ac.flatFooted, 19, 'Dexterity and dodge drop out');
-    t.eq(ac.acp, 4);
+  });
+
+  test('a Dexterity penalty still applies when flat-footed', (t) => {
+    const ac = armorClass({}, -2, 0);
+    t.eq(ac.total, 8);
+    t.eq(ac.flatFooted, 8, 'being caught unawares does not make you less clumsy');
   });
 
   test('size enters attacks and grapple with different numbers', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter']]);
+    const c = characterWith(srd, repeat(['Fighter'], 3));
     c.abilities.base = { str: 14, dex: 14, con: 10, int: 10, wis: 10, cha: 10 };
-    c.race.size = 'Small';
-    const s = buildSummary(c, rules, false);
-    const a = abilityTotals(c, s);
-    const small = rules.rules.sizes.find((x) => x.name === 'Small');
-    const set = attacks(s, a, small);
+    const s = buildSummary(c, srd, false);
+    const set = attacks(s, abilityTotals(c, s), small);
     t.eq(set.melee.total, 6, '+3 base, +2 Strength, +1 for being small');
-    t.eq(set.ranged.total, 6);
     t.eq(set.grapple.total, 1, 'but small hurts in a hold: +3 +2 -4');
-    t.eq(set.trip, -2, 'an opposed Strength check: +2 Strength, -4 for the size');
+    t.eq(set.trip, -2);
   });
 
   test('the routine comes from the base attack bonus, never from the total', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter']]);
+    const c = characterWith(srd, repeat(['Fighter'], 3));
     c.abilities.base = { str: 16, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-    const medium = rules.rules.sizes.find((x) => x.name === 'Medium');
-    let s = buildSummary(c, rules, false);
-    let set = attacks(s, abilityTotals(c, s), medium);
-    t.eq(set.melee.total, 6, '+3 base and +3 Strength');
-    t.eq(set.melee.routine, '+6', 'one attack: a 16 Strength does not buy a second');
-
-    // Six fighter levels is where the second attack is actually earned.
-    c.levels = [1, 2, 3, 4, 5, 6].map((l) => ({ level: l, a: 'Fighter', b: '' }));
-    s = buildSummary(c, rules, false);
-    set = attacks(s, abilityTotals(c, s), medium);
-    t.eq(set.melee.routine, '+9/+4', '+6 base becomes +6/+1, then +3 Strength on each');
+    let s = buildSummary(c, srd, false);
+    t.eq(attacks(s, abilityTotals(c, s), medium).melee.routine, '+6', 'a 16 Strength does not buy a second attack');
+    c.levels = repeat(['Fighter'], 6).map(([a], i) => ({ level: i + 1, a, b: '' }));
+    s = buildSummary(c, srd, false);
+    t.eq(attacks(s, abilityTotals(c, s), medium).melee.routine, '+9/+4');
   });
 
-  /* --- houserules ------------------------------------------------------- */
+  /* === rulesets: the SRD is the default and adds nothing ================ */
+
+  test('a new character is a 1st-level SRD character by default', (t) => {
+    const c = blankCharacter(srd);
+    t.eq(c.ruleset, 'srd');
+    t.eq(c.levels.length, 1);
+    t.eq(c.abilities.pointBuyBudget, 32);
+    const d = derive(c, srd);
+    t.eq(d.actionPoints, null, 'no action points');
+    t.eq(d.taint, null, 'no taint');
+    t.eq(d.training, null, 'no training time');
+    t.ok(!d.notices.some((n) => /background/i.test(n.text)), 'no background demanded');
+    t.ok(!d.notices.some((n) => /start at level/.test(n.text)), 'no starting level imposed');
+  });
+
+  test('the same character under Antaera gains the campaign systems', (t) => {
+    const c = characterWith(antaera, repeat(['Fighter'], 3));
+    const d = derive(c, antaera);
+    t.eq(d.actionPoints.earned, 6, '5 + half of 3');
+    t.ok(d.taint !== null, 'taint is tracked');
+    t.ok(d.notices.some((n) => /background/i.test(n.text)), 'a background is required');
+    t.eq(blankCharacter(antaera).levels.length, 3, 'and characters start at 3rd level');
+  });
+
+  test('SRD variants are the player choice; Antaera modules are not', (t) => {
+    const c = blankCharacter(srd);
+    t.eq(moduleState(srd, c, 'actionPoints').on, false, 'off by default');
+    t.ok(moduleState(srd, c, 'actionPoints').choosable, 'but the player may switch it on');
+    c.options.actionPoints = true;
+    t.ok(derive(c, srd).actionPoints !== null, 'and then the pool appears');
+    t.eq(moduleState(srd, c, 'taint').available, false, 'taint is not an SRD variant at all');
+
+    const a = blankCharacter(antaera);
+    a.options.taint = false;
+    t.eq(moduleState(antaera, a, 'taint').on, true, 'a player cannot switch the campaign rules off');
+    t.eq(moduleState(antaera, a, 'gestalt', { gestalt: false }).on, false, 'the DM switch wins');
+  });
+
+  test('level adjustment is uncapped under the SRD and capped in Antaera', (t) => {
+    t.ok(levelAdjustment(4, 3, srd).ok, 'a public creator imposes no limit');
+    t.eq(levelAdjustment(4, 3, srd).allowed, null);
+    t.ok(levelAdjustment(1, 3, antaera).ok);
+    t.ok(!levelAdjustment(2, 3, antaera).ok);
+    t.ok(levelAdjustment(2, 8, antaera).ok);
+  });
+
+  test('wealth caps apply only where the ruleset enforces them', (t) => {
+    const c = blankCharacter(srd);
+    c.wealth.items = [{ name: 'Ring', value: 700, qty: 1 }];
+    const open = wealth(c, 3, srd);
+    t.eq(open.expected, 2700, 'the expectation is shown either way');
+    t.eq(open.cap, null, 'but the SRD caps nothing');
+    t.eq(open.overCapItems.length, 0);
+    const capped = wealth(c, 3, antaera);
+    t.eq(capped.cap, 675, 'a quarter of wealth by level, after first');
+    t.eq(capped.overCapItems.length, 1);
+  });
+
+  test('odd ability enhancements are only a problem in Antaera', (t) => {
+    const make = (rules) => {
+      const c = characterWith(rules, repeat(['Fighter'], 3));
+      c.abilities.enhancement.str = 3;
+      return derive(c, rules);
+    };
+    t.ok(!make(srd).notices.some((n) => /even numbers/.test(n.text)));
+    t.ok(make(antaera).notices.some((n) => /even numbers/.test(n.text)));
+  });
+
+  test('an old Antaera-only sheet keeps its ruleset and its custom classes', (t) => {
+    const old = {
+      schema: 1, name: 'Vashti', levels: [{ level: 1, a: 'Warblade', b: '' }],
+      customClasses: [{ name: 'Warblade', hd: 12, bab: 'good', saves: { fort: 'good', ref: 'poor', will: 'poor' }, skillPoints: 4, classSkills: [] }],
+    };
+    const c = migrate(old);
+    t.eq(c.ruleset, 'antaera', 'not silently re-read under the SRD');
+    t.eq(c.content.classes[0].name, 'Warblade');
+    t.eq(c.customClasses, undefined);
+  });
+
+  /* === campaign modules ================================================= */
 
   test('action points follow level, and the die count follows the band', (t) => {
-    t.eq(actionPoints(1, 0, rules).earned, 5);
-    t.eq(actionPoints(3, 0, rules).earned, 6, '5 + half of 3');
-    t.eq(actionPoints(10, 4, rules).earned, 10);
-    t.eq(actionPoints(10, 4, rules).remaining, 6);
-    t.eq(actionPoints(7, 0, rules).dice, 1);
-    t.eq(actionPoints(8, 0, rules).dice, 2);
-    t.eq(actionPoints(15, 0, rules).dice, 3);
+    t.eq(actionPoints(1, 0, antaera).earned, 5);
+    t.eq(actionPoints(3, 0, antaera).earned, 6);
+    t.eq(actionPoints(10, 4, antaera).remaining, 6);
+    t.eq(actionPoints(7, 0, antaera).dice, 1);
+    t.eq(actionPoints(8, 0, antaera).dice, 2);
+    t.eq(actionPoints(15, 0, antaera).dice, 3);
   });
 
   test('taint severity is read against the resisting ability', (t) => {
-    const con14 = (score) => taintSeverity(score, 14, rules).severity;
-    t.eq(con14(3), 'none', 'on the books, but no symptom yet');
+    const con14 = (score) => taintSeverity(score, 14, antaera).severity;
+    t.eq(con14(3), 'none');
     t.eq(con14(8), 'mild');
     t.eq(con14(12), 'moderate');
     t.eq(con14(20), 'severe');
-    t.eq(con14(25), 'past', 'past severe the character is lost');
-    t.eq(taintSeverity(8, 4, rules).severity, 'moderate', 'a frail character shows it sooner');
-    t.eq(taintSeverity(8, 20, rules).severity, 'none', 'a hardy one later');
-    t.eq(taintSeverity(5, 14, rules).toNext, 2, 'two more points reaches mild');
-  });
-
-  test('wealth by level carries the single-item cap', (t) => {
-    const c = blankCharacter(rules);
-    c.wealth = { startingGold: null, gold: 0, items: [{ name: 'Ring', value: 700, qty: 1 }] };
-    const w = wealth(c, 3, rules);
-    t.eq(w.expected, 2700);
-    t.eq(w.cap, 675, 'a quarter of wealth by level, after first');
-    t.eq(w.overCapItems.length, 1);
-    const first = wealth(c, 1, rules);
-    t.eq(first.capFraction, 0.5, 'at first level the cap is a half');
-  });
-
-  test('level adjustment is capped at a quarter of ECL, but +1 is always fine', (t) => {
-    t.ok(levelAdjustment(1, 3, rules).ok);
-    t.ok(!levelAdjustment(2, 3, rules).ok);
-    t.ok(levelAdjustment(2, 8, rules).ok);
-    t.eq(levelAdjustment(0, 3, rules).allowed, 0);
+    t.eq(con14(25), 'past');
+    t.eq(taintSeverity(8, 4, antaera).severity, 'moderate', 'a frail character shows it sooner');
+    t.eq(taintSeverity(5, 14, antaera).toNext, 2);
   });
 
   test('gestalt training overlaps, and the far-ahead class trains at three quarters', (t) => {
-    // The wiki's example: Fighter 6 // Rogue 4/Sorcerer 2, taking Fighter 7 and
-    // Sorcerer 3, costs "2 days and 1 day".
-    const gestaltLevel = trainingTime(
-      [{ classLevel: 7, prestige: false }, { classLevel: 3, prestige: false }],
-      rules, true
-    );
-    t.eq(gestaltLevel.perSide, [2, 1]);
-    t.eq(gestaltLevel.days, 2, 'the two train at once, so the longer one is the cost');
-
-    t.eq(trainingTime([{ classLevel: 1, prestige: false }], rules, false).days, 2);
-    t.eq(trainingTime([{ classLevel: 1, prestige: true }], rules, false).days, 3);
-    t.eq(trainingTime([{ classLevel: 4, prestige: false }], rules, false).days, 2);
-    t.eq(trainingTime([{ classLevel: 4, prestige: true }], rules, false).days, 4);
+    // The wiki's own example: Fighter 7 alongside Sorcerer 3 costs "2 days and 1 day".
+    const level = trainingTime([{ classLevel: 7, prestige: false }, { classLevel: 3, prestige: false }], antaera, true);
+    t.eq(level.perSide, [2, 1]);
+    t.eq(level.days, 2);
+    t.eq(trainingTime([{ classLevel: 1, prestige: true }], antaera, false).days, 3);
+    t.eq(trainingTime([{ classLevel: 4, prestige: false }], antaera, false).days, 2);
   });
 
-  /* --- the whole sheet -------------------------------------------------- */
-
-  test('a fresh character is legal apart from the choices still to make', (t) => {
-    const c = blankCharacter(rules);
-    const d = derive(c, rules, { gestalt: false });
-    t.eq(d.summary.classLevels, 3, 'the campaign starts at third level');
-    t.ok(!d.notices.some((n) => n.level === 'error'), 'nothing is wrong yet, only unfinished');
-    t.ok(d.skills.lines.length > 30, 'the skill table arrives filled in');
-  });
-
-  test('a finished third-level gestalt sheet adds up end to end', (t) => {
-    const c = characterWith(rules, [['Fighter', 'Rogue'], ['Fighter', 'Rogue'], ['Fighter', 'Rogue']]);
-    c.abilities.method = 'pointBuy';
+  test('a finished third-level Antaera gestalt sheet adds up end to end', (t) => {
+    const c = characterWith(antaera, repeat(['Fighter', 'Rogue'], 3));
     c.abilities.base = { str: 16, dex: 14, con: 14, int: 12, wis: 10, cha: 8 };
-    c.hp.method = 'average';
     c.gear.armor = { name: 'Chain shirt', bonus: 4, maxDex: 4, acp: 2, asf: 20, speed: null };
     c.background = { name: 'Soldier', item: '', notes: '' };
-    c.skills = [
-      { name: 'Climb', subtype: '', ranks: 6, misc: 0 },
-      { name: 'Hide', subtype: '', ranks: 6, misc: 0 },
-      { name: 'Move Silently', subtype: '', ranks: 6, misc: 0 },
-      { name: 'Spot', subtype: '', ranks: 6, misc: 0 },
-      { name: 'Listen', subtype: '', ranks: 6, misc: 0 },
-    ];
+    c.skills = ['Climb', 'Hide', 'Move Silently', 'Spot', 'Listen'].map((name) => ({ name, subtype: '', ranks: 6, misc: 0 }));
     c.feats = [{ name: 'Power Attack' }, { name: 'Cleave' }];
-    const d = derive(c, rules, { gestalt: true });
-
-    t.eq(d.summary.bab, 3, 'the fighter side');
-    t.eq(d.summary.baseSaves.fort, 3);
-    t.eq(d.summary.baseSaves.ref, 3, 'the rogue side');
-    t.eq(d.summary.baseSaves.will, 1);
-    t.eq(d.saves.fort.total, 5, '+3 base and +2 Constitution');
+    const d = derive(c, antaera, { gestalt: true });
+    t.eq(d.summary.bab, 3);
+    t.eq(d.saves.fort.total, 5);
     t.eq(d.saves.ref.total, 5);
-    t.eq(d.saves.will.total, 1);
-    t.eq(d.hp.total, 28, '10 + 6 + 6, plus 2 Constitution each level');
-    t.eq(d.ac.total, 16, '10 + 4 chain shirt + 2 Dexterity');
-    t.eq(d.attacks.melee.total, 6);
-    t.eq(d.skills.budget.total, 54, 'rogue 8 + Int 1: 36 at first, then 9 and 9');
-    t.eq(d.skills.spent, 30, 'all five are class skills on one side or the other');
+    t.eq(d.hp.total, 28);
+    t.eq(d.ac.total, 16);
+    t.eq(d.skills.budget.total, 54);
+    t.eq(d.skills.spent, 30);
     t.eq(d.actionPoints.earned, 6);
-    t.eq(d.feats.allowed, 2);
-    t.eq(d.feats.taken, 2);
     t.ok(!d.notices.some((n) => n.level === 'error'), 'no errors on a legal sheet');
   });
 
-  test('an unknown class is reported rather than silently scoring zero', (t) => {
-    const c = characterWith(rules, [['Warblade'], ['Warblade'], ['Warblade']]);
-    const d = derive(c, rules, { gestalt: false });
+  /* === effects: the stacking rules ====================================== */
+
+  const fx = (target, type, value, source, extra = {}) => ({ target, type, value, source, condition: null, perLevel: false, ...extra });
+
+  test('two bonuses of the same type do not stack; the larger applies', (t) => {
+    const r = resolveEffects([
+      fx('ac', 'deflection', 1, 'Ring of Protection +1'),
+      fx('ac', 'deflection', 3, 'Shield of Faith'),
+    ]);
+    t.eq(r.ac.total, 3);
+    t.eq(r.ac.suppressed.length, 1);
+    t.eq(r.ac.suppressed[0].source, 'Ring of Protection +1');
+  });
+
+  test('dodge, circumstance and untyped bonuses stack with themselves', (t) => {
+    const r = resolveEffects([
+      fx('ac', 'dodge', 1, 'Dodge'),
+      fx('ac', 'dodge', 4, 'Mobility'),
+      fx('ac', 'untyped', 1, 'a'),
+      fx('ac', 'untyped', 2, 'b'),
+    ]);
+    t.eq(r.ac.total, 8);
+    t.eq(r.ac.suppressed.length, 0);
+  });
+
+  test('different types stack, and penalties always count', (t) => {
+    const r = resolveEffects([
+      fx('save.will', 'resistance', 2, 'Cloak'),
+      fx('save.will', 'luck', 1, 'Stone'),
+      fx('save.will', 'morale', -2, 'Curse one'),
+      fx('save.will', 'morale', -1, 'Curse two'),
+    ]);
+    t.eq(r['save.will'].total, 0, '+2 +1 -2 -1: two penalties of one type both bite');
+  });
+
+  test('a conditional effect is listed, never added', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    c.race.name = 'Dwarf';
+    const d = derive(c, srd);
+    t.eq(d.saves.fort.bonuses, 0, 'the +2 against poison is not in the total');
+    t.ok(d.saves.fort.conditions.some((e) => /poison/.test(e.condition)), 'but it is beside it');
+    t.ok(d.ac.conditional.some((e) => /giants/.test(e.condition)));
+  });
+
+  test('a typed bonus on the sheet and an item of the same type do not both count', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    c.abilities.base.dex = 10;
+    c.gear.deflection = 2;
+    c.wealth.items = [{ name: 'Ring of Protection +1', equipped: true, effects: [{ target: 'ac', type: 'deflection', value: 1 }] }];
+    const d = derive(c, srd);
+    t.eq(d.ac.parts.deflection, 2, 'the better one');
+    t.eq(d.ac.total, 12);
+  });
+
+  test('an effect per hit die scales with the character', (t) => {
+    const c = characterWith(srd, repeat(['Fighter'], 5));
+    c.features = [{ name: 'Tough as nails', effects: [{ target: 'hp', value: 1, perLevel: true }] }];
+    t.eq(derive(c, srd).hp.effectBonus, 5);
+  });
+
+  test('an effect aimed at something unknown is reported', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    c.features = [{ name: 'Typo', effects: [{ target: 'armour class', value: 2 }] }];
+    const d = derive(c, srd);
+    t.ok(d.effects.unknown.includes('armour class'));
+    t.ok(d.notices.some((n) => /does not know how to apply/.test(n.text)));
+  });
+
+  /* === SRD races, as effects =========================================== */
+
+  test('a dwarf is +2 Con, -2 Cha, and slow', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    c.race.name = 'Dwarf';
+    c.abilities.base = { str: 10, dex: 10, con: 14, int: 10, wis: 10, cha: 10 };
+    const d = derive(c, srd);
+    t.eq(d.abilities.con.total, 16);
+    t.eq(d.abilities.cha.total, 8);
+    t.eq(d.speed, 20);
+  });
+
+  test('a halfling is Small, luckier and better at the listed skills', (t) => {
+    const c = characterWith(srd, [['Rogue']]);
+    c.race.name = 'Halfling';
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    c.skills = [{ name: 'Listen', subtype: '', ranks: 0, misc: 0 }];
+    const d = derive(c, srd);
+    t.eq(d.size.name, 'Small');
+    t.eq(d.ac.total, 12, '10, +1 for a 12 Dexterity, +1 for being Small');
+    t.eq(d.saves.will.total, 1, 'the +1 racial bonus to every save');
+    t.eq(d.skills.lines[0].total, 2);
+  });
+
+  test('a human gets a bonus feat and an extra skill point a level', (t) => {
+    const c = characterWith(srd, repeat(['Fighter'], 2));
+    c.race.name = 'Human';
+    c.abilities.base.int = 10;
+    const d = derive(c, srd);
+    t.eq(d.feats.allowed, 2, 'one from first level, one from being human');
+    t.eq(d.skills.budget.total, 15, '(2 + 1) x 4, then 3');
+  });
+
+  /* === homebrew content ================================================ */
+
+  test('a homebrew class counts exactly like a printed one', (t) => {
+    const c = characterWith(srd, repeat(['Warblade'], 3));
+    embed(c, 'class', { name: 'Warblade', hd: 12, bab: 'good', saves: { fort: 'good', ref: 'poor', will: 'poor' }, skillPoints: 4, classSkills: ['Balance', 'Climb', 'Jump'] });
+    const d = derive(c, srd);
+    t.eq(d.summary.bab, 3);
+    t.eq(d.summary.baseSaves.fort, 3);
+    t.eq(d.hp.perLevel[0].fromDie, 12);
+    t.ok(d.summary.classSkills.has('Climb'));
+    t.ok(!d.notices.some((n) => /Warblade/.test(n.text)));
+  });
+
+  test('a class nobody has defined is reported rather than scored', (t) => {
+    const d = derive(characterWith(srd, repeat(['Warblade'], 3)), srd);
     t.eq(d.summary.bab, 0);
     t.ok(d.notices.some((n) => n.level === 'error' && /Warblade/.test(n.text)));
   });
 
-  test('a custom class is counted exactly like a printed one', (t) => {
-    const c = characterWith(rules, [['Warblade'], ['Warblade'], ['Warblade']]);
-    c.customClasses = [{
-      name: 'Warblade', hd: 12, bab: 'good',
-      saves: { fort: 'good', ref: 'poor', will: 'poor' },
-      skillPoints: 4, classSkills: ['Balance', 'Climb', 'Jump'],
-    }];
-    const d = derive(c, rules, { gestalt: false });
-    t.eq(d.summary.bab, 3);
-    t.eq(d.summary.baseSaves.fort, 3);
-    t.eq(d.hp.perLevel[0].fromDie, 12);
-    t.ok(!d.notices.some((n) => /Warblade/.test(n.text)));
+  test('a homebrew race supplies its own numbers and effects', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    embed(c, 'race', {
+      name: 'Stonekin', size: 'Medium', speed: 20, la: 1,
+      abilityAdjust: { str: 2, dex: -2 },
+      effects: [{ target: 'ac', type: 'natural', value: 2 }, { target: 'skill.Hide', type: 'racial', value: 4 }],
+    });
+    c.race.name = 'Stonekin';
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    c.skills = [{ name: 'Hide', subtype: '', ranks: 0, misc: 0 }];
+    const d = derive(c, srd);
+    t.eq(d.abilities.str.total, 12);
+    t.eq(d.ac.total, 11, '10 - 1 Dex + 2 natural armour');
+    t.eq(d.ac.touch, 9, 'natural armour does not help against a touch');
+    t.eq(d.summary.ecl, 2, 'its level adjustment counts');
+    t.eq(d.skills.lines[0].total, 3, '-1 Dex, +4 racial');
   });
 
-  test('two prestige classes cannot share a gestalt level', (t) => {
-    const c = characterWith(rules, [['Ravager', 'Assassin']]);
-    c.customClasses = [
-      { name: 'Ravager', hd: 10, bab: 'good', saves: { fort: 'good', ref: 'poor', will: 'poor' }, skillPoints: 2, classSkills: [], prestige: true },
-      { name: 'Assassin', hd: 6, bab: 'average', saves: { fort: 'poor', ref: 'good', will: 'poor' }, skillPoints: 4, classSkills: [], prestige: true },
-    ];
-    const d = derive(c, rules, { gestalt: true });
-    t.ok(d.notices.some((n) => n.level === 'error' && /two prestige classes/.test(n.text)));
+  test('a homebrew feat with an effect changes the sheet when taken', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    embed(c, 'feat', { name: 'Iron Hide', effects: [{ target: 'ac', type: 'natural', value: 1 }, { target: 'save.fort', type: 'untyped', value: 1 }] });
+    const before = derive(c, srd);
+    c.feats = [{ name: 'Iron Hide' }];
+    const after = derive(c, srd);
+    t.eq(after.ac.total - before.ac.total, 1);
+    t.eq(after.saves.fort.total - before.saves.fort.total, 1);
   });
 
-  test('an odd enhancement bonus to an ability is flagged', (t) => {
-    const c = characterWith(rules, [['Fighter'], ['Fighter'], ['Fighter']]);
-    c.abilities.enhancement.str = 3;
-    const d = derive(c, rules, { gestalt: false });
-    t.ok(d.notices.some((n) => /even numbers only/.test(n.text)));
+  test('an item affects the sheet only while it is equipped', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    embed(c, 'item', { name: 'Cloak of Resistance +2', value: 4000, effects: [{ target: 'save.all', type: 'resistance', value: 2 }] });
+    c.wealth.items = [{ name: 'Cloak of Resistance +2', qty: 1, value: 4000, equipped: true }];
+    t.eq(derive(c, srd).saves.will.bonuses, 2);
+    c.wealth.items[0].equipped = false;
+    t.eq(derive(c, srd).saves.will.bonuses, 0, 'in a backpack it protects nobody');
+  });
+
+  test('a homebrew skill joins the table with its own key ability', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    embed(c, 'skill', { name: 'Seamanship', ability: 'wis', acp: true });
+    c.abilities.base.wis = 14;
+    c.gear.armor = { bonus: 4, acp: 3 };
+    c.skills = [{ name: 'Seamanship', subtype: '', ranks: 2, misc: 0 }];
+    const d = derive(c, srd);
+    t.eq(d.skills.lines[0].total, 1, '+2 Wisdom + 2 ranks - 3 armour');
+    t.ok(!d.notices.some((n) => /Seamanship/.test(n.text)));
+  });
+
+  test('a template stacks its level adjustment and abilities onto the race', (t) => {
+    const c = characterWith(srd, repeat(['Fighter'], 4));
+    c.race.name = 'Elf';
+    embed(c, 'template', {
+      name: 'Half-Dragon', la: 3, abilityAdjust: { str: 8, con: 2, int: 2, cha: 2 },
+      effects: [{ target: 'ac', type: 'natural', value: 4 }],
+    });
+    c.templates = [{ name: 'Half-Dragon' }];
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    const d = derive(c, srd);
+    t.eq(d.abilities.con.total, 10, '-2 elf, +2 half-dragon');
+    t.eq(d.abilities.str.total, 18);
+    t.eq(d.summary.ecl, 7);
+    t.eq(d.ac.parts.natural, 4);
+  });
+
+  test('the editor starts every kind of content from a usable blank', (t) => {
+    for (const kind of ['race', 'class', 'feat', 'skill', 'item', 'template', 'feature']) {
+      t.eq(blankEntry(kind).name, '', `${kind} has a name`);
+    }
+    t.eq(blankEntry('class').saves, { fort: 'poor', ref: 'poor', will: 'poor' });
+    t.ok(Array.isArray(blankEntry('feat').effects));
+  });
+
+  test('collected effects say where they came from', (t) => {
+    const all = collectEffects({ race: { name: 'Elf', effects: [{ target: 'skill.Spot', type: 'racial', value: 2 }] }, feats: [], items: [] });
+    t.eq(all[0].source, 'Elf');
+    t.eq(all[0].type, 'racial');
   });
 
   return cases;

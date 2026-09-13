@@ -1,0 +1,158 @@
+{
+  "_comment": [
+    "The SRD races, written as EFFECTS rather than as prose.",
+    "",
+    "An effect names what it touches, what kind of bonus it is, and how much -",
+    "and the engine then applies 3.5's stacking rules to it along with every",
+    "other effect on the character. So a dwarf's +2 Appraise on stonework and a",
+    "homebrew race's +2 Appraise are handled by the same code, and a player's",
+    "own content is a first-class citizen rather than a note in a text box.",
+    "",
+    "An effect carrying a `condition` is never added to a total: nothing here",
+    "can know whether you are fighting a giant. Those are listed on the sheet",
+    "beside the number they would modify, which is what a paper sheet does too.",
+    "",
+    "See web/engine/effects.js for the vocabulary of targets and bonus types."
+  ],
+  "races": [
+    {
+      "name": "Human",
+      "size": "Medium",
+      "speed": 30,
+      "la": 0,
+      "favoredClass": "any",
+      "effects": [
+        {"target": "feats.bonus", "value": 1, "note": "A bonus feat at 1st level"},
+        {
+          "target": "skillPoints.perLevel",
+          "value": 1,
+          "note": "4 extra skill points at 1st level, 1 per level after"
+        }
+      ],
+      "traits": "Bonus feat at 1st level. Four extra skill points at 1st level and one per level after. Favoured class: any."
+    },
+    {
+      "name": "Dwarf",
+      "size": "Medium",
+      "speed": 20,
+      "la": 0,
+      "favoredClass": "Fighter",
+      "abilityAdjust": {"con": 2, "cha": -2},
+      "effects": [
+        {"target": "save.all", "type": "racial", "value": 2, "condition": "against poison"},
+        {
+          "target": "save.all",
+          "type": "racial",
+          "value": 2,
+          "condition": "against spells and spell-like abilities"
+        },
+        {"target": "ac", "type": "dodge", "value": 4, "condition": "against giants"},
+        {
+          "target": "attack.all",
+          "type": "racial",
+          "value": 1,
+          "condition": "against orcs and goblinoids"
+        },
+        {
+          "target": "skill.Search",
+          "type": "racial",
+          "value": 2,
+          "condition": "for unusual stonework"
+        },
+        {
+          "target": "skill.Appraise",
+          "type": "racial",
+          "value": 2,
+          "condition": "on stone or metal items"
+        },
+        {"target": "skill.Craft", "type": "racial", "value": 2, "condition": "on stone or metal"}
+      ],
+      "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armour or load."
+    },
+    {
+      "name": "Elf",
+      "size": "Medium",
+      "speed": 30,
+      "la": 0,
+      "favoredClass": "Wizard",
+      "abilityAdjust": {"dex": 2, "con": -2},
+      "effects": [
+        {"target": "skill.Listen", "type": "racial", "value": 2},
+        {"target": "skill.Search", "type": "racial", "value": 2},
+        {"target": "skill.Spot", "type": "racial", "value": 2},
+        {"target": "save.will", "type": "racial", "value": 2, "condition": "against enchantments"}
+      ],
+      "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Notices a secret door on passing within 5 ft, with a Search check."
+    },
+    {
+      "name": "Gnome",
+      "size": "Small",
+      "speed": 20,
+      "la": 0,
+      "favoredClass": "Bard",
+      "abilityAdjust": {"con": 2, "str": -2},
+      "effects": [
+        {"target": "save.all", "type": "racial", "value": 2, "condition": "against illusions"},
+        {
+          "target": "attack.all",
+          "type": "racial",
+          "value": 1,
+          "condition": "against kobolds and goblinoids"
+        },
+        {"target": "ac", "type": "dodge", "value": 4, "condition": "against giants"},
+        {"target": "skill.Listen", "type": "racial", "value": 2},
+        {"target": "skill.Craft", "type": "racial", "value": 2, "condition": "on alchemy"}
+      ],
+      "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better."
+    },
+    {
+      "name": "Half-Elf",
+      "size": "Medium",
+      "speed": 30,
+      "la": 0,
+      "favoredClass": "any",
+      "effects": [
+        {"target": "skill.Listen", "type": "racial", "value": 1},
+        {"target": "skill.Search", "type": "racial", "value": 1},
+        {"target": "skill.Spot", "type": "racial", "value": 1},
+        {"target": "skill.Diplomacy", "type": "racial", "value": 2},
+        {"target": "skill.Gather Information", "type": "racial", "value": 2},
+        {"target": "save.will", "type": "racial", "value": 2, "condition": "against enchantments"}
+      ],
+      "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares."
+    },
+    {
+      "name": "Half-Orc",
+      "size": "Medium",
+      "speed": 30,
+      "la": 0,
+      "favoredClass": "Barbarian",
+      "abilityAdjust": {"str": 2, "int": -2, "cha": -2},
+      "effects": [],
+      "traits": "Darkvision 60 ft. Orc blood: counts as an orc for anything that cares."
+    },
+    {
+      "name": "Halfling",
+      "size": "Small",
+      "speed": 20,
+      "la": 0,
+      "favoredClass": "Rogue",
+      "abilityAdjust": {"dex": 2, "str": -2},
+      "effects": [
+        {"target": "save.all", "type": "racial", "value": 1},
+        {"target": "skill.Climb", "type": "racial", "value": 2},
+        {"target": "skill.Jump", "type": "racial", "value": 2},
+        {"target": "skill.Move Silently", "type": "racial", "value": 2},
+        {"target": "skill.Listen", "type": "racial", "value": 2},
+        {"target": "save.all", "type": "morale", "value": 2, "condition": "against fear"},
+        {
+          "target": "attack.ranged",
+          "type": "racial",
+          "value": 1,
+          "condition": "with thrown weapons and slings"
+        }
+      ],
+      "traits": "+1 on all saving throws, and a further +2 morale bonus against fear. Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them."
+    }
+  ]
+}

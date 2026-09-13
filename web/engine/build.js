@@ -1,32 +1,28 @@
 // The class build: what levels a character has taken, and the four things that
 // fall out of them - hit dice, base attack bonus, base saves, and skill points.
 //
-// Gestalt lives here, and it is the reason this file exists at all. A gestalt
-// character is not one build with bonuses; it is two complete builds worn at
-// once. So each side is totalled as if it were the whole character, and only
-// then is the better of the two taken, category by category. Doing it the other
-// way round - picking the better class level by level and adding as you go -
-// gives the wrong answer for anything that rounds, which is most of 3.5e.
+// Gestalt lives here. A gestalt character is not one build with bonuses; it is
+// two complete builds worn at once. So each side is totalled as if it were the
+// whole character, and only then is the better of the two taken, category by
+// category. Doing it the other way round - picking the better class level by
+// level and adding as you go - gives the wrong answer for anything that rounds,
+// which is most of 3.5.
 
 import { babFor, saveFor } from './progression.js';
-import { floorDiv, num } from './util.js';
+import { floorDiv } from './util.js';
+import { contentIndex, raceFacts } from './library.js';
 
 export const SIDES = ['a', 'b'];
 const SAVES = ['fort', 'ref', 'will'];
 
 /** Every class the sheet knows about: the SRD list plus this character's own. */
 export function classIndex(rules, character) {
-  const index = new Map();
-  for (const c of rules.classes.classes) index.set(c.name, c);
-  for (const c of character.customClasses || []) {
-    if (c.name) index.set(c.name, { ...c, custom: true });
-  }
-  return index;
+  return contentIndex(rules, character).classByName;
 }
 
-// A class nobody has defined yet contributes nothing at all: no hit die, no
-// attack bonus, no saves, no skill points. The sheet raises a notice instead,
-// so the gap is visible rather than absorbed into a plausible-looking total.
+// A class nobody has defined contributes nothing at all: no hit die, no attack
+// bonus, no saves, no skill points. The sheet raises a notice instead, so the
+// gap is visible rather than absorbed into a plausible-looking total.
 const UNKNOWN = {
   name: '?', hd: 0, bab: null,
   saves: { fort: null, ref: null, will: null },
@@ -35,7 +31,7 @@ const UNKNOWN = {
 
 /**
  * Group one side's level rows into class totals, in the order the classes were
- * first taken - which is the order a 3.5e sheet writes them: "Fighter 3/Rogue 2".
+ * first taken - which is the order a 3.5 sheet writes them: "Fighter 3/Rogue 2".
  */
 function classesOnSide(levels, side, index) {
   const order = [];
@@ -68,23 +64,28 @@ function totalSide(taken) {
 }
 
 /**
- * Summarise the whole build. `gestalt` comes from the campaign, not the
- * character: with it off, side B is ignored even if rows still hold values,
- * so a GM can switch it off without silently rewriting anyone's sheet.
+ * Summarise the whole build.
+ *
+ * `gestalt` is decided outside - by the player under the SRD ruleset, by the
+ * campaign under Antaera. With it off, side B is ignored even if rows still
+ * hold values, so switching it off never silently rewrites anyone's sheet.
+ *
+ * @param index  a contentIndex, passed in when the caller already has one
  */
-export function buildSummary(character, rules, gestalt) {
-  const index = classIndex(rules, character);
+export function buildSummary(character, rules, gestalt, index = null) {
+  const classes = (index || contentIndex(rules, character)).classByName;
   const levels = character.levels || [];
   const active = gestalt ? SIDES : ['a'];
 
-  const sides = active.map((side) => ({ side, ...totalSide(classesOnSide(levels, side, index)) }));
+  const sides = active.map((side) => ({ side, ...totalSide(classesOnSide(levels, side, classes)) }));
   const best = (pick) => Math.max(0, ...sides.map(pick));
 
   // Hit dice, level by level: the larger die of the two classes taken at that
   // level. A monk//sorcerer rolls d8s, never d4s.
   const hitDice = levels.map((row, i) => {
     const dice = active
-      .map((side) => index.get(row[side])?.hd)
+      .map((side) => classes.get(row[side])?.hd)
+      .map(Number)
       .filter((d) => Number.isFinite(d) && d > 0);
     return { level: i + 1, die: dice.length ? Math.max(...dice) : 0 };
   });
@@ -92,23 +93,28 @@ export function buildSummary(character, rules, gestalt) {
   // Skill points per level, before Intelligence: again the better of the two.
   const skillPointsPerLevel = levels.map((row, i) => {
     const points = active
-      .map((side) => index.get(row[side])?.skillPoints)
+      .map((side) => classes.get(row[side])?.skillPoints)
+      .map(Number)
       .filter((p) => Number.isFinite(p));
     return { level: i + 1, base: points.length ? Math.max(...points) : 0 };
   });
 
   // A skill is a class skill if it appears on ANY list the character has taken,
-  // on either side. Subtyped skills are matched loosely, so a list carrying
-  // "Knowledge (nature)" makes Knowledge a class skill for that subject and a
-  // bare "Knowledge" makes every subject one.
+  // on either side.
   const classSkills = new Set();
   for (const s of sides) {
-    for (const c of s.classes) for (const name of c.def.classSkills || []) classSkills.add(name);
+    for (const c of s.classes) {
+      const list = Array.isArray(c.def.classSkills)
+        ? c.def.classSkills
+        : String(c.def.classSkills || '').split(',').map((x) => x.trim()).filter(Boolean);
+      for (const name of list) classSkills.add(name);
+    }
   }
 
+  const race = raceFacts(character, index || contentIndex(rules, character));
   const classLevels = levels.length;
-  const racialHD = num(character.race?.racialHD);
-  const la = num(character.race?.la);
+  const racialHD = race.racialHD;
+  const la = race.la;
   const hd = classLevels + racialHD;
 
   return {

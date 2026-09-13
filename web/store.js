@@ -7,6 +7,7 @@
 // edited offline is still there when the connection comes back.
 
 import { config } from './config.js';
+import { blankLibrary, CONTENT_TYPES, CONTENT_KINDS } from './engine/library.js';
 
 const KEY = 'antaera-sheets/v1';
 const indexKey = `${KEY}/index`;
@@ -75,11 +76,102 @@ export const local = {
   },
 };
 
+/* -------------------------------------------------------------------------
+   The content library
+
+   A player's shelf of homebrew, kept in this browser and shared by every
+   character made here. Sheets carry their own copies of what they use (see
+   engine/library.js), so clearing the library never breaks a character - it
+   only means the next character has to be given the Warblade again.
+   ------------------------------------------------------------------------- */
+
+const libraryKey = `${KEY}/library`;
+
+export const library = {
+  load() {
+    const stored = read(libraryKey, null);
+    const shelf = blankLibrary();
+    if (stored) for (const plural of Object.keys(shelf)) shelf[plural] = stored[plural] || [];
+    return shelf;
+  },
+
+  save(shelf) {
+    return write(libraryKey, shelf);
+  },
+
+  /** One kind's list, by its singular name: library.list('race'). */
+  list(kind) {
+    return this.load()[CONTENT_TYPES[kind].plural];
+  },
+
+  find(kind, name) {
+    return this.list(kind).find((entry) => entry.name === name) || null;
+  },
+
+  /** Everything, as a file a player can hand to somebody else. */
+  exportFile() {
+    return {
+      format: 'antaera-sheets-content',
+      version: 1,
+      exported: new Date().toISOString(),
+      ...this.load(),
+    };
+  },
+
+  /**
+   * Merge a shared file into the shelf. An entry with a name already on the
+   * shelf replaces it - importing a newer copy of your group's homebrew should
+   * update it, not sit beside it as a duplicate.
+   *
+   * Accepts a library export, a single entry, or an exported character, whose
+   * embedded content is exactly the homebrew it was built with.
+   */
+  importFile(data) {
+    const shelf = this.load();
+    let added = 0;
+    const take = (kind, entry) => {
+      if (!entry?.name || !CONTENT_TYPES[kind]) return;
+      const list = shelf[CONTENT_TYPES[kind].plural];
+      const at = list.findIndex((e) => e.name === entry.name);
+      const copy = { ...entry, kind, updated: new Date().toISOString() };
+      if (at >= 0) list[at] = copy;
+      else list.push(copy);
+      added++;
+    };
+
+    const source = data?.content && data?.levels ? data.content : data;
+    if (source?.kind && source?.name) {
+      take(source.kind, source);
+    } else {
+      for (const kind of CONTENT_KINDS) {
+        for (const entry of source?.[CONTENT_TYPES[kind].plural] || []) take(kind, entry);
+      }
+    }
+    this.save(shelf);
+    return added;
+  },
+};
+
+/* -------------------------------------------------------------------------
+   Preferences
+   ------------------------------------------------------------------------- */
+
+export const preferences = {
+  get(key, fallback = null) {
+    return read(`${KEY}/pref/${key}`, fallback);
+  },
+  set(key, value) {
+    write(`${KEY}/pref/${key}`, value);
+    return value;
+  },
+};
+
 const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''));
 
 export function summarise(character) {
   return {
     id: character.id,
+    ruleset: character.ruleset || 'srd',
     name: character.name || 'Unnamed',
     player: character.player || '',
     build: character.meta?.build || '',

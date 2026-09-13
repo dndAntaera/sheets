@@ -1,7 +1,10 @@
-// The Antaeran houserules the sheet can actually do arithmetic for.
+// The optional systems the sheet can do arithmetic for: action points, taint,
+// wealth limits, level adjustment limits, traits and flaws, training time.
 //
-// Each function names the wiki page it implements. When a rule changes on the
-// wiki, the fix belongs here and in web/data/rules.json, and nowhere else.
+// None of these is core 3.5. Each is switched on by a ruleset (see modules.js)
+// and reads its numbers from that ruleset, so the SRD ruleset and the Antaera
+// one can disagree about action points without this file knowing either exists.
+// When a campaign's rule changes, the fix belongs in its ruleset file.
 
 import { floorDiv, num } from './util.js';
 
@@ -22,7 +25,7 @@ import { floorDiv, num } from './util.js';
  * Spent points are gone for good either way.
  */
 export function actionPoints(level, spent, rules, bonus = 0) {
-  const ap = rules.rules.actionPoints;
+  const ap = rules.ruleset.actionPoints || rules.rulesets?.srd?.actionPoints;
   const mode = ap.mode === 'accumulate' ? 'accumulate' : 'refresh';
   const atLevel = (l) => 5 + floorDiv(l, 2);
 
@@ -60,7 +63,7 @@ export function actionPoints(level, spent, rules, bonus = 0) {
  * yet, which the table writes as a dash and this returns as "none".
  */
 export function taintSeverity(score, ability, rules) {
-  const bands = rules.rules.taint.thresholds;
+  const bands = rules.ruleset.taint.thresholds;
   const s = num(score);
   const band = bands.find((b) => ability >= b.score[0] && ability <= b.score[1])
     || bands[bands.length - 1];
@@ -87,7 +90,7 @@ export function taint(character, abilities, rules) {
 
   // Pure Soul is +4, and +1 more per Exalted feat held - the feat counts itself,
   // so a character whose only Exalted feat is Pure Soul gets +5.
-  const pure = rules.rules.taint.pureSoul;
+  const pure = rules.ruleset.taint.pureSoul;
   const resistBonus = t.pureSoul
     ? pure.base + pure.perExaltedFeat * Math.max(1, num(t.exaltedFeats, 1))
     : 0;
@@ -102,13 +105,13 @@ export function taint(character, abilities, rules) {
     massiveGainThreshold: {
       corruption: floorDiv(abilities.con.total, 2),
       depravity: floorDiv(abilities.wis.total, 2),
-      dc: (points) => rules.rules.taint.massiveGainDC + num(points),
+      dc: (points) => rules.ruleset.taint.massiveGainDC + num(points),
     },
     /** DC to resist a day of exposure, from however many sources at once. */
     exposureDC: (days = 1, sources = 1) =>
-      rules.rules.taint.baseExposureDC
-      + rules.rules.taint.dcPerDay * Math.max(0, days - 1)
-      + rules.rules.taint.dcPerExtraSource * Math.max(0, sources - 1),
+      rules.ruleset.taint.baseExposureDC
+      + rules.ruleset.taint.dcPerDay * Math.max(0, days - 1)
+      + rules.ruleset.taint.dcPerExtraSource * Math.max(0, sources - 1),
     worst: order.find((s) => corruption.severity === s || depravity.severity === s),
   };
 }
@@ -117,15 +120,22 @@ export function taint(character, abilities, rules) {
    Wealth - character-creation.md, DMG Table 5-1
    --------------------------------------------------------------------------- */
 
+/**
+ * Wealth: what the character holds, what a character of its level is expected
+ * to hold, and - only where the ruleset enforces them - the caps on a single
+ * item. Under the SRD the expectation is advice and nothing is capped.
+ */
 export function wealth(character, ecl, rules) {
-  const w = rules.rules.wealthByLevel;
-  const expected = w.gp[String(ecl)] ?? null;
+  const table = rules.core.wealthByLevel;
+  const policy = rules.ruleset.wealth || {};
+  const expected = table.gp[String(ecl)] ?? null;
   const firstLevel = ecl <= 1;
-  const capFraction = firstLevel
-    ? w.singleItemCap.atFirstLevel
-    : w.singleItemCap.afterFirstLevel;
+  const caps = policy.enforceCaps && policy.singleItemCap;
+  const capFraction = caps
+    ? (firstLevel ? policy.singleItemCap.atFirstLevel : policy.singleItemCap.afterFirstLevel)
+    : null;
   const startingGold = num(character.wealth?.startingGold, expected || 0);
-  const cap = startingGold ? startingGold * capFraction : null;
+  const cap = caps && startingGold ? startingGold * capFraction : null;
 
   const items = (character.wealth?.items || []).map((item) => ({
     ...item,
@@ -142,8 +152,9 @@ export function wealth(character, ecl, rules) {
     items,
     held,
     overCapItems: items.filter((i) => i.overCap),
+    enforced: Boolean(caps),
     /** Level 4+ background items are held to a quarter of wealth by level. */
-    backgroundItemCap: expected ? expected * w.backgroundItemCap : null,
+    backgroundItemCap: expected && policy.backgroundItemCap ? expected * policy.backgroundItemCap : null,
   };
 }
 
@@ -151,25 +162,41 @@ export function wealth(character, ecl, rules) {
    Level adjustment - character-creation.md
    --------------------------------------------------------------------------- */
 
-/** Starting LA may not pass a quarter of ECL, and +1 is always allowed. */
+/**
+ * Level adjustment against the ruleset's cap, if it has one. Antaera holds
+ * starting LA to a quarter of ECL with +1 always allowed; the SRD sets no cap,
+ * and then every LA is fine and `allowed` is null.
+ */
 export function levelAdjustment(la, ecl, rules) {
   const taken = num(la);
-  const allowed = taken === 0
-    ? 0
-    : Math.max(1, Math.floor(ecl * rules.rules.levelAdjustment.maxFraction));
-  return { la: taken, ecl, allowed, ok: taken <= allowed };
+  const fraction = rules.ruleset.levelAdjustment?.cap;
+  if (fraction === null || fraction === undefined) {
+    return { la: taken, ecl, allowed: null, ok: true, capped: false };
+  }
+  const allowed = taken === 0 ? 0 : Math.max(1, Math.floor(ecl * fraction));
+  return { la: taken, ecl, allowed, ok: taken <= allowed, capped: true };
 }
 
 /* ---------------------------------------------------------------------------
    Feats, traits and flaws - character-creation.md
    --------------------------------------------------------------------------- */
 
-export function featBudget(character, summary, rules) {
-  const tf = rules.rules.traitsFlaws;
-  const traits = (character.traits || []).filter((t) => t.name).length;
-  const flaws = (character.flaws || []).filter((f) => f.name).length;
-  const fromFlaws = Math.min(flaws, tf.flaws) * tf.featPerFlaw;
-  const granted = num(character.featSlots?.bonus);
+/**
+ * Feats earned and taken.
+ *
+ * Levels grant them; a race or class may grant more, either typed on the sheet
+ * or as a `feats.bonus` effect (a human's bonus feat arrives that way); and
+ * where traits and flaws are in play, each flaw buys one.
+ *
+ * @param opts { traitsFlaws: boolean, bonusFromEffects: number }
+ */
+export function featBudget(character, summary, rules, opts = {}) {
+  const tf = rules.ruleset.traitsFlaws || rules.rulesets?.srd?.traitsFlaws || { traits: 2, flaws: 2, featPerFlaw: 1 };
+  const useTF = opts.traitsFlaws !== false;
+  const traits = useTF ? (character.traits || []).filter((t) => t.name).length : 0;
+  const flaws = useTF ? (character.flaws || []).filter((f) => f.name).length : 0;
+  const fromFlaws = useTF ? Math.min(flaws, tf.flaws) * tf.featPerFlaw : 0;
+  const granted = num(character.featSlots?.bonus) + num(opts.bonusFromEffects);
   const allowed = summary.featsFromLevels + fromFlaws + granted;
   const taken = (character.feats || []).filter((f) => f.name).length;
 
@@ -206,7 +233,7 @@ export function featBudget(character, summary, rules) {
  * @param nextLevels [{ classLevel, prestige }] one per active side
  */
 export function trainingTime(nextLevels, rules, gestalt) {
-  const t = rules.rules.trainingTime;
+  const t = rules.ruleset.training;
   const days = (classLevel, prestige, discount) => {
     if (classLevel <= 1) return prestige ? t.prestige.firstLevel : t.base.firstLevel;
     const level = discount ? classLevel * t.gestalt.lopsidedFactor : classLevel;

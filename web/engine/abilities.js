@@ -1,5 +1,5 @@
 // Ability scores: where they came from, what they add up to, and whether the
-// way they were bought is legal under this campaign's two options.
+// way they were generated is legal under the ruleset in force.
 
 import { abilityMod, num, floorDiv } from './util.js';
 
@@ -9,34 +9,50 @@ export const ABILITY_NAMES = {
   int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma',
 };
 
-/** The stack of things that can move a score, in the order a sheet lists them. */
-const LAYERS = ['base', 'racial', 'levelUp', 'enhancement', 'inherent', 'misc', 'temp'];
-
 /**
  * Totals and modifiers for all six scores.
  *
- * Two modifiers come back for each: `mod` includes temporary adjustments and is
- * what you roll with right now, and `baseMod` excludes them. Hit points use the
- * base one, because a bull's strength does not retroactively change the hit
- * points a character rolled at 4th level.
+ * The layers, in the order a sheet lists them:
+ *
+ *   base      what was bought, rolled or assigned
+ *   racial    from the race and any templates
+ *   levelUp   +1 at 4th level and every fourth after
+ *   bonuses   every typed bonus, stacked by the rules - an item's enhancement,
+ *             a tome's inherent bonus, a homebrew feat's +2. The sheet's own
+ *             enhancement and inherent fields arrive here as effects too, so a
+ *             belt of giant strength typed on the sheet and one carried as an
+ *             item do not both count.
+ *   temp      a temporary change - a spell, a drain - kept apart so it can be
+ *             excluded where the rules say it should be
+ *
+ * Two modifiers come back for each score: `mod` includes temporary changes and
+ * is what you roll with right now; `baseMod` does not. Hit points use the base
+ * one, because a bull's strength does not retroactively change the hit points
+ * a character rolled at 4th level.
+ *
+ * @param racial    { str: 2, ... } from raceFacts
+ * @param resolved  the character's resolved effects
  */
-export function abilityTotals(character, summary) {
+export function abilityTotals(character, summary, racial = {}, resolved = {}) {
   const a = character.abilities || {};
   const levelUps = countLevelUps(a.levelUps);
   const out = {};
 
   for (const key of ABILITIES) {
+    const bucket = resolved[`ability.${key}`];
     const parts = {
       base: num(a.base?.[key], 10),
-      racial: num(character.race?.abilityAdjust?.[key]),
+      racial: num(racial[key]),
       levelUp: levelUps[key] || 0,
-      enhancement: num(a.enhancement?.[key]),
-      inherent: num(a.inherent?.[key]),
-      misc: num(a.misc?.[key]),
+      bonuses: bucket?.total || 0,
+      enhancement: bucket?.byType?.enhancement || 0,
+      inherent: bucket?.byType?.inherent || 0,
       temp: num(a.temp?.[key]),
     };
-    const total = LAYERS.reduce((t, l) => t + parts[l], 0);
-    const withoutTemp = total - parts.temp;
+    parts.otherBonuses = parts.bonuses - parts.enhancement - parts.inherent;
+
+    const withoutTemp = parts.base + parts.racial + parts.levelUp + parts.bonuses;
+    const total = withoutTemp + parts.temp;
     out[key] = {
       key,
       name: ABILITY_NAMES[key],
@@ -45,6 +61,7 @@ export function abilityTotals(character, summary) {
       mod: abilityMod(total),
       baseTotal: withoutTemp,
       baseMod: abilityMod(withoutTemp),
+      suppressed: bucket?.suppressed || [],
     };
   }
   out.levelUpsUsed = Object.values(levelUps).reduce((t, n) => t + n, 0);
@@ -69,39 +86,73 @@ export function abilityIncreaseLevels(hd) {
 }
 
 /**
- * What a set of base scores costs under 30-point buy. Points are spent from a
- * base of 8, so an 8 is free and an 18 costs 16 of the 30 on its own.
+ * The point-buy budget for this character: its own choice where the ruleset
+ * offers one, otherwise the ruleset's figure.
  */
-export function pointBuyCost(base, rules) {
-  const table = rules.rules.abilityGeneration.pointBuy;
+export function pointBuyBudget(character, rules) {
+  const pb = rules.ruleset.abilityGeneration.pointBuy;
+  const chosen = num(character?.abilities?.pointBuyBudget, null);
+  const allowed = (pb.budgetChoices || []).map((c) => c.points);
+  if (chosen !== null && (allowed.length === 0 || allowed.includes(chosen) || rules.ruleset.variantsChosenBy === 'player')) {
+    return chosen;
+  }
+  return pb.budget;
+}
+
+/**
+ * What a set of base scores costs under point buy. Points are spent from a
+ * base of 8, so an 8 is free and an 18 costs 16 on its own.
+ */
+export function pointBuyCost(base, rules, budget = null) {
+  const pb = rules.ruleset.abilityGeneration.pointBuy;
+  const table = rules.core.pointBuyCosts;
+  const min = pb.minScore ?? 8;
+  const max = pb.maxScore ?? 18;
   let spent = 0;
   const perScore = {};
   const outOfRange = [];
   for (const key of ABILITIES) {
     const score = num(base?.[key], 10);
-    const cost = table.cost[String(score)];
-    if (cost === undefined) { outOfRange.push(key); perScore[key] = null; continue; }
+    const cost = table[String(score)];
+    if (cost === undefined || score < min || score > max) {
+      outOfRange.push(key);
+      perScore[key] = null;
+      continue;
+    }
     perScore[key] = cost;
     spent += cost;
   }
+  const limit = budget ?? pb.budget;
   return {
-    spent, perScore, outOfRange,
-    budget: table.budget,
-    remaining: table.budget - spent,
-    ok: outOfRange.length === 0 && spent <= table.budget,
+    spent, perScore, outOfRange, min, max,
+    budget: limit,
+    remaining: limit - spent,
+    ok: outOfRange.length === 0 && spent <= limit,
   };
 }
 
-/** Whether a rolled array is one this campaign would let you keep. */
+/**
+ * Whether a rolled array is one the ruleset would let you keep. Under the SRD
+ * there are no bounds and every array is fine; a campaign may set them.
+ */
 export function rolledArrayCheck(base, rules) {
-  const r = rules.rules.abilityGeneration.rolled;
+  const r = rules.ruleset.abilityGeneration.rolled || {};
   const total = ABILITIES.reduce((t, k) => t + num(base?.[k], 10), 0);
-  return {
-    total, min: r.sumMin, max: r.sumMax,
-    ok: total >= r.sumMin && total <= r.sumMax,
-    tooLow: total < r.sumMin,
-    tooHigh: total > r.sumMax,
-  };
+  const min = r.sumMin ?? null;
+  const max = r.sumMax ?? null;
+  const tooLow = min !== null && total < min;
+  const tooHigh = max !== null && total > max;
+  return { total, min, max, ok: !tooLow && !tooHigh, tooLow, tooHigh, bounded: min !== null || max !== null };
+}
+
+/**
+ * Whether the scores are the standard array, in some order. Only the order is
+ * the player's; the numbers are not.
+ */
+export function standardArrayCheck(base, rules) {
+  const want = [...rules.core.standardArray].sort((x, y) => y - x);
+  const have = ABILITIES.map((k) => num(base?.[k], 10)).sort((x, y) => y - x);
+  return { ok: want.every((v, i) => v === have[i]), want: rules.core.standardArray };
 }
 
 /** Bonus spell or power slots for a high casting ability, by spell level 1-9. */

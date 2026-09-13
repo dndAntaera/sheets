@@ -1,4 +1,4 @@
-"""Rebuild web/data/backgrounds.json from the wiki's rules/backgrounds.md.
+"""Rebuild web/data/rulesets/antaera-backgrounds.json from the wiki's rules/backgrounds.md.
 
 The two repositories are siblings on disk, so this reads across rather than
 duplicating the list by hand. Run it after adding a background to the wiki:
@@ -25,7 +25,7 @@ for line in src.read_text(encoding="utf-8").splitlines():
         found.append({"name": title[7:] if title.startswith("Guild: ") else title,
                       "category": category})
 
-out = Path(__file__).resolve().parents[1] / "web" / "data" / "backgrounds.json"
+out = Path(__file__).resolve().parents[1] / "web" / "data" / "rulesets" / "antaera-backgrounds.json"
 data = json.loads(out.read_text(encoding="utf-8"))
 data["backgrounds"] = found
 out.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

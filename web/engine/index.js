@@ -2,9 +2,16 @@
 //
 // The calculating half of this repository is deliberately free of the browser:
 // it takes data in and gives numbers back, so the same code runs the sheet, the
-// tests, and any validation the server wants to do. `makeRules` is the only
-// place the two halves meet - hand it the four JSON files and it returns the
-// context every other function expects.
+// tests, and any validation a server wants to do.
+//
+// Rules come in layers:
+//
+//   core       what every 3.5 game shares: sizes, bonus types, the buy table
+//   ruleset    what one table adds: SRD (the default, which adds nothing) or
+//              Antaera (gestalt, taint, action points and the rest)
+//   content    what one character carries: homebrew classes, races, feats ...
+//
+// `makeRules` assembles the first two; the third arrives with the character.
 
 export * from './util.js';
 export * from './progression.js';
@@ -15,34 +22,68 @@ export * from './hp.js';
 export * from './defense.js';
 export * from './offense.js';
 export * from './houserules.js';
+export * from './effects.js';
+export * from './library.js';
+export * from './modules.js';
 export { derive } from './derive.js';
-export { blankCharacter, migrate, renumberLevels, SCHEMA } from './character.js';
+export { blankCharacter, migrate, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
+
+/** The rulesets that ship with the app, in the order the toggle lists them. */
+export const RULESET_IDS = ['srd', 'antaera'];
 
 /**
- * Bundle the data files into the context the engine takes as its second
- * argument, with the two lookups everything needs built once rather than on
- * every keystroke.
+ * Bundle the data files into the context every engine function takes.
+ *
+ * `rulesets` holds every ruleset so switching between them costs nothing;
+ * `ruleset` is the one in force. Use `withRuleset` to get the context for a
+ * different one - it shares everything else.
  */
-export function makeRules({ rules, classes, skills, backgrounds }) {
-  return {
-    rules,
+export function makeRules({ core, rulesets, classes, skills, races, backgrounds = {} }, rulesetId = 'srd') {
+  const base = {
+    core,
+    rulesets,
     classes,
     skills,
+    races,
     backgrounds,
     classByName: new Map(classes.classes.map((c) => [c.name, c])),
     skillsByName: new Map(skills.skills.map((s) => [s.name, s])),
+    raceByName: new Map((races?.races || []).map((r) => [r.name, r])),
   };
+  return withRuleset(base, rulesetId);
+}
+
+/** The same rules context, under a different ruleset. */
+export function withRuleset(rules, rulesetId) {
+  const ruleset = rules.rulesets[rulesetId] || rules.rulesets.srd;
+  return { ...rules, ruleset, rulesetId: ruleset.id };
 }
 
 /** Fetch the data files and build the rules context. Browser side. */
-export async function loadRules(base = './data/') {
-  const files = ['rules', 'classes', 'skills', 'backgrounds'];
-  const loaded = await Promise.all(
-    files.map(async (name) => {
-      const res = await fetch(`${base}${name}.json`, { cache: 'no-cache' });
-      if (!res.ok) throw new Error(`could not load ${name}.json (${res.status})`);
-      return [name, await res.json()];
-    })
-  );
-  return makeRules(Object.fromEntries(loaded));
+export async function loadRules(base = './data/', rulesetId = 'srd') {
+  const get = async (path) => {
+    const res = await fetch(`${base}${path}`, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`could not load ${path} (${res.status})`);
+    return res.json();
+  };
+
+  const [core, classes, skills, races, ...rulesetFiles] = await Promise.all([
+    get('core.json'),
+    get('classes.json'),
+    get('skills.json'),
+    get('races.json'),
+    ...RULESET_IDS.map((id) => get(`rulesets/${id}.json`)),
+  ]);
+
+  const rulesets = Object.fromEntries(rulesetFiles.map((r) => [r.id, r]));
+
+  // A ruleset may bring its own data - Antaera brings its backgrounds.
+  const backgrounds = {};
+  for (const ruleset of rulesetFiles) {
+    if (ruleset.backgrounds?.data) {
+      backgrounds[ruleset.id] = (await get(`rulesets/${ruleset.backgrounds.data}`)).backgrounds;
+    }
+  }
+
+  return makeRules({ core, rulesets, classes, skills, races, backgrounds }, rulesetId);
 }

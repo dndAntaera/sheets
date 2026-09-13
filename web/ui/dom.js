@@ -83,8 +83,8 @@ export function field(path, value, opts = {}) {
   const { type = 'text', placeholder, list, min, max, step, title, className = '', width } = opts;
   const el = h('input', {
     class: `field ${className}`.trim(),
-    type: type === 'int' || type === 'number' ? 'number' : type,
-    value: value === null || value === undefined ? '' : value,
+    type: type === 'int' || type === 'number' ? 'number' : type === 'list' ? 'text' : type,
+    value: value === null || value === undefined ? '' : Array.isArray(value) ? value.join(', ') : value,
     placeholder,
     title,
     min, max, step,
@@ -183,6 +183,61 @@ export function paint(root, derived) {
     if (el.dataset.format === 'cap') el.classList.toggle('is-over', Boolean(value));
     if (el.dataset.format === 'dot') el.classList.toggle('is-on', Boolean(value));
   }
+}
+
+/**
+ * Bind every [data-field] inside `root` to a model.
+ *
+ * The sheet binds to the character and the content editor binds to a library
+ * entry, and both go through here, so a number field means the same thing in
+ * both places. Values are coerced by `data-kind`:
+ *
+ *   int / number   a number, or null when the field is empty - null means "not
+ *                  entered", which the engine treats as nothing, where "" would
+ *                  poison every sum it joined
+ *   bool           a checkbox's state
+ *   list           comma separated text, stored as an array
+ *   text           as typed
+ *
+ * A field marked data-empty="delete" removes its key when emptied rather than
+ * storing "", for maps where an absent key and an empty one mean different
+ * things - the ability increase chosen at a given level, for one.
+ *
+ * @returns a function that removes the listeners
+ */
+export function bindForm(root, getModel, onChange) {
+  const handler = (ev) => {
+    const el = ev.target;
+    const path = el.dataset?.field;
+    // [data-unbound] marks controls that manage themselves, like the skill
+    // picker, whose value is not a field of the model until Add is pressed.
+    if (!path || el.closest('[data-unbound]')) return;
+    const model = getModel();
+    if (!model) return;
+
+    const kind = el.dataset.kind;
+    let value;
+    if (kind === 'bool') value = el.checked;
+    else if (kind === 'int' || kind === 'number') value = el.value === '' ? null : Number(el.value);
+    else if (kind === 'list') value = String(el.value).split(',').map((x) => x.trim()).filter(Boolean);
+    else value = el.value;
+
+    if (el.dataset.empty === 'delete' && (value === '' || value === null)) {
+      const keys = path.split('.');
+      const last = keys.pop();
+      const parent = getPath(model, keys.join('.'));
+      if (parent && typeof parent === 'object') delete parent[last];
+    } else {
+      setPath(model, path, value);
+    }
+    onChange(path, value, el, ev);
+  };
+  root.addEventListener('input', handler);
+  root.addEventListener('change', handler);
+  return () => {
+    root.removeEventListener('input', handler);
+    root.removeEventListener('change', handler);
+  };
 }
 
 /** A section of the sheet. `id` is what a notice points at. */

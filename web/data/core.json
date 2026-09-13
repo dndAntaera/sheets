@@ -1,0 +1,144 @@
+{
+  "_comment": [
+    "Core 3.5 constants: the things every game of this edition shares, whatever",
+    "table it is played at. Nothing setting-specific belongs in this file.",
+    "",
+    "A RULESET sits on top of this and decides which optional systems are in",
+    "play - see web/data/rulesets/. The SRD ruleset turns almost nothing on;",
+    "the Antaera one turns on gestalt, action points, taint and the rest.",
+    "",
+    "Splitting them this way is what lets the same engine run a public 3.5",
+    "character creator and one particular campaign's houserules without either",
+    "one knowing about the other."
+  ],
+  "edition": "Dungeons & Dragons 3.5",
+  "pointBuyCosts": {
+    "_note": "Cost to raise a score from the base of 8. The budget itself is the ruleset's choice.",
+    "3": -5,
+    "4": -4,
+    "5": -3,
+    "6": -2,
+    "7": -1,
+    "8": 0,
+    "9": 1,
+    "10": 2,
+    "11": 3,
+    "12": 4,
+    "13": 5,
+    "14": 6,
+    "15": 8,
+    "16": 10,
+    "17": 13,
+    "18": 16
+  },
+  "standardArray": [15, 14, 13, 12, 10, 8],
+  "hitPoints": {
+    "maxAtFirst": true,
+    "maxAtFirstNote": "A character's first hit die always yields its maximum. A ruleset may switch this off.",
+    "averageFormula": "half the die, plus one",
+    "minimumPerLevel": 1
+  },
+  "skills": {
+    "maxRanksClass": "hit dice + 3",
+    "maxRanksCrossClassDivisor": 2,
+    "crossClassCost": 2,
+    "firstLevelMultiplier": 4,
+    "minimumPointsPerLevel": 1
+  },
+  "progression": {
+    "bab": {"good": 1, "average": 0.75, "poor": 0.5},
+    "saves": {"goodBase": 2, "goodPerLevel": 0.5, "poorPerLevel": 0.3333},
+    "featEveryHitDice": 3,
+    "featAtFirstLevel": 1,
+    "abilityIncreaseEveryLevels": 4,
+    "iterativeAttackStep": 5,
+    "iterativeAttackFrom": 6
+  },
+  "sizes": [
+    {"name": "Fine", "ac": 8, "attack": 8, "grapple": -16, "hide": 16, "space": 0.5, "reach": 0},
+    {"name": "Diminutive", "ac": 4, "attack": 4, "grapple": -12, "hide": 12, "space": 1, "reach": 0},
+    {"name": "Tiny", "ac": 2, "attack": 2, "grapple": -8, "hide": 8, "space": 2.5, "reach": 0},
+    {"name": "Small", "ac": 1, "attack": 1, "grapple": -4, "hide": 4, "space": 5, "reach": 5},
+    {"name": "Medium", "ac": 0, "attack": 0, "grapple": 0, "hide": 0, "space": 5, "reach": 5},
+    {"name": "Large", "ac": -1, "attack": -1, "grapple": 4, "hide": -4, "space": 10, "reach": 10},
+    {"name": "Huge", "ac": -2, "attack": -2, "grapple": 8, "hide": -8, "space": 15, "reach": 15},
+    {
+      "name": "Gargantuan",
+      "ac": -4,
+      "attack": -4,
+      "grapple": 12,
+      "hide": -12,
+      "space": 20,
+      "reach": 20
+    },
+    {
+      "name": "Colossal",
+      "ac": -8,
+      "attack": -8,
+      "grapple": 16,
+      "hide": -16,
+      "space": 30,
+      "reach": 30
+    }
+  ],
+  "bonusTypes": {
+    "_note": [
+      "Two bonuses of the same type do not stack: the larger applies. The three",
+      "exceptions stack with themselves, and are the reason this list exists as",
+      "data rather than as an if-statement somewhere.",
+      "An untyped bonus stacks with everything, including other untyped ones."
+    ],
+    "stacking": ["dodge", "circumstance", "untyped"],
+    "all": [
+      "alchemical",
+      "armor",
+      "circumstance",
+      "competence",
+      "deflection",
+      "dodge",
+      "enhancement",
+      "inherent",
+      "insight",
+      "luck",
+      "morale",
+      "natural",
+      "profane",
+      "racial",
+      "resistance",
+      "sacred",
+      "shield",
+      "size",
+      "untyped"
+    ]
+  },
+  "wealthByLevel": {
+    "_note": "From the DMG's character wealth table, used by most tables to judge a new character of a given level. A ruleset decides whether it is advice or a limit.",
+    "gp": {
+      "2": 900,
+      "3": 2700,
+      "4": 5400,
+      "5": 9000,
+      "6": 13000,
+      "7": 19000,
+      "8": 27000,
+      "9": 36000,
+      "10": 49000,
+      "11": 66000,
+      "12": 88000,
+      "13": 110000,
+      "14": 150000,
+      "15": 200000,
+      "16": 260000,
+      "17": 340000,
+      "18": 440000,
+      "19": 580000,
+      "20": 760000
+    },
+    "firstLevelNote": "1st level uses the class starting-gold roll rather than the table."
+  },
+  "dying": {
+    "stabilizeChance": "10% each round once dying",
+    "deathAt": -10,
+    "note": "A dying character loses 1 hit point a round and dies at -10 unless stabilised."
+  }
+}

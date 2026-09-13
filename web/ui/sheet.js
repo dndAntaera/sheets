@@ -1,6 +1,10 @@
-// The sheet itself: every panel, in the order a 3.5e sheet is usually read.
+// The sheet itself: every panel, in the order a 3.5 sheet is usually read.
 //
-// Each builder takes the app (character, rules, campaign) and returns a panel.
+// Each builder takes the app - its character, rules, and the derived sheet
+// computed before any panel is drawn - and returns a panel, or null when the
+// ruleset in force has nothing for that panel to show. Taint does not appear on
+// an SRD character as an empty box; it does not appear.
+//
 // Inputs are bound by path and built once. Anything the sheet works out for
 // itself is an `out()` naming a path into the derived sheet, so adding a
 // calculation is a one-line change here and a real change in the engine, never
@@ -10,26 +14,46 @@ import {
   h, field, checkbox, select, textarea, labelled, out, total, panel, row,
   button, refill, frag,
 } from './dom.js';
-import { ABILITIES, ABILITY_NAMES } from '../engine/abilities.js';
-import { abilityIncreaseLevels } from '../engine/abilities.js';
+import { effectsEditor } from './effects-editor.js';
+import { ABILITIES, ABILITY_NAMES, abilityIncreaseLevels } from '../engine/abilities.js';
+import { describeTarget } from '../engine/effects.js';
+import { CONTENT_TYPES, CONTENT_KINDS, unusedContent } from '../engine/library.js';
 
 const SAVES = [['fort', 'Fortitude'], ['ref', 'Reflex'], ['will', 'Will']];
+const METHOD_LABELS = {
+  pointBuy: 'point buy',
+  rolled: 'rolled',
+  array: 'standard array',
+  manual: 'entered by hand',
+};
+
+const skillNamesFor = (app) => app.derived.index.skills.map((s) => s.name);
 
 /* ==========================================================================
-   Identity and race
+   Identity, race and templates
    ========================================================================== */
 
 export function identityPanel(app) {
   const c = app.character;
-  const sizes = app.rules.rules.sizes.map((s) => s.name);
-  const backgrounds = app.rules.backgrounds.backgrounds;
-  const grouped = [...new Set(backgrounds.map((b) => b.category))];
+  const d = app.derived;
+  const rs = app.rules.ruleset;
+  const sizes = app.rules.core.sizes.map((s) => s.name);
+  const known = d.race.known;
 
-  const backgroundSelect = h('select.field', { dataset: { field: 'background.name', kind: 'text' } },
-    h('option', { value: '', text: '- choose -', selected: !c.background?.name }),
-    grouped.map((category) => h('optgroup', { label: `${category} backgrounds` },
-      backgrounds.filter((b) => b.category === category).map((b) =>
-        h('option', { value: b.name, text: b.name, selected: b.name === c.background?.name })))));
+  const raceFacts = known
+    ? h('div.race-facts',
+      total('Size', 'race.size'),
+      total('Speed', 'speed'),
+      total('Level adj.', 'race.la', { format: 'signed' }),
+      total('Favoured class', 'race.favoredClass'),
+      h('p.hint.race-traits', { text: d.race.traits }))
+    : row(
+      labelled('Size', select('race.size', c.race?.size, sizes, { className: 'narrow' })),
+      labelled('Speed', field('race.speed', c.race?.speed, { type: 'int', width: '4rem' })),
+      labelled('Racial HD', field('race.racialHD', c.race?.racialHD, { type: 'int', width: '4rem', title: 'Hit dice from the race itself, before any class levels.' })),
+      labelled('Level adj.', field('race.la', c.race?.la, { type: 'int', width: '4rem' })),
+      labelled('Extra skill points', field('race.skillPointsPerLevel', c.race?.skillPointsPerLevel, { type: 'int', width: '4rem', title: 'Per level, before the first-level multiplier.' })),
+      h('span.hint', { text: 'A race the sheet does not know. Enter its numbers here, or write it up under Content so its effects count too.' }));
 
   return panel('identity', 'The character',
     row(
@@ -39,27 +63,61 @@ export function identityPanel(app) {
       labelled('Deity', field('concept.deity', c.concept?.deity, { placeholder: 'None' })),
     ),
     row(
-      labelled('Race', field('race.name', c.race?.name, { placeholder: 'Race or template' })),
-      labelled('Size', select('race.size', c.race?.size, sizes, { className: 'narrow' })),
-      labelled('Speed', field('race.speed', c.race?.speed, { type: 'int', width: '4rem' })),
-      labelled('Racial HD', field('race.racialHD', c.race?.racialHD, { type: 'int', width: '4rem', title: 'Hit dice from the race itself, before any class levels.' })),
-      labelled('LA', field('race.la', c.race?.la, { type: 'int', width: '4rem', title: 'Level adjustment. Starting LA is capped at a quarter of ECL.' })),
-      labelled('LA allowed', out('levelAdjustment.allowed', { format: 'signed' })),
-      labelled('Extra skill points', field('race.skillPointsPerLevel', c.race?.skillPointsPerLevel, { type: 'int', width: '4rem', title: 'Per level, before the first-level multiplier. A human has 1.' })),
+      labelled('Race', field('race.name', c.race?.name, { list: 'race-names', placeholder: 'Choose or type a race', className: 'grow' })),
+      d.levelAdjustment.capped ? labelled('Level adj. allowed', out('levelAdjustment.allowed', { format: 'signed' })) : null,
     ),
-    row(
-      labelled('Background', backgroundSelect, { wide: true }),
-      labelled('Background item', field('background.item', c.background?.item, { placeholder: 'Agreed with the DM', className: 'grow' })),
-      labelled('Item cap at this level', out('wealth.backgroundItemCap', { format: 'gp' })),
-    ),
-    row(
-      labelled('Forum thread', field('meta.forumThread', c.meta?.forumThread, { placeholder: 'Link to the #scars-characters post', className: 'grow' }), { wide: true }),
-    ),
-    h('details.aside',
-      h('summary', 'Racial ability adjustments and traits'),
+    raceFacts,
+    known ? null : h('details.aside',
+      h('summary', 'Ability adjustments and traits for this race'),
       row(...ABILITIES.map((key) => labelled(key.toUpperCase(),
         field(`race.abilityAdjust.${key}`, c.race?.abilityAdjust?.[key], { type: 'int', width: '3.5rem' })))),
-      row(labelled('Racial traits', textarea('race.traits', c.race?.traits, { rows: 3, placeholder: 'Vision, immunities, bonus feats, anything the race grants.' }), { wide: true }))));
+      row(labelled('Racial traits', textarea('race.traits', c.race?.traits, { rows: 3 }), { wide: true }))),
+    templatesBlock(app),
+    d.modules.backgrounds ? backgroundRow(app) : null,
+    rs.id === 'antaera'
+      ? row(labelled('Forum thread', field('meta.forumThread', c.meta?.forumThread, { placeholder: 'Link to the #scars-characters post', className: 'grow' }), { wide: true }))
+      : null);
+}
+
+function backgroundRow(app) {
+  const c = app.character;
+  const list = app.rules.backgrounds[app.rules.ruleset.id] || [];
+  const categories = [...new Set(list.map((b) => b.category))];
+  const choose = h('select.field', { dataset: { field: 'background.name', kind: 'text' } },
+    h('option', { value: '', text: '- choose -', selected: !c.background?.name }),
+    categories.map((category) => h('optgroup', { label: `${category} backgrounds` },
+      list.filter((b) => b.category === category).map((b) =>
+        h('option', { value: b.name, text: b.name, selected: b.name === c.background?.name })))));
+
+  return row(
+    labelled('Background', choose),
+    labelled('Background item', field('background.item', c.background?.item, { placeholder: 'Agreed with the DM', className: 'grow' })),
+    labelled('Item cap', out('wealth.backgroundItemCap', { format: 'gp' })));
+}
+
+function templatesBlock(app) {
+  const c = app.character;
+  const host = h('div.list');
+  const rebuild = () => refill(host, c.templates.map((tpl, i) => h('div.list-row',
+    field(`templates.${i}.name`, tpl.name, { list: 'template-names', placeholder: 'Template', className: 'grow' }),
+    button('x', () => {
+      c.templates.splice(i, 1);
+      rebuild();
+      app.recompute();
+    }, { subtle: true, danger: true, title: 'Remove this template' }))));
+  rebuild();
+
+  return h('details.aside', { open: c.templates.length > 0 },
+    h('summary', `Templates${c.templates.length ? ` (${c.templates.length})` : ''}`),
+    h('p.hint', { text: 'Half-dragon, lycanthrope, anything laid over the race. Its level adjustment, ability adjustments and effects stack on top.' }),
+    host,
+    row(
+      button('Add a template', () => {
+        c.templates.push({ name: '' });
+        rebuild();
+        app.recompute();
+      }, { subtle: true }),
+      h('a.hint', { href: '#/content/template', text: 'Write a template of your own' })));
 }
 
 /* ==========================================================================
@@ -67,13 +125,9 @@ export function identityPanel(app) {
    ========================================================================== */
 
 export function levelsPanel(app) {
+  const gestalt = app.derived.modules.gestalt;
   const listHost = h('div.levels');
-  const customHost = h('div.customs');
-
-  const rebuild = () => {
-    refill(listHost, levelRows(app));
-    refill(customHost, customClassRows(app));
-  };
+  const rebuild = () => refill(listHost, levelRows(app, gestalt));
 
   const panelEl = panel('levels', 'Levels',
     h('div.summary-strip',
@@ -83,11 +137,13 @@ export function levelsPanel(app) {
       total('ECL', 'summary.ecl'),
       total('BAB', 'summary.bab', { format: 'signed' }),
       total('Feats', 'feats.allowed'),
-      total('Training days', 'training.days', { title: 'Days to train the next level, per The Index. Under gestalt the two sides overlap.' })),
-    h('div.levels-head',
+      app.derived.modules.training
+        ? total('Training days', 'training.days', { title: 'Days to train the next level. Under gestalt the two sides overlap.' })
+        : null),
+    h(`div.levels-head${gestalt ? '.gestalt' : ''}`,
       h('span.label', { text: '#' }),
       h('span.label', { text: 'Class' }),
-      app.campaign.gestalt ? h('span.label', { text: 'Second class' }) : null,
+      gestalt ? h('span.label', { text: 'Second class' }) : null,
       h('span.label', { text: 'Hit die' }),
       h('span.label', { text: 'HP' }),
       h('span.label', { text: '' })),
@@ -97,79 +153,45 @@ export function levelsPanel(app) {
         app.character.levels.push({ level: app.character.levels.length + 1, a: '', b: '' });
         rebuild();
         app.recompute();
-        // A new level can earn an ability increase, which the abilities panel
-        // only shows a selector for if it was built after the level existed.
         app.rebuildPanel('abilities');
       }),
       button('Remove the last', () => {
+        if (app.character.levels.length <= 1) return;
         app.character.levels.pop();
         rebuild();
         app.recompute();
         app.rebuildPanel('abilities');
       }, { subtle: true }),
-      h('span.hint', { text: app.campaign.gestalt
-        ? 'Gestalt is on: each level takes two classes and the sheet keeps the better of each.'
-        : 'Gestalt is off for this campaign, so each level takes one class.' })),
-    h('details.aside',
-      h('summary', 'Next level, for training time'),
-      row(
-        labelled('Next on side A', field('nextLevel.a', app.character.nextLevel?.a, { list: 'class-names', placeholder: 'Class' })),
-        app.campaign.gestalt
-          ? labelled('Next on side B', field('nextLevel.b', app.character.nextLevel?.b, { list: 'class-names', placeholder: 'Class' }))
-          : null,
-        labelled('Days', out('training.days')))),
-    h('details.aside',
-      h('summary', 'Custom classes'),
-      h('p.hint', { text: 'Anything not in the SRD - a splatbook class, a prestige class, a homebrew - is entered once here and then counts exactly like a printed class.' }),
-      customHost,
-      button('Add a class', () => {
-        app.character.customClasses.push({
-          name: '', hd: 8, bab: 'average',
-          saves: { fort: 'poor', ref: 'poor', will: 'poor' },
-          skillPoints: 2, classSkills: [], prestige: false,
-        });
-        rebuild();
-        app.recompute();
-      })));
+      h('span.hint', { text: gestalt
+        ? 'Gestalt: each level takes two classes and the sheet keeps the better of each.'
+        : 'Pick a class for each level. Multiclassing is just different classes on different rows.' }),
+      h('a.hint', { href: '#/content/class', text: 'A class the SRD does not have? Write it under Content.' })),
+    app.derived.modules.training
+      ? h('details.aside',
+        h('summary', 'Next level, for training time'),
+        row(
+          labelled('Next class', field('nextLevel.a', app.character.nextLevel?.a, { list: 'class-names', placeholder: 'Class' })),
+          gestalt ? labelled('Next second class', field('nextLevel.b', app.character.nextLevel?.b, { list: 'class-names', placeholder: 'Class' })) : null,
+          labelled('Days', out('training.days'))))
+      : null);
 
   rebuild();
   return panelEl;
 }
 
-function levelRows(app) {
+function levelRows(app, gestalt) {
   const c = app.character;
-  return c.levels.map((lvl, i) => h('div.level-row',
+  return c.levels.map((lvl, i) => h(`div.level-row${gestalt ? '.gestalt' : ''}`,
     h('span.level-no', { text: String(i + 1) }),
     field(`levels.${i}.a`, lvl.a, { list: 'class-names', placeholder: 'Class' }),
-    app.campaign.gestalt ? field(`levels.${i}.b`, lvl.b, { list: 'class-names', placeholder: 'Class' }) : null,
+    gestalt ? field(`levels.${i}.b`, lvl.b, { list: 'class-names', placeholder: 'Class' }) : null,
     out(`summary.hitDice.${i}.die`, { className: 'die' }),
-    i === 0
+    i === 0 && app.derived.hp.perLevel[0]?.basis === 'max'
       ? h('span.out.locked', { text: 'max', title: 'Hit points are maximum at first level.' })
       : c.hp?.method === 'roll'
         ? field(`hp.rolls.${i + 1}`, c.hp?.rolls?.[i + 1], { type: 'int', placeholder: 'roll' })
         : out(`hp.perLevel.${i}.fromDie`, { title: 'Half the die plus one - the average.' }),
     out(`hp.perLevel.${i}.gained`, { className: 'gained', title: 'What this level adds, Constitution included.' })));
-}
-
-function customClassRows(app) {
-  const progressions = [['good', 'good (+1/level)'], ['average', 'average (+3/4)'], ['poor', 'poor (+1/2)']];
-  const saveOptions = [['good', 'good'], ['poor', 'poor']];
-
-  return app.character.customClasses.map((cls, i) => h('div.custom-row',
-    field(`customClasses.${i}.name`, cls.name, { placeholder: 'Class name' }),
-    labelled('d', field(`customClasses.${i}.hd`, cls.hd, { type: 'int', width: '3.5rem' })),
-    labelled('BAB', select(`customClasses.${i}.bab`, cls.bab, progressions, { className: 'narrow' })),
-    ...SAVES.map(([key, name]) => labelled(name.slice(0, 4),
-      select(`customClasses.${i}.saves.${key}`, cls.saves?.[key], saveOptions, { className: 'narrow' }))),
-    labelled('Skills', field(`customClasses.${i}.skillPoints`, cls.skillPoints, { type: 'int', width: '3.5rem' })),
-    checkbox(`customClasses.${i}.prestige`, cls.prestige, 'Prestige'),
-    labelled('Class skills', field(`customClasses.${i}.classSkills`, (cls.classSkills || []).join(', '),
-      { placeholder: 'Balance, Climb, Jump', className: 'grow', title: 'Comma separated. A bare "Knowledge" makes every Knowledge a class skill.' })),
-    button('Remove', () => {
-      app.character.customClasses.splice(i, 1);
-      app.rebuildPanel('levels');
-      app.recompute();
-    }, { subtle: true, danger: true })));
 }
 
 /* ==========================================================================
@@ -178,15 +200,16 @@ function customClassRows(app) {
 
 export function abilitiesPanel(app) {
   const c = app.character;
-  const hd = Math.max(1, (c.levels || []).length + Number(c.race?.racialHD || 0));
-  const increaseLevels = abilityIncreaseLevels(hd);
+  const rs = app.rules.ruleset;
+  const generation = rs.abilityGeneration;
+  const increaseLevels = abilityIncreaseLevels(Math.max(1, app.derived.summary.hitDiceCount));
 
   const grid = h('div.ability-grid',
     h('span.label', { text: '' }),
     h('span.label', { text: 'Base' }),
     h('span.label', { text: 'Race' }),
     h('span.label', { text: 'Levels' }),
-    h('span.label', { text: 'Item' }),
+    h('span.label', { text: 'Item', title: 'Enhancement bonus' }),
     h('span.label', { text: 'Inherent' }),
     h('span.label', { text: 'Misc' }),
     h('span.label', { text: 'Temp' }),
@@ -197,25 +220,42 @@ export function abilitiesPanel(app) {
       field(`abilities.base.${key}`, c.abilities?.base?.[key], { type: 'int' }),
       out(`abilities.${key}.parts.racial`, { format: 'signed' }),
       out(`abilities.${key}.parts.levelUp`, { format: 'signed' }),
-      field(`abilities.enhancement.${key}`, c.abilities?.enhancement?.[key], { type: 'int', title: 'Items raise an ability in even numbers only.' }),
+      field(`abilities.enhancement.${key}`, c.abilities?.enhancement?.[key], { type: 'int', title: 'An enhancement bonus. Does not stack with an item that grants one.' }),
       field(`abilities.inherent.${key}`, c.abilities?.inherent?.[key], { type: 'int' }),
       field(`abilities.misc.${key}`, c.abilities?.misc?.[key], { type: 'int' }),
       field(`abilities.temp.${key}`, c.abilities?.temp?.[key], { type: 'int', className: 'temp' }),
       out(`abilities.${key}.total`, { big: true }),
       out(`abilities.${key}.mod`, { big: true, format: 'signed' }))));
 
-  const methodRow = row(
-    labelled('Generated by', select('abilities.method', c.abilities?.method,
-      [['pointBuy', '30 point buy'], ['rolled', 'rolled array']])),
-    labelled('Point buy spent', h('span.out', { dataset: { out: 'pointBuy.spent' }, text: '-' })),
-    labelled('Remaining', h('span.out', { dataset: { out: 'pointBuy.remaining' }, text: '-' })),
-    labelled('Array total', h('span.out', { dataset: { out: 'rolledTotal' }, text: '-' })),
-    h('span.hint', { text: 'Rolled arrays are kept only between 65 and 85. Roll two with !rollstats and keep one.' }));
+  const budgets = generation.pointBuy?.budgetChoices || [];
+  const method = c.abilities?.method;
+  const budgetSelect = select('abilities.pointBuyBudget', c.abilities?.pointBuyBudget ?? generation.pointBuy?.budget,
+    budgets.map((b) => [b.points, b.label]), { className: 'narrow' });
+  budgetSelect.dataset.kind = 'int';
 
-  const levelUpRow = row(...increaseLevels.map((level) => labelled(`Level ${level}`,
-    select(`abilities.levelUps.${level}`, c.abilities?.levelUps?.[level],
-      [['', '-'], ...ABILITIES.map((k) => [k, k.toUpperCase()])], { className: 'narrow' }))),
-    increaseLevels.length ? null : h('span.hint', { text: 'The first ability increase comes at 4th level.' }));
+  const methodRow = row(
+    labelled('Generated by', select('abilities.method', method,
+      generation.methods.map((m) => [m, METHOD_LABELS[m] || m]))),
+    method === 'pointBuy' && budgets.length > 1 ? labelled('Budget', budgetSelect) : null,
+    method === 'pointBuy' ? labelled('Spent', out('pointBuy.spent')) : null,
+    method === 'pointBuy' ? labelled('Remaining', out('pointBuy.remaining')) : null,
+    method === 'rolled' ? labelled('Array total', out('rolledTotal')) : null,
+    method === 'array'
+      ? button('Fill in the standard array', () => {
+        app.rules.core.standardArray.forEach((score, i) => { c.abilities.base[ABILITIES[i]] = score; });
+        app.rebuildPanel('abilities');
+        app.recompute();
+      }, { subtle: true, title: 'Then rearrange the scores however you like.' })
+      : null,
+    h('span.hint', { text: (generation[method] || {}).note || '' }));
+
+  const levelUpRow = row(...increaseLevels.map((level) => {
+    const el = select(`abilities.levelUps.${level}`, c.abilities?.levelUps?.[level],
+      [['', '-'], ...ABILITIES.map((k) => [k, k.toUpperCase()])], { className: 'narrow' });
+    el.dataset.empty = 'delete';
+    return labelled(`Level ${level}`, el);
+  }),
+  increaseLevels.length ? null : h('span.hint', { text: 'The first ability increase comes at 4th level.' }));
 
   return panel('abilities', 'Abilities', methodRow, grid,
     h('details.aside', { open: increaseLevels.length > 0 },
@@ -228,19 +268,21 @@ export function abilitiesPanel(app) {
 
 export function combatPanel(app) {
   const c = app.character;
+  const lock = app.rules.ruleset.hitPoints?.lockNote;
 
   const hpBlock = h('div.block',
     h('h3', 'Hit points'),
     row(
-      labelled('After 1st', select('hp.method', c.hp?.method,
-        [['average', 'average'], ['roll', 'rolled']], { title: 'Chosen once, then held for every level after. Maximum at 1st level either way.' })),
-      labelled('Bonus', field('hp.bonus', c.hp?.bonus, { type: 'int', width: '4rem', title: 'Toughness, a familiar, anything flat.' })),
+      labelled('After 1st level', select('hp.method', c.hp?.method,
+        [['average', 'average'], ['roll', 'rolled']], { title: lock })),
+      labelled('Bonus', field('hp.bonus', c.hp?.bonus, { type: 'int', width: '4rem', title: 'Anything flat that is not already an effect.' })),
       total('Total', 'hp.total', { big: true }),
       labelled('Current', field('hp.current', c.hp?.current, { type: 'int', width: '4.5rem' })),
       labelled('Temp', field('hp.temp', c.hp?.temp, { type: 'int', width: '4rem' })),
       labelled('Nonlethal', field('hp.nonlethal', c.hp?.nonlethal, { type: 'int', width: '4rem' })),
+      total('From effects', 'hp.effectBonus', { format: 'signed' }),
     ),
-    h('p.hint', { text: 'The roll for each level is entered beside that level, under Levels.' }));
+    h('p.hint', { text: lock ? `${lock} Rolls are entered beside each level, under Levels.` : 'Rolls are entered beside each level, under Levels.' }));
 
   const acBlock = h('div.block',
     h('h3', 'Armour class'),
@@ -268,11 +310,15 @@ export function combatPanel(app) {
       labelled('Check penalty', out('ac.acp')),
       labelled('Spell failure', out('ac.arcaneSpellFailure')),
     ),
+    h('p.hint', { text: 'Typed-in bonuses and bonuses from equipment follow the same stacking rules: two deflection bonuses give the better one, not both.' }),
     h('div.totals',
       total('AC', 'ac.total', { big: true }),
       total('Touch', 'ac.touch'),
       total('Flat-footed', 'ac.flatFooted'),
-      total('Initiative', 'initiative.total', { format: 'signed' })));
+      total('Initiative', 'initiative.total', { format: 'signed' }),
+      total('Speed', 'speed'),
+      total('Spell resistance', 'spellResistance')),
+    h('ul.conditions', { dataset: { conditionsFor: 'ac' } }));
 
   const attackBlock = h('div.block',
     h('h3', 'Attacks'),
@@ -287,7 +333,8 @@ export function combatPanel(app) {
       total('Melee', 'attacks.melee.routine'),
       total('Ranged', 'attacks.ranged.routine'),
       total('Grapple', 'attacks.grapple.total', { format: 'signed' }),
-      total('Bull rush', 'attacks.bullRush', { format: 'signed' })));
+      total('Bull rush / trip', 'attacks.bullRush', { format: 'signed', title: 'An opposed Strength check, with the size modifier.' })),
+    h('ul.conditions', { dataset: { conditionsFor: 'attack' } }));
 
   const saveBlock = h('div.block',
     h('h3', 'Saving throws'),
@@ -295,8 +342,9 @@ export function combatPanel(app) {
       h('span.label', { text: '' }),
       h('span.label', { text: 'Base' }),
       h('span.label', { text: 'Ability' }),
-      h('span.label', { text: 'Magic' }),
+      h('span.label', { text: 'Resistance', title: 'A resistance bonus, like a cloak of resistance. Does not stack with another one.' }),
       h('span.label', { text: 'Misc' }),
+      h('span.label', { text: 'Effects', title: 'Everything from race, feats and items, already stacked - including the two fields beside it.' }),
       h('span.label', { text: 'Total' }),
       SAVES.map(([key, name]) => frag(
         h('span.ability-name', { text: name }),
@@ -304,16 +352,19 @@ export function combatPanel(app) {
         out(`saves.${key}.ability`, { format: 'signed' }),
         field(`saves.magic.${key}`, c.saves?.magic?.[key], { type: 'int' }),
         field(`saves.misc.${key}`, c.saves?.misc?.[key], { type: 'int' }),
-        out(`saves.${key}.total`, { big: true, format: 'signed' })))));
+        out(`saves.${key}.bonuses`, { format: 'signed' }),
+        out(`saves.${key}.total`, { big: true, format: 'signed' })))),
+    h('ul.conditions', { dataset: { conditionsFor: 'save' } }));
 
   const weaponHost = h('div.weapons');
   const rebuildWeapons = () => refill(weaponHost, (c.weapons || []).map((w, i) => h('div.weapon-row',
     field(`weapons.${i}.name`, w.name, { placeholder: 'Weapon', className: 'grow' }),
-    labelled('Atk', field(`weapons.${i}.attackBonus`, w.attackBonus, { type: 'int', width: '3.5rem', title: 'The weapon own enhancement, masterwork included.' })),
+    labelled('Atk', field(`weapons.${i}.attackBonus`, w.attackBonus, { type: 'int', width: '3.5rem', title: 'The weapon’s own enhancement, masterwork included.' })),
     labelled('Damage', field(`weapons.${i}.damageDice`, w.damageDice, { placeholder: '1d8', width: '5rem' })),
     labelled('Dmg +', field(`weapons.${i}.damageBonus`, w.damageBonus, { type: 'int', width: '3.5rem' })),
     labelled('Crit', field(`weapons.${i}.crit`, w.crit, { placeholder: '20/x2', width: '5rem' })),
     checkbox(`weapons.${i}.ranged`, w.ranged, 'Ranged'),
+    checkbox(`weapons.${i}.thrown`, w.thrown, 'Thrown'),
     checkbox(`weapons.${i}.finesse`, w.finesse, 'Finesse'),
     labelled('Attack', out(`weapons.${i}.routine`)),
     labelled('Damage', out(`weapons.${i}.damage`)),
@@ -328,7 +379,7 @@ export function combatPanel(app) {
     h('h3', 'Weapons'),
     weaponHost,
     button('Add a weapon', () => {
-      c.weapons.push({ name: '', attackBonus: 0, damageDice: '', damageBonus: 0, crit: '', ranged: false, finesse: false });
+      c.weapons.push({ name: '', attackBonus: 0, damageDice: '', damageBonus: 0, crit: '', ranged: false, thrown: false, finesse: false });
       rebuildWeapons();
       app.recompute();
     }));
@@ -342,24 +393,25 @@ export function combatPanel(app) {
 
 export function skillsPanel(app) {
   const host = h('div.skill-table');
-  const subtyped = app.rules.skills.skills.filter((s) => s.subtype);
-
   const rebuild = () => refill(host, skillRows(app));
 
-  const addRow = row(
-    labelled('Add', select('', '', [['', '- a skill with a subject -'], ...subtyped.map((s) => [s.name, s.name])], { className: 'grow' })),
+  const subjectSkills = app.derived.index.skills.filter((s) => s.subtype || s.custom);
+  const picker = h('div.row', { dataset: { unbound: '' } },
+    labelled('Add', h('select.field.grow',
+      h('option', { value: '', text: '- a skill -' }),
+      subjectSkills.map((s) => h('option', { value: s.name, text: s.custom ? `${s.name} (yours)` : `${s.name}...` })))),
     field('', '', { placeholder: 'Subject, e.g. nature', className: 'grow' }),
     button('Add', (ev) => {
       const wrap = ev.target.closest('.row');
       const name = wrap.querySelector('select').value;
-      const subtypeField = wrap.querySelector('input');
+      const subject = wrap.querySelector('input');
       if (!name) return;
-      app.character.skills.push({ name, subtype: subtypeField.value.trim(), ranks: 0, misc: 0 });
-      subtypeField.value = '';
+      app.character.skills.push({ name, subtype: subject.value.trim(), ranks: 0, misc: 0 });
+      subject.value = '';
       rebuild();
       app.recompute();
     }),
-    h('span.hint', { text: 'Craft, Knowledge, Perform and Profession are taken one subject at a time.' }));
+    h('span.hint', { text: 'Craft, Knowledge, Perform and Profession are taken one subject at a time. Skills you have written under Content are listed here too.' }));
 
   const panelEl = panel('skills', 'Skills',
     h('div.summary-strip',
@@ -374,10 +426,11 @@ export function skillsPanel(app) {
       h('span.label', { text: 'Ability' }),
       h('span.label', { text: 'Ranks' }),
       h('span.label', { text: 'Misc' }),
+      h('span.label', { text: 'Effects', title: 'From race, feats and items, already stacked.' }),
       h('span.label', { text: 'Max' }),
       h('span.label', { text: 'Cost' })),
     host,
-    addRow);
+    picker);
 
   rebuild();
   return panelEl;
@@ -385,21 +438,25 @@ export function skillsPanel(app) {
 
 function skillRows(app) {
   return app.character.skills.map((entry, i) => {
-    const def = app.rules.skillsByName.get(entry.name) || {};
-    const label = entry.subtype ? `${entry.name} (${entry.subtype})` : entry.name;
+    const line = app.derived.skills.lines[i];
+    const def = line?.def || {};
     return h('div.skill-row', { dataset: { skill: String(i) } },
       h('span.class-dot', { dataset: { out: `skills.lines.${i}.classSkill`, format: 'dot' },
         title: 'Filled when the skill is on a class list you have taken.' }),
-      h('span.skill-name', { text: label, title: def.trainedOnly ? 'Trained only: useless at 0 ranks.' : '' },
+      h('span.skill-name', { title: def.trainedOnly ? 'Trained only: useless at 0 ranks.' : (def.description || '') },
+        h('span', { text: line?.label || entry.name }),
         def.acp ? h('span.tag', { text: def.acpDouble ? 'armour x2' : 'armour', title: 'The armour check penalty applies.' }) : null,
-        def.trainedOnly ? h('span.tag', { text: 'trained' }) : null),
+        def.trainedOnly ? h('span.tag', { text: 'trained' }) : null,
+        def.custom ? h('span.tag', { text: 'yours' }) : null,
+        h('span.cond-mark', { dataset: { condMark: `skill.${entry.name}` } })),
       out(`skills.lines.${i}.total`, { big: true, format: 'signed' }),
       out(`skills.lines.${i}.abilityMod`, { format: 'signed' }),
       field(`skills.${i}.ranks`, entry.ranks, { type: 'int', step: '0.5' }),
       field(`skills.${i}.misc`, entry.misc, { type: 'int' }),
+      out(`skills.lines.${i}.bonuses`, { format: 'signed' }),
       out(`skills.lines.${i}.maxRanks`),
       out(`skills.lines.${i}.cost`),
-      def.subtype
+      entry.subtype || def.custom || def.subtype
         ? button('x', () => {
           app.character.skills.splice(i, 1);
           app.rebuildPanel('skills');
@@ -410,72 +467,117 @@ function skillRows(app) {
 }
 
 /* ==========================================================================
-   Feats, traits and flaws
+   Feats, features, traits and flaws
    ========================================================================== */
 
-export function featsPanel(app) {
+/**
+ * A list of named rows that can each carry effects - feats, features. A row
+ * named after something in the content library gains that entry's effects; its
+ * own effects, edited in place, are added on top.
+ */
+function effectRows(app, key, opts) {
   const c = app.character;
-  const hosts = {
-    feats: h('div.list'),
-    traits: h('div.list'),
-    flaws: h('div.list'),
-  };
-
-  const rebuild = () => {
-    for (const [key, host] of Object.entries(hosts)) {
-      refill(host, (c[key] || []).map((entry, i) => h('div.list-row',
-        field(`${key}.${i}.name`, entry.name, { placeholder: key === 'feats' ? 'Feat' : key === 'traits' ? 'Trait' : 'Flaw', className: 'grow' }),
+  const host = h('div.list');
+  const rebuild = () => refill(host, (c[key] || []).map((entry, i) => {
+    const fx = entry.effects || [];
+    const fromContent = app.derived.index[opts.lookup]?.get(entry.name);
+    const contentFx = fromContent?.effects?.length || 0;
+    return h('div.effect-list-row',
+      h('div.list-row',
+        field(`${key}.${i}.name`, entry.name, { list: opts.datalist, placeholder: opts.placeholder, className: 'grow' }),
         field(`${key}.${i}.effect`, entry.effect, { placeholder: 'What it does, in a line', className: 'grow wide' }),
-        key === 'feats'
-          ? select(`feats.${i}.source`, entry.source, [['level', 'level'], ['flaw', 'flaw'], ['class', 'class'], ['race', 'race'], ['other', 'other']], { className: 'narrow' })
-          : null,
+        opts.sources ? select(`${key}.${i}.source`, entry.source, opts.sources, { className: 'narrow' }) : null,
         button('x', () => {
           c[key].splice(i, 1);
           rebuild();
           app.recompute();
-        }, { subtle: true, danger: true }))));
-    }
+        }, { subtle: true, danger: true, title: 'Remove' })),
+      h('details.row-effects', { open: fx.length > 0 },
+        h('summary', contentFx
+          ? `${contentFx} effect${contentFx === 1 ? '' : 's'} from your content${fx.length ? `, ${fx.length} added here` : ''}`
+          : fx.length ? `${fx.length} effect${fx.length === 1 ? '' : 's'}` : 'Effects'),
+        effectsEditor(`${key}.${i}.effects`, () => (c[key][i].effects = c[key][i].effects || []), {
+          skillNames: skillNamesFor(app),
+          emptyText: fromContent ? 'Nothing added here beyond what the content entry already does.' : 'None. Add one and this row changes the sheet.',
+          onShapeChange: () => app.recompute(),
+        })));
+  }));
+  rebuild();
+  return { host, rebuild };
+}
+
+export function featsPanel(app) {
+  const c = app.character;
+  const tf = app.derived.modules.traitsFlaws;
+
+  const feats = effectRows(app, 'feats', {
+    datalist: 'feat-names', placeholder: 'Feat', lookup: 'featByName',
+    sources: [['level', 'level'], ['bonus', 'bonus'], ['flaw', 'flaw'], ['class', 'class'], ['race', 'race'], ['other', 'other']],
+  });
+  const features = effectRows(app, 'features', { datalist: 'feature-names', placeholder: 'Class feature, boon, curse...', lookup: 'featureByName' });
+
+  const simpleList = (key, label) => {
+    const host = h('div.list');
+    const rebuild = () => refill(host, (c[key] || []).map((entry, i) => h('div.list-row',
+      field(`${key}.${i}.name`, entry.name, { placeholder: label, className: 'grow' }),
+      field(`${key}.${i}.effect`, entry.effect, { placeholder: 'What it does, in a line', className: 'grow wide' }),
+      button('x', () => {
+        c[key].splice(i, 1);
+        rebuild();
+        app.recompute();
+      }, { subtle: true, danger: true }))));
+    rebuild();
+    return h('div.block', h('h3', `${label}s`), host, button(`Add a ${label.toLowerCase()}`, () => {
+      c[key].push({ name: '', effect: '' });
+      rebuild();
+      app.recompute();
+    }));
   };
 
-  const add = (key) => button(`Add a ${key.replace(/s$/, '')}`, () => {
-    c[key].push(key === 'feats' ? { name: '', effect: '', source: 'level' } : { name: '', effect: '' });
-    rebuild();
-    app.recompute();
-  });
-
-  rebuild();
-  return panel('feats', 'Feats, traits and flaws',
+  return panel('feats', tf ? 'Feats, features, traits and flaws' : 'Feats and features',
     h('div.summary-strip',
       total('Feats earned', 'feats.allowed'),
       total('Taken', 'feats.taken'),
       total('From levels', 'feats.fromLevels'),
-      total('From flaws', 'feats.fromFlaws'),
-      h('span.hint', { text: 'Two traits and two flaws, and each flaw buys a feat. No third-party or homebrew sources.' })),
-    h('div.block', h('h3', 'Feats'), hosts.feats, add('feats'),
-      row(labelled('Granted elsewhere', field('featSlots.bonus', c.featSlots?.bonus, { type: 'int', width: '3.5rem', title: 'Bonus feats from a race or class - a human 1, a fighter its own.' })))),
-    h('div.block', h('h3', 'Traits'), hosts.traits, add('traits')),
-    h('div.block', h('h3', 'Flaws'), hosts.flaws, add('flaws')));
+      total('Bonus', 'feats.granted'),
+      tf ? total('From flaws', 'feats.fromFlaws') : null,
+      h('span.hint', { text: tf
+        ? (app.rules.ruleset.traitsFlaws || {}).note || ''
+        : 'One feat at 1st level and one every three hit dice. A human’s bonus feat is counted for you.' })),
+    h('div.block', h('h3', 'Feats'), feats.host,
+      row(
+        button('Add a feat', () => { c.feats.push({ name: '', effect: '', source: 'level', effects: [] }); feats.rebuild(); app.recompute(); }),
+        labelled('Bonus feats granted', field('featSlots.bonus', c.featSlots?.bonus, { type: 'int', width: '3.5rem', title: 'A fighter’s, a wizard’s, a homebrew class’s. A human’s is already counted.' })),
+        h('a.hint', { href: '#/content/feat', text: 'Write a feat of your own' }))),
+    h('div.block', h('h3', 'Features'),
+      h('p.hint', { text: 'Class features, boons, bloodlines, curses - anything that changes a number and is not a feat or an item.' }),
+      features.host,
+      button('Add a feature', () => { c.features.push({ name: '', effect: '', effects: [] }); features.rebuild(); app.recompute(); }, { subtle: true })),
+    tf ? simpleList('traits', 'Trait') : null,
+    tf ? simpleList('flaws', 'Flaw') : null);
 }
 
 /* ==========================================================================
-   Houserules: action points and taint
+   Campaign systems: action points and taint
    ========================================================================== */
 
 export function houserulesPanel(app) {
   const c = app.character;
+  const d = app.derived;
+  if (!d.modules.actionPoints && !d.modules.taint) return null;
 
-  const apBlock = h('div.block',
+  const apBlock = d.modules.actionPoints ? h('div.block',
     h('h3', 'Action points'),
     row(
       total('Pool', 'actionPoints.earned'),
       labelled('Spent', field('actionPoints.spent', c.actionPoints?.spent, { type: 'int', width: '4rem' })),
       total('Remaining', 'actionPoints.remaining', { big: true }),
-      labelled('Bonus', field('actionPoints.bonus', c.actionPoints?.bonus, { type: 'int', width: '4rem', title: 'A prestige class or the DM may grant more.' })),
+      labelled('Bonus', field('actionPoints.bonus', c.actionPoints?.bonus, { type: 'int', width: '4rem' })),
       total('One point rolls', 'actionPoints.roll'),
     ),
-    h('p.hint', { text: 'One point a round, and a point spent on a special action is not also a point spent on a die roll. Spent points are gone for good.' }));
+    h('p.hint', { text: app.rules.ruleset.actionPoints?.note || '' })) : null;
 
-  const taintBlock = h('div.block',
+  const taintBlock = d.modules.taint ? h('div.block',
     h('h3', 'Taint'),
     h('div.taint-grid',
       h('span.label', { text: '' }),
@@ -499,52 +601,185 @@ export function houserulesPanel(app) {
       out('taint.depravity.toNext'),
       h('span.hint', { text: 'Will' })),
     row(
-      total('Effective taint', 'taint.effective', { title: 'Corruption and depravity together.' }),
+      total('Effective taint', 'taint.effective'),
       checkbox('taint.pureSoul', c.taint?.pureSoul, 'Pure Soul'),
       labelled('Exalted feats', field('taint.exaltedFeats', c.taint?.exaltedFeats, { type: 'int', width: '3.5rem', title: 'Pure Soul counts itself.' })),
       total('Bonus to resist', 'taint.resistBonus', { format: 'signed' }),
     ),
-    row(labelled('Notes', textarea('taint.notes', c.taint?.notes, { rows: 2, placeholder: 'Symptoms rolled, absorbing items carried, cleansings undertaken.' }), { wide: true })));
+    row(labelled('Notes', textarea('taint.notes', c.taint?.notes, { rows: 2, placeholder: 'Symptoms rolled, absorbing items carried, cleansings undertaken.' }), { wide: true }))) : null;
 
-  return panel('houserules', 'Action points and taint', apBlock, taintBlock);
+  return panel('houserules', d.modules.taint ? 'Action points and taint' : 'Action points', apBlock, taintBlock);
 }
 
 /* ==========================================================================
-   Wealth
+   Equipment and wealth
    ========================================================================== */
 
 export function wealthPanel(app) {
   const c = app.character;
+  const d = app.derived;
   const host = h('div.list');
 
-  const rebuild = () => refill(host, (c.wealth?.items || []).map((item, i) => h('div.list-row',
-    field(`wealth.items.${i}.name`, item.name, { placeholder: 'Item', className: 'grow' }),
-    labelled('Qty', field(`wealth.items.${i}.qty`, item.qty, { type: 'int', width: '3.5rem' })),
-    labelled('Value each', field(`wealth.items.${i}.value`, item.value, { type: 'int', width: '6rem' })),
-    labelled('Line', out(`wealth.items.${i}.lineValue`, { format: 'gp' })),
-    h('span.flag', { dataset: { out: `wealth.items.${i}.overCap`, format: 'cap' }, text: '' }),
-    button('x', () => {
-      c.wealth.items.splice(i, 1);
-      rebuild();
-      app.recompute();
-    }, { subtle: true, danger: true }))));
+  const rebuild = () => refill(host, (c.wealth?.items || []).map((item, i) => {
+    const fromContent = app.derived.index.itemByName.get(item.name);
+    const fx = item.effects || [];
+    const contentFx = fromContent?.effects?.length || 0;
+    return h('div.effect-list-row',
+      h('div.list-row.item-row',
+        checkbox(`wealth.items.${i}.equipped`, item.equipped !== false, 'Worn', { title: 'An item’s effects apply only while it is worn or held.' }),
+        field(`wealth.items.${i}.name`, item.name, { list: 'item-names', placeholder: 'Item', className: 'grow' }),
+        labelled('Qty', field(`wealth.items.${i}.qty`, item.qty, { type: 'int', width: '3.5rem' })),
+        labelled('Value each', field(`wealth.items.${i}.value`, item.value, { type: 'int', width: '6rem' })),
+        labelled('Line', out(`wealth.items.${i}.lineValue`, { format: 'gp' })),
+        d.wealth.enforced ? h('span.flag', { dataset: { out: `wealth.items.${i}.overCap`, format: 'cap' }, text: '' }) : null,
+        button('x', () => {
+          c.wealth.items.splice(i, 1);
+          rebuild();
+          app.recompute();
+        }, { subtle: true, danger: true })),
+      h('details.row-effects', { open: fx.length > 0 },
+        h('summary', contentFx
+          ? `${contentFx} effect${contentFx === 1 ? '' : 's'} from your content${fx.length ? `, ${fx.length} added here` : ''}`
+          : fx.length ? `${fx.length} effect${fx.length === 1 ? '' : 's'}` : 'Effects'),
+        effectsEditor(`wealth.items.${i}.effects`, () => (c.wealth.items[i].effects = c.wealth.items[i].effects || []), {
+          skillNames: skillNamesFor(app),
+          emptyText: 'None. A cloak of resistance +1, say, is all saving throws / resistance / +1.',
+          onShapeChange: () => app.recompute(),
+        })));
+  }));
 
   rebuild();
-  return panel('wealth', 'Wealth',
+  return panel('wealth', 'Equipment and wealth',
     h('div.summary-strip',
       total('Expected at this level', 'wealth.expected', { format: 'gp' }),
       total('Held', 'wealth.held', { format: 'gp' }),
-      total('Single item cap', 'wealth.cap', { format: 'gp' })),
+      d.wealth.enforced ? total('Single item cap', 'wealth.cap', { format: 'gp' }) : null,
+      h('span.hint', { text: d.wealth.enforced
+        ? 'Wealth by level, and the campaign’s cap on any one item.'
+        : 'Wealth by level is guidance: what a character of this level usually carries.' })),
     row(
       labelled('Starting gold', field('wealth.startingGold', c.wealth?.startingGold, { type: 'int', width: '7rem', placeholder: 'by level' })),
-      labelled('Coin in hand', field('wealth.gold', c.wealth?.gold, { type: 'int', width: '7rem' })),
-      h('span.hint', { text: 'No single item may be worth more than half your starting gold at 1st level, or a quarter of it after.' })),
+      labelled('Coin in hand', field('wealth.gold', c.wealth?.gold, { type: 'int', width: '7rem' }))),
     host,
-    button('Add an item', () => {
-      c.wealth.items.push({ name: '', qty: 1, value: 0 });
-      rebuild();
-      app.recompute();
-    }));
+    row(
+      button('Add an item', () => {
+        c.wealth.items.push({ name: '', qty: 1, value: 0, equipped: true, effects: [] });
+        rebuild();
+        app.recompute();
+      }),
+      h('a.hint', { href: '#/content/item', text: 'Write an item of your own' })));
+}
+
+/* ==========================================================================
+   Bonuses in force - the working, shown
+   ========================================================================== */
+
+/**
+ * Every effect on the character, grouped by what it changes. Display only, so
+ * it is redrawn after every recompute; it holds no inputs to lose.
+ *
+ * This panel is what makes the stacking rules trustworthy. A number that has
+ * quietly declined to add a player's ring is a number they will assume is a
+ * bug, unless the sheet shows its reasoning.
+ */
+export function effectsPanel() {
+  return panel('effects', 'Bonuses in force',
+    h('p.hint', { text: 'Every bonus the sheet is counting, where it came from, and why the ones that do not count are left out.' }),
+    h('div.effects-summary', { dataset: { effectsHost: '' } }));
+}
+
+export function paintEffects(root, derived) {
+  const host = root.querySelector('[data-effects-host]');
+  if (!host) return;
+  const buckets = Object.values(derived.effects.resolved)
+    .filter((b) => b.applied.length || b.suppressed.length || b.conditional.length)
+    .sort((a, b) => describeTarget(a.target).localeCompare(describeTarget(b.target)));
+
+  if (!buckets.length) {
+    refill(host, h('p.empty', { text: 'Nothing yet. Choose a race, or give a feat or an item an effect.' }));
+    return;
+  }
+
+  const sign = (n) => (n < 0 ? String(n) : `+${n}`);
+  refill(host, h('div.table-scroll', h('table.effects-table',
+    h('thead', h('tr', ['Changes', 'Total', 'From'].map((t) => h('th', { text: t })))),
+    h('tbody', buckets.map((b) => h('tr', { class: b.unknown ? 'is-unknown' : '' },
+      h('th', { scope: 'row', text: describeTarget(b.target) }),
+      h('td.effects-total', { text: b.applied.length ? sign(b.total) : '-' }),
+      h('td', h('ul.effect-sources',
+        b.applied.map((e) => h('li', { text: `${sign(e.value)} ${e.type} - ${e.source}` })),
+        b.suppressed.map((e) => h('li.is-suppressed', { text: `${sign(e.value)} ${e.type} - ${e.source}`, title: `Does not stack with a larger ${e.type} bonus.` })),
+        b.conditional.map((e) => h('li.is-conditional', { text: `${sign(e.value)} ${e.type} ${e.condition} - ${e.source}`, title: 'Only in the situation described, so not in the total.' }))))))))));
+}
+
+/** The conditional bonuses listed beside the numbers they would change. */
+export function paintConditions(root, derived) {
+  const groups = {
+    ac: ['ac'],
+    save: ['save.all', 'save.fort', 'save.ref', 'save.will'],
+    attack: ['attack.all', 'attack.melee', 'attack.ranged', 'damage.melee', 'damage.ranged'],
+  };
+  const sign = (n) => (n < 0 ? String(n) : `+${n}`);
+  for (const el of root.querySelectorAll('[data-conditions-for]')) {
+    const targets = groups[el.dataset.conditionsFor] || [];
+    const items = targets.flatMap((t) => derived.effects.resolved[t]?.conditional || []);
+    refill(el, items.map((e) => h('li', { text: `${sign(e.value)} ${describeTarget(e.target)} ${e.condition} (${e.source})` })));
+  }
+  for (const el of root.querySelectorAll('[data-cond-mark]')) {
+    const name = el.dataset.condMark;
+    const items = [...(derived.effects.resolved[name]?.conditional || []), ...(derived.effects.resolved['skill.*']?.conditional || [])];
+    el.textContent = items.length ? '†' : '';
+    el.title = items.map((e) => `${sign(e.value)} ${e.condition} (${e.source})`).join('\n');
+  }
+}
+
+/* ==========================================================================
+   Homebrew carried by this sheet
+   ========================================================================== */
+
+export function contentPanel() {
+  return panel('content', 'Homebrew on this sheet',
+    h('p.hint', { text: 'Content from your library that this character uses travels inside the sheet, so an exported file still adds up in somebody else’s browser. Update a copy here when you change the original.' }),
+    h('div.content-carried', { dataset: { contentHost: '' } }));
+}
+
+export function paintContent(root, app, library) {
+  const host = root.querySelector('[data-content-host]');
+  if (!host) return;
+  const c = app.character;
+  const rows = [];
+  for (const kind of CONTENT_KINDS) {
+    const plural = CONTENT_TYPES[kind].plural;
+    (c.content?.[plural] || []).forEach((entry, i) => {
+      if (!entry.name) return;
+      const original = library.find(kind, entry.name);
+      const stale = original && original.updated && original.updated !== entry.updated;
+      rows.push(h('li.carried',
+        h('span.carried-kind', { text: CONTENT_TYPES[kind].label }),
+        h('span.carried-name', { text: entry.name }),
+        stale ? h('span.tag.is-stale', { text: 'library copy is newer' }) : null,
+        !original ? h('span.tag', { text: 'not in your library' }) : null,
+        h('span.grow'),
+        stale ? button('Update', () => {
+          c.content[plural][i] = structuredClone(original);
+          app.recompute();
+        }, { subtle: true }) : null,
+        !original ? button('Save to library', () => {
+          const shelf = library.load();
+          shelf[plural].push({ ...structuredClone(entry), kind, updated: entry.updated || new Date().toISOString() });
+          library.save(shelf);
+          app.recompute();
+        }, { subtle: true }) : null,
+        button('Remove', () => {
+          c.content[plural].splice(i, 1);
+          app.recompute();
+        }, { subtle: true, danger: true, title: 'Take this copy off the sheet. Anything still named after it stops counting.' })));
+    });
+  }
+  const unused = unusedContent(c);
+  refill(host,
+    rows.length ? h('ul.carried-list', rows) : h('p.empty', { text: 'None. Everything on this sheet is from the SRD.' }),
+    unused.length ? h('p.hint', { text: `Carried but not used: ${unused.map((u) => u.name).join(', ')}.` }) : null);
 }
 
 /* ==========================================================================
@@ -554,12 +789,12 @@ export function wealthPanel(app) {
 export function textPanel(app) {
   const t = app.character.text || {};
   const blocks = [
-    ['classFeatures', 'Class features', 'Rage, sneak attack, wild shape, the lot - and what this campaign has altered about them.'],
-    ['spells', 'Spells', 'Known, prepared, per day. Anything you can cast must be written down somewhere the DM can read it.'],
+    ['classFeatures', 'Class features', 'Rage, sneak attack, wild shape - the parts of a class that are description rather than arithmetic.'],
+    ['spells', 'Spells', 'Known, prepared, per day.'],
     ['powers', 'Powers', 'Powers known and power points.'],
     ['languages', 'Languages', ''],
-    ['equipment', 'Equipment', 'What is carried, worn and stowed.'],
-    ['backstory', 'Backstory', 'Where they came from. This is what shapes the world around you.'],
+    ['equipment', 'Other equipment', 'Everything carried that needs no line of its own above.'],
+    ['backstory', 'Backstory', ''],
     ['notes', 'Notes', ''],
   ];
   return panel('text', 'Features, spells and story',
@@ -570,11 +805,11 @@ export function textPanel(app) {
 }
 
 /* ==========================================================================
-   The casting summary, shown only when a casting class is taken
+   Casting
    ========================================================================== */
 
 export function castingPanel() {
   return panel('casting', 'Casting and manifesting',
     h('div.casting-host', { dataset: { castingHost: '' } }),
-    h('p.hint', { text: 'Spells per day come from the class tables on the wiki; what the sheet works out is the save DC and the bonus slots a high ability grants.' }));
+    h('p.hint', { text: 'Spells per day come from the class tables; what the sheet works out is the save DC and the bonus slots a high ability grants.' }));
 }

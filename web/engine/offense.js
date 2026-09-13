@@ -14,8 +14,11 @@ import { num, signed } from './util.js';
  *
  * Size enters twice with different numbers: a Small creature is +1 to hit and
  * -4 to grapple, because being small helps you aim and hurts you in a hold.
+ *
+ * @param misc     what the player typed: { melee, ranged, grapple }
+ * @param bonuses  what effects add: { melee, ranged, grapple, damageMelee, damageRanged }
  */
-export function attacks(summary, abilities, size, misc = {}) {
+export function attacks(summary, abilities, size, misc = {}, bonuses = {}) {
   const bab = summary.bab;
   const str = abilities.str.mod;
   const dex = abilities.dex.mod;
@@ -28,14 +31,15 @@ export function attacks(summary, abilities, size, misc = {}) {
     routine: base.map((b) => signed(b + mod)).join('/'),
   });
 
-  const melee = set(str + size.attack + num(misc.melee));
-  const ranged = set(dex + size.attack + num(misc.ranged));
+  const melee = set(str + size.attack + num(misc.melee) + num(bonuses.melee));
+  const ranged = set(dex + size.attack + num(misc.ranged) + num(bonuses.ranged));
 
   return {
     bab,
     melee,
     ranged,
-    grapple: { total: bab + str + size.grapple + num(misc.grapple) },
+    grapple: { total: bab + str + size.grapple + num(misc.grapple) + num(bonuses.grapple) },
+    damageBonus: { melee: num(bonuses.damageMelee), ranged: num(bonuses.damageRanged) },
     // Bull rush and trip are opposed Strength checks, not attacks: no base
     // attack bonus, and the size modifier is the grapple one - four points a
     // size category.
@@ -51,9 +55,10 @@ export function weaponLine(weapon, attackSet, abilities) {
   const extra = num(weapon.attackBonus);
 
   // A thrown weapon adds Strength to damage; a bow or crossbow does not.
-  const damageMod = weapon.ranged && !weapon.thrown
-    ? num(weapon.damageBonus)
-    : abilities.str.mod + num(weapon.damageBonus);
+  const isRanged = weapon.ranged && !weapon.thrown;
+  const strToDamage = isRanged ? 0 : abilities.str.mod;
+  const effectDamage = weapon.ranged ? attackSet.damageBonus?.ranged || 0 : attackSet.damageBonus?.melee || 0;
+  const damageMod = strToDamage + num(weapon.damageBonus) + effectDamage;
 
   return {
     ...weapon,

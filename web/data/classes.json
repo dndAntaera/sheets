@@ -21,11 +21,7 @@
       "name": "Barbarian",
       "hd": 12,
       "bab": "good",
-      "saves": {
-        "fort": "good",
-        "ref": "poor",
-        "will": "poor"
-      },
+      "saves": {"fort": "good", "ref": "poor", "will": "poor"},
       "skillPoints": 4,
       "srd": true,
       "classSkills": [
@@ -44,18 +40,10 @@
       "name": "Bard",
       "hd": 6,
       "bab": "average",
-      "saves": {
-        "fort": "poor",
-        "ref": "good",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "good", "will": "good"},
       "skillPoints": 6,
       "srd": true,
-      "casting": {
-        "ability": "cha",
-        "type": "arcane",
-        "spontaneous": true
-      },
+      "casting": {"ability": "cha", "type": "arcane", "spontaneous": true},
       "classSkills": [
         "Appraise",
         "Balance",
@@ -88,18 +76,10 @@
       "name": "Cleric",
       "hd": 8,
       "bab": "average",
-      "saves": {
-        "fort": "good",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "good", "ref": "poor", "will": "good"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {
-        "ability": "wis",
-        "type": "divine",
-        "spontaneous": false
-      },
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -117,18 +97,10 @@
       "name": "Druid",
       "hd": 8,
       "bab": "average",
-      "saves": {
-        "fort": "good",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "good", "ref": "poor", "will": "good"},
       "skillPoints": 4,
       "srd": true,
-      "casting": {
-        "ability": "wis",
-        "type": "divine",
-        "spontaneous": false
-      },
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -149,32 +121,16 @@
       "name": "Fighter",
       "hd": 10,
       "bab": "good",
-      "saves": {
-        "fort": "good",
-        "ref": "poor",
-        "will": "poor"
-      },
+      "saves": {"fort": "good", "ref": "poor", "will": "poor"},
       "skillPoints": 2,
       "srd": true,
-      "classSkills": [
-        "Climb",
-        "Craft",
-        "Handle Animal",
-        "Intimidate",
-        "Jump",
-        "Ride",
-        "Swim"
-      ]
+      "classSkills": ["Climb", "Craft", "Handle Animal", "Intimidate", "Jump", "Ride", "Swim"]
     },
     {
       "name": "Monk",
       "hd": 8,
       "bab": "average",
-      "saves": {
-        "fort": "good",
-        "ref": "good",
-        "will": "good"
-      },
+      "saves": {"fort": "good", "ref": "good", "will": "good"},
       "skillPoints": 4,
       "srd": true,
       "classSkills": [
@@ -202,18 +158,10 @@
       "name": "Paladin",
       "hd": 10,
       "bab": "good",
-      "saves": {
-        "fort": "good",
-        "ref": "poor",
-        "will": "poor"
-      },
+      "saves": {"fort": "good", "ref": "poor", "will": "poor"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {
-        "ability": "wis",
-        "type": "divine",
-        "spontaneous": false
-      },
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -231,18 +179,10 @@
       "name": "Ranger",
       "hd": 8,
       "bab": "good",
-      "saves": {
-        "fort": "good",
-        "ref": "good",
-        "will": "poor"
-      },
+      "saves": {"fort": "good", "ref": "good", "will": "poor"},
       "skillPoints": 6,
       "srd": true,
-      "casting": {
-        "ability": "wis",
-        "type": "divine",
-        "spontaneous": false
-      },
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
       "classSkills": [
         "Climb",
         "Concentration",
@@ -269,11 +209,7 @@
       "name": "Rogue",
       "hd": 6,
       "bab": "average",
-      "saves": {
-        "fort": "poor",
-        "ref": "good",
-        "will": "poor"
-      },
+      "saves": {"fort": "poor", "ref": "good", "will": "poor"},
       "skillPoints": 8,
       "srd": true,
       "classSkills": [
@@ -312,43 +248,20 @@
       "name": "Sorcerer",
       "hd": 4,
       "bab": "poor",
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {
-        "ability": "cha",
-        "type": "arcane",
-        "spontaneous": true
-      },
-      "classSkills": [
-        "Bluff",
-        "Concentration",
-        "Craft",
-        "Knowledge (arcana)",
-        "Profession",
-        "Spellcraft"
-      ]
+      "casting": {"ability": "cha", "type": "arcane", "spontaneous": true},
+      "classSkills": ["Bluff", "Concentration", "Craft", "Knowledge (arcana)", "Profession", "Spellcraft"]
     },
     {
       "name": "Wizard",
       "hd": 4,
       "bab": "poor",
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {
-        "ability": "int",
-        "type": "arcane",
-        "spontaneous": false
-      },
+      "casting": {"ability": "int", "type": "arcane", "spontaneous": false},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -363,41 +276,23 @@
       "name": "Psion",
       "hd": 4,
       "bab": "poor",
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 2,
       "srd": true,
       "psionic": true,
-      "manifesting": {
-        "ability": "int"
-      },
-      "classSkills": [
-        "Concentration",
-        "Craft",
-        "Knowledge",
-        "Profession",
-        "Psicraft"
-      ],
+      "manifesting": {"ability": "int"},
+      "classSkills": ["Concentration", "Craft", "Knowledge", "Profession", "Psicraft"],
       "note": "A psion's discipline adds its own class skills on top of these; pick the discipline under Class Features and add them by hand."
     },
     {
       "name": "Psychic Warrior",
       "hd": 8,
       "bab": "average",
-      "saves": {
-        "fort": "good",
-        "ref": "poor",
-        "will": "poor"
-      },
+      "saves": {"fort": "good", "ref": "poor", "will": "poor"},
       "skillPoints": 2,
       "srd": true,
       "psionic": true,
-      "manifesting": {
-        "ability": "wis"
-      },
+      "manifesting": {"ability": "wis"},
       "classSkills": [
         "Autohypnosis",
         "Climb",
@@ -415,17 +310,11 @@
       "name": "Wilder",
       "hd": 6,
       "bab": "average",
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 4,
       "srd": true,
       "psionic": true,
-      "manifesting": {
-        "ability": "cha"
-      },
+      "manifesting": {"ability": "cha"},
       "classSkills": [
         "Autohypnosis",
         "Balance",
@@ -450,11 +339,7 @@
       "name": "Soulknife",
       "hd": 10,
       "bab": "average",
-      "saves": {
-        "fort": "poor",
-        "ref": "good",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "good", "will": "good"},
       "skillPoints": 4,
       "srd": true,
       "psionic": true,
@@ -478,18 +363,10 @@
       "hd": 6,
       "bab": "poor",
       "npcClass": true,
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {
-        "ability": "wis",
-        "type": "divine",
-        "spontaneous": false
-      },
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -506,11 +383,7 @@
       "hd": 8,
       "bab": "average",
       "npcClass": true,
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 4,
       "srd": true,
       "classSkills": [
@@ -538,11 +411,7 @@
       "hd": 4,
       "bab": "poor",
       "npcClass": true,
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "poor"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "poor"},
       "skillPoints": 2,
       "srd": true,
       "classSkills": [
@@ -563,11 +432,7 @@
       "hd": 6,
       "bab": "average",
       "npcClass": true,
-      "saves": {
-        "fort": "poor",
-        "ref": "poor",
-        "will": "good"
-      },
+      "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 6,
       "srd": true,
       "anyTenClassSkills": true,
@@ -578,21 +443,10 @@
       "hd": 8,
       "bab": "good",
       "npcClass": true,
-      "saves": {
-        "fort": "good",
-        "ref": "poor",
-        "will": "poor"
-      },
+      "saves": {"fort": "good", "ref": "poor", "will": "poor"},
       "skillPoints": 2,
       "srd": true,
-      "classSkills": [
-        "Climb",
-        "Handle Animal",
-        "Intimidate",
-        "Jump",
-        "Ride",
-        "Swim"
-      ]
+      "classSkills": ["Climb", "Handle Animal", "Intimidate", "Jump", "Ride", "Swim"]
     }
   ]
 }
