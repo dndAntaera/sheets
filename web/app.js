@@ -21,6 +21,7 @@ import {
 import { showContent } from './ui/content.js';
 import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
+import { showLanding } from './ui/landing.js';
 import { config } from './config.js';
 import {
   local, remote, library, preferences, account, syncLibrary, save as saveEverywhere, newId,
@@ -69,7 +70,7 @@ async function start() {
   // the header is right the first time.
   const returning = location.hash.match(/^#\/signed-in\/([a-f0-9]+)$/);
   if (returning && remote.enabled()) {
-    let next = '#/';
+    let next = '#/characters';
     try {
       await remote.completeSignIn(returning[1]);
       app.notice = { level: 'pass', text: 'Signed in. Your characters and homebrew are kept with your account.' };
@@ -346,11 +347,12 @@ const VIEWS = [
       showContent(main(), app, kind || 'race', index ?? null);
     },
   },
-  { match: /^$/, nav: 'roster', show: () => showRoster() },
+  { match: /^characters$/, nav: 'roster', title: 'Characters', show: () => showRoster() },
+  { match: /^$/, nav: 'home', show: () => showHome() },
 ];
 
 const NAV = [
-  { key: 'roster', label: 'Characters', href: '#/', visible: () => true },
+  { key: 'roster', label: 'Characters', href: '#/characters', visible: () => true },
   { key: 'campaigns', label: 'Campaigns', href: '#/campaigns', visible: () => Boolean(app.user) },
   { key: 'content', label: 'Content', href: '#/content', visible: () => true },
   { key: 'admin', label: 'Accounts', href: '#/admin', visible: () => Boolean(app.user?.admin) },
@@ -369,12 +371,29 @@ function route() {
 }
 
 /* =========================================================================
+   The landing page
+   ========================================================================= */
+
+function showHome() {
+  app.character = null;
+  document.title = `${config.title} - ${config.tagline}`;
+  const ruleset = publicRulesets()[0];
+  showLanding(main(), app, {
+    signedIn: Boolean(app.user),
+    needsSignIn: remote.enabled(),
+    signInButtons,
+    newCharacter: () => createCharacter(ruleset),
+    rulesetName: app.baseRules.rulesets[ruleset].shortName,
+  });
+}
+
+/* =========================================================================
    The roster
    ========================================================================= */
 
 async function showRoster() {
   app.character = null;
-  document.title = config.title;
+  document.title = `Characters - ${config.title}`;
   const main = document.getElementById('main');
 
   let rows = local.list();
@@ -579,7 +598,7 @@ async function openSheet(id, opts = {}) {
 function sheetToolbar() {
   const rs = app.rules.ruleset;
   return h('div.toolbar',
-    h('a.back', { href: '#/', text: 'All characters' }),
+    h('a.back', { href: '#/characters', text: 'All characters' }),
     rs.wiki ? h('a.back', { href: rs.wiki, target: '_blank', rel: 'noopener', text: `${rs.shortName} wiki` }) : null,
     h('span.grow'),
     button('Export', exportCharacter, { subtle: true, title: 'Download this sheet as a file. Any homebrew it uses goes with it.' }),

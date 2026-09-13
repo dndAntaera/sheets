@@ -617,6 +617,168 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 }
 .legal p { margin: 0 0 var(--sp-1); }
 
+/* ---------------------------------------------------------------------------
+   The landing page - on the sky, the front of the book
+   --------------------------------------------------------------------------- */
+
+.landing {
+  max-width: var(--sheet-width);
+  margin: 0 auto;
+  padding: 0 var(--sp-4) var(--sp-6);
+  color: var(--sky-ink);
+}
+.landing a { color: var(--sky-link); }
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 5vw, 4rem);
+  align-items: center;
+  padding: clamp(2rem, 7vw, 5rem) 0 clamp(2rem, 6vw, 4rem);
+}
+.eyebrow {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--text-tiny);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--sky-link);
+}
+.hero-title {
+  margin: 0;
+  font: 600 clamp(2rem, 4.6vw, 3.25rem)/1.08 var(--font-display);
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.hero-lede {
+  max-width: 36rem;
+  margin: var(--sp-4) 0 0;
+  font-size: clamp(.95rem, 1.4vw, 1.08rem);
+  line-height: 1.6;
+  color: var(--sky-ink-dim);
+}
+.landing-cta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-5); }
+.landing-muted { margin: var(--sp-3) 0 0; font-size: var(--text-small); color: var(--sky-ink-dim); }
+.landing-cta .landing-muted { margin: 0; }
+
+/* The way in: one bright button, and quieter ones beside it. */
+.landing .btn { font-size: var(--text-body); padding: .65rem 1.15rem; border-radius: var(--radius-lg); }
+.landing .btn.primary,
+.landing .providers .btn.provider-google {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+  font-weight: 600;
+}
+.landing .btn.primary:hover,
+.landing .providers .btn.provider-google:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+.landing .btn.ghost,
+.landing .providers .btn.provider-discord {
+  background: transparent;
+  border-color: rgba(215, 220, 237, .35);
+  color: var(--sky-ink);
+}
+.landing .btn.ghost:hover,
+.landing .providers .btn.provider-discord:hover { border-color: var(--sky-link); color: var(--sky-ink); }
+
+/* The example sheet: a small card of parchment, set at a slight angle. */
+.hero-art { display: flex; justify-content: center; }
+.example-sheet {
+  width: min(100%, 22rem);
+  margin: 0;
+  padding: var(--sp-5);
+  background: var(--grain), var(--surface);
+  color: var(--ink);
+  border: var(--hair) solid var(--surface-edge);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float), 0 0 0 1px rgba(191, 0, 255, .12), 0 20px 60px rgba(191, 0, 255, .12);
+  transform: rotate(1.5deg);
+}
+.example-head { display: flex; flex-direction: column; gap: .15rem; padding-bottom: var(--sp-3); border-bottom: var(--hair) solid var(--rule); }
+.example-name { font: 600 1.15rem/1.2 var(--font-display); }
+.example-build { font-size: var(--text-small); color: var(--ink-soft); }
+.example-stats, .example-saves { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); }
+.example-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.example-saves { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.example-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-2) 0;
+  background: var(--surface-sunk);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--radius);
+}
+.example-value { font: 600 var(--text-total)/1.1 var(--font-display); font-variant-numeric: tabular-nums; white-space: pre; }
+.example-label { font-size: var(--text-tiny); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.example-attack {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: var(--hair) solid var(--rule);
+}
+.example-attack .example-value { font-size: 1rem; }
+.example-note { margin-top: var(--sp-3); font-size: var(--text-tiny); color: var(--ink-faint); }
+
+.landing-section { padding: clamp(2rem, 5vw, 3.5rem) 0 0; }
+.section-title {
+  margin: 0 0 var(--sp-5);
+  font: 600 clamp(1.3rem, 2.4vw, 1.75rem)/1.2 var(--font-display);
+  letter-spacing: -.01em;
+}
+
+.feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+.feature {
+  padding: var(--sp-5);
+  background: rgba(255, 255, 255, .03);
+  border: var(--hair) solid rgba(215, 220, 237, .12);
+  border-radius: var(--radius-lg);
+}
+.feature h3 { margin: 0 0 var(--sp-2); font: 600 1rem/1.3 var(--font-display); }
+.feature p { margin: 0; font-size: var(--text-body); line-height: 1.6; color: var(--sky-ink-dim); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+.step { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.step h3 { margin: .2rem 0 var(--sp-1); font: 600 1rem/1.3 var(--font-display); }
+.step p { margin: 0; line-height: 1.6; color: var(--sky-ink-dim); }
+.step-number {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: var(--hair) solid var(--sky-link);
+  color: var(--sky-link);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-closing {
+  margin-top: clamp(2rem, 5vw, 3.5rem);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 0%, rgba(191, 0, 255, .14), transparent 70%);
+  border: var(--hair) solid rgba(215, 220, 237, .12);
+  border-radius: var(--radius-lg);
+}
+.landing-closing .section-title { margin-bottom: 0; }
+.landing-closing .hero-lede { margin-left: auto; margin-right: auto; }
+.landing-closing .landing-cta { justify-content: center; }
+
+@media (max-width: 52rem) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .example-sheet { transform: none; }
+  .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 34rem) {
+  .feature-grid { grid-template-columns: minmax(0, 1fr); }
+  .landing-cta .btn { flex: 1 1 100%; text-align: center; }
+}
+@media print { .landing { display: none; } }
+
 /* The ruleset, named rather than switched, when there is nothing to switch to. */
 .ruleset-name { font-weight: 600; }
 

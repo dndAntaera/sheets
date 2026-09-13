@@ -455,6 +455,7 @@ deploy workflow pins it.
       content         the library view
 
     web/ui/
+      landing         the front page at #/; the characters are at #/characters
       campaigns       the campaign list, one campaign, joining by invitation
       admin           the Accounts page
 
