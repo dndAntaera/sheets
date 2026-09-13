@@ -36,6 +36,7 @@ import {
 import { contentIndex, raceFacts, resolveEntries, usableContent, CONTENT_TYPES } from './library.js';
 import { activeModules } from './modules.js';
 import { magicFor, magicNotices } from './magic.js';
+import { trackersFor, trackerNotices } from './trackers.js';
 import { num } from './util.js';
 
 const SAVE_ABILITY = { fort: 'con', ref: 'dex', will: 'wis' };
@@ -179,6 +180,7 @@ export function derive(character, rules, options = {}) {
     feats,
     casting: castingSummary(summary, abilities),
     magic: magicFor(character, summary, abilities, rules),
+    trackers: trackersFor(character, summary, abilities, rules, index),
     // Only the modules in force produce anything; the rest are null, and the
     // interface draws no panel for a null.
     actionPoints: modules.actionPoints
@@ -253,6 +255,7 @@ function notices(character, d, rules) {
   const add = (level, text, field) => out.push({ level, text, field });
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   magicNotices(d.magic, add);
+  trackerNotices(d.trackers || [], add);
   const rs = rules.ruleset;
   const restrictions = rs.restrictions || {};
 

@@ -18,6 +18,8 @@ import { effectsEditor } from './effects-editor.js';
 import { ABILITIES, ABILITY_NAMES, abilityIncreaseLevels } from '../engine/abilities.js';
 import { describeTarget } from '../engine/effects.js';
 import { CONTENT_TYPES, CONTENT_KINDS, unusedContent } from '../engine/library.js';
+import { loadReference, referenceNow, lookUp } from '../reference.js';
+import { referenceCard } from './reference.js';
 
 const SAVES = [['fort', 'Fortitude'], ['ref', 'Reflex'], ['will', 'Will']];
 const METHOD_LABELS = {
@@ -268,6 +270,7 @@ export function abilitiesPanel(app) {
 
 export function combatPanel(app) {
   const c = app.character;
+  withReference(app, 'equipment', 'combat');
   const lock = app.rules.ruleset.hitPoints?.lockNote;
 
   const hpBlock = h('div.block',
@@ -287,7 +290,7 @@ export function combatPanel(app) {
   const acBlock = h('div.block',
     h('h3', 'Armor class'),
     row(
-      labelled('Armor', field('gear.armor.name', c.gear?.armor?.name, { placeholder: 'Chain shirt', className: 'grow' })),
+      labelled('Armor', field('gear.armor.name', c.gear?.armor?.name, { placeholder: 'Chain shirt', list: 'armor-names', className: 'grow', title: 'Pick an SRD armor and its numbers fill in.' })),
       labelled('Bonus', field('gear.armor.bonus', c.gear?.armor?.bonus, { type: 'int', width: '3.5rem' })),
       labelled('Max Dex', field('gear.armor.maxDex', c.gear?.armor?.maxDex, { type: 'int', width: '3.5rem', placeholder: '-' })),
       labelled('Check', field('gear.armor.acp', c.gear?.armor?.acp, { type: 'int', width: '3.5rem', title: 'As a positive number. The skill table subtracts it.' })),
@@ -295,7 +298,7 @@ export function combatPanel(app) {
       labelled('Speed', field('gear.armor.speed', c.gear?.armor?.speed, { type: 'int', width: '3.5rem', placeholder: '-' })),
     ),
     row(
-      labelled('Shield', field('gear.shield.name', c.gear?.shield?.name, { placeholder: 'Heavy steel', className: 'grow' })),
+      labelled('Shield', field('gear.shield.name', c.gear?.shield?.name, { placeholder: 'Shield, heavy steel', list: 'shield-names', className: 'grow', title: 'Pick an SRD shield and its numbers fill in.' })),
       labelled('Bonus', field('gear.shield.bonus', c.gear?.shield?.bonus, { type: 'int', width: '3.5rem' })),
       labelled('Max Dex', field('gear.shield.maxDex', c.gear?.shield?.maxDex, { type: 'int', width: '3.5rem', placeholder: '-' })),
       labelled('Check', field('gear.shield.acp', c.gear?.shield?.acp, { type: 'int', width: '3.5rem' })),
@@ -358,7 +361,7 @@ export function combatPanel(app) {
 
   const weaponHost = h('div.weapons');
   const rebuildWeapons = () => refill(weaponHost, (c.weapons || []).map((w, i) => h('div.weapon-row',
-    field(`weapons.${i}.name`, w.name, { placeholder: 'Weapon', className: 'grow' }),
+    field(`weapons.${i}.name`, w.name, { placeholder: 'Weapon', list: 'weapon-names', className: 'grow', title: 'Pick an SRD weapon and its damage and critical fill in.' }),
     labelled('Atk', field(`weapons.${i}.attackBonus`, w.attackBonus, { type: 'int', width: '3.5rem', title: 'The weapon’s own enhancement, masterwork included.' })),
     labelled('Damage', field(`weapons.${i}.damageDice`, w.damageDice, { placeholder: '1d8', width: '5rem' })),
     labelled('Dmg +', field(`weapons.${i}.damageBonus`, w.damageBonus, { type: 'int', width: '3.5rem' })),
@@ -487,6 +490,7 @@ function effectRows(app, key, opts) {
         field(`${key}.${i}.name`, entry.name, { list: opts.datalist, placeholder: opts.placeholder, className: 'grow' }),
         field(`${key}.${i}.effect`, entry.effect, { placeholder: 'What it does, in a line', className: 'grow wide' }),
         opts.sources ? select(`${key}.${i}.source`, entry.source, opts.sources, { className: 'narrow' }) : null,
+        opts.uses ? usesField(`${key}.${i}`, entry, fromContent) : null,
         button('x', () => {
           c[key].splice(i, 1);
           rebuild();
@@ -500,21 +504,51 @@ function effectRows(app, key, opts) {
           skillNames: skillNamesFor(app),
           emptyText: fromContent ? 'Nothing added here beyond what the content entry already does.' : 'None. Add one and this row changes the sheet.',
           onShapeChange: () => app.recompute(),
-        })));
+        })),
+      opts.reference ? referenceDetails(opts.reference, entry.name) : null);
   }));
   rebuild();
   return { host, rebuild };
 }
 
+/** A row's uses per day: a number, and whether they come back daily or weekly. */
+function usesField(path, entry, fromContent) {
+  return labelled('Uses', field(`${path}.uses`, entry.uses, {
+    type: 'int',
+    width: '3.5rem',
+    placeholder: fromContent?.uses ? String(fromContent.uses) : '-',
+    title: 'Uses per day, for something that can be used only so many times. Leave empty otherwise; the Feats page tracks it.',
+  }));
+}
+
+/** "About" a feat or item: its SRD entry, opened in place, when the name is one the reference knows. */
+export function referenceDetails(kind, name) {
+  const entry = lookUp(kind, name);
+  if (!entry) return null;
+  const holder = h('div.row-reference-body');
+  const details = h('details.row-reference', h('summary', { text: `About ${entry.name}` }), holder);
+  details.addEventListener('toggle', () => {
+    if (details.open && !holder.firstChild) refill(holder, referenceCard(kind, entry));
+  });
+  return details;
+}
+
+/** Load a reference once, then draw a panel again so its rows can use it. */
+function withReference(app, kind, panelKey) {
+  if (referenceNow(kind)) return;
+  loadReference(kind).then(() => app.rebuildPanel?.(panelKey)).catch(() => {});
+}
+
 export function featsPanel(app) {
   const c = app.character;
   const tf = app.derived.modules.traitsFlaws;
+  withReference(app, 'feats', 'feats');
 
   const feats = effectRows(app, 'feats', {
-    datalist: 'feat-names', placeholder: 'Feat', lookup: 'featByName',
+    datalist: 'feat-names', placeholder: 'Feat', lookup: 'featByName', uses: true, reference: 'feats',
     sources: [['level', 'level'], ['bonus', 'bonus'], ['flaw', 'flaw'], ['class', 'class'], ['race', 'race'], ['other', 'other']],
   });
-  const features = effectRows(app, 'features', { datalist: 'feature-names', placeholder: 'Class feature, boon, curse...', lookup: 'featureByName' });
+  const features = effectRows(app, 'features', { datalist: 'feature-names', placeholder: 'Class feature, boon, curse...', lookup: 'featureByName', uses: true });
 
   const simpleList = (key, label) => {
     const host = h('div.list');
@@ -630,6 +664,7 @@ export function wealthPanel(app) {
         field(`wealth.items.${i}.name`, item.name, { list: 'item-names', placeholder: 'Item', className: 'grow' }),
         labelled('Qty', field(`wealth.items.${i}.qty`, item.qty, { type: 'int', width: '3.5rem' })),
         labelled('Value each', field(`wealth.items.${i}.value`, item.value, { type: 'int', width: '6rem' })),
+        usesField(`wealth.items.${i}`, item, fromContent),
         labelled('Line', out(`wealth.items.${i}.lineValue`, { format: 'gp' })),
         d.wealth.enforced ? h('span.flag', { dataset: { out: `wealth.items.${i}.overCap`, format: 'cap' }, text: '' }) : null,
         button('x', () => {
@@ -789,6 +824,42 @@ export function paintContent(root, app, library) {
   refill(host,
     rows.length ? h('ul.carried-list', rows) : h('p.empty', { text: 'None. Everything on this sheet is from the SRD.' }),
     unused.length ? h('p.hint', { text: `Carried but not used: ${unused.map((u) => u.name).join(', ')}.` }) : null);
+}
+
+/* ==========================================================================
+   Limited uses - rage, turning, smite, wild shape, and anything with uses per day
+   ========================================================================== */
+
+/**
+ * @param ways  from app.js: { rest(), newWeek(), setUsed(tracker, used) }
+ */
+export function trackersPanel(app, ways) {
+  const trackers = app.derived.trackers || [];
+  const list = h('ul.tracker-list', trackers.map((t) => h(`li.tracker${t.used > t.max ? '.is-over' : ''}`,
+    h('div.tracker-name',
+      h('span.tracker-title', { text: t.name }),
+      h('span.hint', { text: `${t.source} - ${t.max}${t.unit ? ` ${t.unit}` : ''} a ${t.per}` })),
+    t.unit || t.max > 12
+      ? h('div.tracker-count',
+        button('\u2212', () => ways.setUsed(t, t.used + 1), { subtle: true, title: `Use one${t.unit ? ` of the ${t.unit}` : ''}` }),
+        h('span.tracker-left', { text: `${t.remaining} left` }),
+        button('+', () => ways.setUsed(t, Math.max(0, t.used - 1)), { subtle: true, title: 'Take one back' }))
+      : h('span.pips', { role: 'group', 'aria-label': `${t.used} of ${t.max} used` },
+        Array.from({ length: t.max }, (_, i) => h(`button.pip${i < t.used ? '.is-used' : ''}`, {
+          type: 'button',
+          title: i < t.used ? 'Used - click to take back' : 'Click to use',
+          'aria-pressed': String(i < t.used),
+          onclick: () => ways.setUsed(t, i < t.used ? i : i + 1),
+        }))))));
+
+  return panel('trackers', 'Limited uses',
+    trackers.length
+      ? list
+      : h('p.empty', { text: 'Nothing with uses per day yet. Class features like rage and turning appear here as they are gained; give any feat, feature or item a number of uses and it does too.' }),
+    row(
+      button('Rest', ways.rest, { title: 'A night\u2019s rest: daily uses, spells and power points back.' }),
+      trackers.some((t) => t.per === 'week') ? button('New week', ways.newWeek, { subtle: true, title: 'Weekly uses back, and daily ones too.' }) : null,
+      h('span.hint', { text: 'Uses a day come back with a night\u2019s rest.' })));
 }
 
 /* ==========================================================================

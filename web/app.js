@@ -10,13 +10,13 @@
 
 import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
-  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic,
+  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic, restedTrackers,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
 import { wizardPage, paintWizard, WIZARD_STEPS, stepForNotice } from './ui/wizard.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
-  featsPanel, houserulesPanel, wealthPanel, textPanel,
+  featsPanel, houserulesPanel, wealthPanel, textPanel, trackersPanel,
   effectsPanel, contentPanel, paintEffects, paintConditions, paintContent,
 } from './ui/sheet.js';
 import { showContent } from './ui/content.js';
@@ -25,6 +25,7 @@ import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/c
 import { showLanding } from './ui/landing.js';
 import { showReference } from './ui/reference.js';
 import { magicPanel } from './ui/magic.js';
+import { referenceNow, lookUp } from './reference.js';
 import { SHEET_PAGES, pageFor, pageForNotice, sheetTabs } from './ui/sheet-pages.js';
 import { showProfile, showSettings, avatarFor } from './ui/profile.js';
 import { applyAppearance, adoptAccountAppearance, setAppearance, isDark } from './ui/appearance.js';
@@ -45,6 +46,7 @@ const PANELS = {
   feats: featsPanel,
   houserules: houserulesPanel,
   casting: (a) => magicPanel(a, { rest: restCharacter }),
+  trackers: (a) => trackersPanel(a, { rest: restCharacter, newWeek: () => restCharacter('week'), setUsed: setTrackerUsed }),
   wealth: wealthPanel,
   effects: effectsPanel,
   content: contentPanel,
@@ -379,7 +381,10 @@ function refreshDatalists() {
   const lists = {
     'class-names': names(app.rules.classes.classes.map((c) => c.name), idx ? [...idx.classByName.keys()] : [], from('classes')),
     'race-names': names((app.rules.races?.races || []).map((r) => r.name), idx ? [...idx.raceByName.keys()] : [], from('races')),
-    'feat-names': names(idx ? [...idx.featByName.keys()] : [], from('feats')),
+    'feat-names': names(idx ? [...idx.featByName.keys()] : [], from('feats'), (referenceNow('feats')?.list || []).map((f) => f.name)),
+    'armor-names': names((referenceNow('equipment')?.list || []).filter((e) => e.category === 'Armor' && e.subcategory !== 'Shields' && e.subcategory !== 'Extras').map((e) => e.name)),
+    'shield-names': names((referenceNow('equipment')?.list || []).filter((e) => e.subcategory === 'Shields').map((e) => e.name)),
+    'weapon-names': names((referenceNow('equipment')?.list || []).filter((e) => e.family === 'Weapons' && e.subcategory !== 'Ammunition').map((e) => e.name)),
     'item-names': names(idx ? [...idx.itemByName.keys()] : [], from('items')),
     'template-names': names(idx ? [...idx.templateByName.keys()] : [], from('templates')),
     'feature-names': names(idx ? [...idx.featureByName.keys()] : [], from('features')),
@@ -781,11 +786,31 @@ async function openSheet(id, opts = {}) {
   window.scrollTo(0, scroll);
 }
 
-/** A night's rest: spells and power points back, uses per day reset. */
-function restCharacter() {
-  app.character.magic = restedMagic(app.character.magic);
+/** A night's rest - spells, power points and daily uses back - or, with 'week', weekly uses too. */
+function restCharacter(per = 'day') {
+  const c = app.character;
+  if (per === 'day') c.magic = restedMagic(c.magic);
+  const rested = restedTrackers(c, app.derived.trackers || [], per);
+  c.trackers = rested.trackers;
+  c.feats = rested.feats;
+  c.features = rested.features;
+  if (c.wealth) c.wealth.items = rested.items;
   app.recompute();
-  for (const key of ['casting', 'trackers', 'feats']) if (app.panels[key]) app.rebuildPanel(key);
+  for (const key of ['casting', 'trackers', 'feats', 'wealth']) if (app.panels[key]) app.rebuildPanel(key);
+}
+
+/** Mark how many of a limited use are spent: on the row for a sheet row, in `trackers` otherwise. */
+function setTrackerUsed(tracker, used) {
+  const c = app.character;
+  const value = Math.max(0, used);
+  if (tracker.row) {
+    const list = tracker.row.path === 'wealth.items' ? c.wealth?.items : c[tracker.row.path];
+    if (list?.[tracker.row.index]) list[tracker.row.index].usesUsed = value;
+  } else {
+    c.trackers = { ...(c.trackers || {}), [tracker.key]: value };
+  }
+  app.recompute();
+  if (app.panels.trackers) app.rebuildPanel('trackers');
 }
 
 /** Draw the open character again, in the sheet or the wizard step it is in, once its changes are saved. */
@@ -956,9 +981,10 @@ const RESHAPES = [
   [/^race\.name$/, ['identity']],
   [/^race\.racialHD$/, ['levels', 'abilities']],
   [/^abilities\.method$/, ['abilities']],
-  [/^feats\.\d+\.name$/, ['feats']],
-  [/^features\.\d+\.name$/, ['feats']],
-  [/^wealth\.items\.\d+\.name$/, ['wealth']],
+  [/^feats\.\d+\.name$/, ['feats', 'trackers']],
+  [/^features\.\d+\.name$/, ['feats', 'trackers']],
+  [/^wealth\.items\.\d+\.name$/, ['wealth', 'trackers']],
+  [/^(feats|features|wealth\.items)\.\d+\.uses$/, ['trackers']],
   [/^levels\.\d+\.[ab]$/, ['casting']],
 ];
 
@@ -979,6 +1005,14 @@ function onEdit(path, value, el, ev) {
     }
   }
 
+  // Armor, a shield or a weapon picked from the SRD brings its numbers with it.
+  if (ev.type === 'change' && fillFromEquipment(path, value)) {
+    recompute();
+    app.rebuildPanel('combat');
+    scheduleSave();
+    return;
+  }
+
   recompute();
   if (ev.type === 'change' || embedded) {
     const rebuild = new Set();
@@ -988,6 +1022,42 @@ function onEdit(path, value, el, ev) {
     if (ev.type === 'change') for (const key of rebuild) app.rebuildPanel(key);
   }
   scheduleSave();
+}
+
+/**
+ * When an armor, shield or weapon name is one the SRD has, fill in its numbers
+ * from the reference - the same numbers, however it was typed. Returns whether
+ * anything was filled.
+ */
+function fillFromEquipment(path, value) {
+  const item = value ? lookUp('equipment', value) : null;
+  if (!item) return false;
+  const c = app.character;
+  const int = (text) => (text ? Number(String(text).match(/-?\d+/)?.[0]) || 0 : 0);
+  const armor = path.match(/^gear\.(armor|shield)\.name$/);
+  if (armor && item.category === 'Armor') {
+    const slot = c.gear[armor[1]] = { ...(c.gear[armor[1]] || {}) };
+    slot.name = item.name;
+    slot.bonus = item.armorBonus ?? 0;
+    slot.maxDex = item.maxDex ?? null;
+    slot.acp = Math.abs(item.checkPenalty || 0);
+    slot.asf = int(item.spellFailure);
+    if (armor[1] === 'armor') slot.speed = item.speed30 ? int((app.derived?.race?.speed ?? 30) >= 30 ? item.speed30 : item.speed20) : null;
+    return true;
+  }
+  const weapon = path.match(/^weapons\.(\d+)\.name$/);
+  if (weapon && item.family === 'Weapons') {
+    const w = c.weapons[Number(weapon[1])];
+    const small = ['Small', 'Tiny', 'Diminutive', 'Fine'].includes(app.derived?.race?.size);
+    w.name = item.name;
+    w.damageDice = (small ? item.damageSmall : item.damageMedium) || w.damageDice;
+    w.crit = item.critical ? (item.critical.includes('/') ? item.critical : `20/${item.critical}`) : w.crit;
+    w.ranged = /Ranged/.test(item.subcategory || '');
+    w.thrown = Boolean(item.range) && (!w.ranged || /dart|javelin|shuriken|bolas|net/i.test(item.name));
+    if (w.thrown) w.ranged = /dart|javelin|shuriken/i.test(item.name) ? true : w.ranged;
+    return true;
+  }
+  return false;
 }
 
 function recompute() {

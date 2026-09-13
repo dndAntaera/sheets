@@ -205,6 +205,56 @@ sheet, listed in `derived.homebrew.blocked`, and raised as a notice. The app
 follows the same rule for what it suggests and copies in (`shelvesFor` in
 `app.js`). The Content page, and the Content link, need a signed-in visitor.
 
+### The SRD reference
+
+`web/data/srd/` holds the SRD's spells, powers, feats, classes (with their
+tables), domains and equipment, built by `scripts/build-srd.py` from Andargor's
+SRD 3.5 database (the SQLite edition). The text keeps a handful of formatting
+tags and no attributes, so the app can show it as written. Rebuild with:
+
+    python scripts/build-srd.py path/to/dnd35.db
+
+`web/reference.js` fetches a kind only when something asks for it, and keeps it;
+`lookUp(kind, name)` finds an entry whatever its capitals. The Reference page
+(`web/ui/reference.js`, `#/reference/<kind>/<name>`) searches and filters them,
+and its `referenceCard` is how the sheet shows an entry too: a feat's "About",
+a spell's "Details". Armor, shields and weapons picked by an SRD name fill in
+their numbers (`fillFromEquipment` in `app.js`).
+
+`progression.json` is the small part the engine loads with the app: spell
+slots, spells known, power points, powers known, highest power level and class
+specials, per class, per level.
+
+### The sheet's pages
+
+`web/ui/sheet-pages.js` lists the sheet's pages (`#/sheet/<id>/<page>`) and the
+panels and notice fields each one has. `openSheet(id, { page })` draws only that
+page's panels; the Full sheet draws every panel and is what prints. A new page
+is an entry there.
+
+### Spells and powers
+
+`web/engine/magic.js` turns the class tables into what a caster or manifester
+has today: spells per day (table + bonus spells + domain or specialty slot,
+closed above the ability score's limit), spells known, caster level, save DCs,
+and one pool of power points (table + modifier x level / 2) with powers known
+and the highest level. What the player has done is `character.magic`:
+spells known or in a spellbook, spells prepared slot by slot, spells cast,
+domains, specialty and prohibited schools, a psion's discipline, power points
+spent. `restedMagic` is a night's rest. Which classes cast is `casting` and
+`manifesting` in `web/data/classes.json`, with `spontaneous`, `spellbook`,
+`half`, `domains` and `disciplines`. The Spell or Powers Sheet is
+`web/ui/magic.js`.
+
+### Limited uses
+
+`web/engine/trackers.js` lists everything with uses per day or week: read from
+class table specials ("rage 2/day"), from the SRD's formulas (turning, bardic
+music, stunning fist, lay on hands, a monk's abilities), and from any feat,
+feature or item row - or homebrew entry - given a number of uses. Used counts
+are `character.trackers[key]`, or `usesUsed` on the row. `restedTrackers` is a
+rest ('day') or a new week ('week'). The panel is on the Feats page.
+
 ### The character creator
 
 A new character opens in a wizard (`web/ui/wizard.js`, at `#/create/<id>/<step>`)

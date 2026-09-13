@@ -833,6 +833,18 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .magic-detail { padding: var(--sp-2) var(--sp-3); margin: var(--sp-1) 0 var(--sp-2); background: var(--surface-raised); border: var(--hair) solid var(--rule); border-radius: var(--radius); }
 .is-error { color: var(--fail) !important; }
 
+/* Limited uses (sheet.js trackersPanel) */
+.tracker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.tracker { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-4); padding: var(--sp-2) 0; border-bottom: var(--hair) solid var(--rule); }
+.tracker-name { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.tracker-title { font-weight: 600; }
+.tracker-count { display: flex; align-items: center; gap: var(--sp-2); }
+.tracker-left { min-width: 4.5rem; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+.tracker.is-over .tracker-title { color: var(--warn); }
+.row-reference { margin: var(--sp-1) 0 0; }
+.row-reference summary { cursor: pointer; font-size: var(--text-small); color: var(--link); }
+.row-reference-body { padding: var(--sp-2) var(--sp-3); margin-top: var(--sp-1); background: var(--surface-raised); border: var(--hair) solid var(--rule); border-radius: var(--radius); }
+
 /* Boxes for uses: filled when used. Shared by spell slots and uses-per-day trackers. */
 .pips { display: inline-flex; flex-wrap: wrap; gap: .25rem; align-items: center; }
 .pip {

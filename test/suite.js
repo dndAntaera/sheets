@@ -14,7 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
-  mergeLibraries, fillMissing, applyCampaign, restedMagic,
+  mergeLibraries, fillMissing, applyCampaign, restedMagic, usesInSpecial, restedTrackers,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -795,6 +795,52 @@ export function buildSuite(data) {
     t.ok(d.notices.some((n) => n.level === 'error' && /1st-level spells: 9 cast/.test(n.text)));
     const rested = restedMagic({ Sorcerer: { used: { 1: 9 }, prepared: { 1: [{ name: 'Sleep', used: true }] } }, powerPointsUsed: 5 });
     t.eq([rested.Sorcerer.used, rested.Sorcerer.prepared[1][0], rested.powerPointsUsed], [{}, { name: 'Sleep', used: false }, 0]);
+  });
+
+  /* === limited uses ======================================================== */
+
+  const usesOf = (c) => Object.fromEntries(derive(c, srd).trackers.map((t) => [t.name, [t.max, t.per]]));
+
+  test('uses in a class table special are read, the second of a pair included', (t) => {
+    t.eq(usesInSpecial('Rage 4/day, trap sense +4'), [{ name: 'Rage', uses: 4, per: 'day' }]);
+    t.eq(usesInSpecial('Wild shape (6/day, elemental 2/day)'), [
+      { name: 'Wild shape', uses: 6, per: 'day' },
+      { name: 'Wild shape (elemental)', uses: 2, per: 'day' },
+    ]);
+    t.eq(usesInSpecial('Remove Disease 3/week'), [{ name: 'Remove disease', uses: 3, per: 'week' }]);
+    t.eq(usesInSpecial('Uncanny dodge'), []);
+  });
+
+  test('class uses follow the class level: the table’s latest figure, and the SRD’s formulas', (t) => {
+    t.eq(usesOf(caster('Barbarian', 8, 'str', 16)).Rage, [3, 'day']);
+    const druid = usesOf(caster('Druid', 18, 'wis', 16));
+    t.eq([druid['Wild shape'], druid['Wild shape (elemental)']], [[6, 'day'], [2, 'day']]);
+    const paladin = usesOf(caster('Paladin', 6, 'cha', 14));
+    t.eq([paladin['Smite evil'], paladin['Remove disease'], paladin['Turn undead'], paladin['Lay on hands']],
+      [[2, 'day'], [1, 'week'], [5, 'day'], [12, 'day']], 'smite 2, remove disease 1/week, turning 3 + 2, lay on hands 6 x 2');
+    const monk = usesOf(caster('Monk', 7, 'wis', 12));
+    t.eq([monk['Stunning fist'], monk['Wholeness of body']], [[7, 'day'], [14, 'day']]);
+    t.eq(usesOf(caster('Bard', 3, 'cha', 14))['Bardic music'], [3, 'day']);
+  });
+
+  test('Extra Turning adds four turnings, and a feat or item row with uses gets a tracker', (t) => {
+    const c = caster('Cleric', 1, 'cha', 12);
+    c.feats = [{ name: 'Extra Turning' }, { name: 'Lucky strike', uses: 2 }];
+    c.wealth.items = [{ name: 'Wand of sparks', uses: 3, usesUsed: 1 }];
+    const trackers = derive(c, srd).trackers;
+    const by = Object.fromEntries(trackers.map((x) => [x.name, x]));
+    t.eq(by['Turn or rebuke undead'].max, 8, '3 + 1 Cha + 4');
+    t.eq([by['Lucky strike'].max, by['Wand of sparks'].remaining], [2, 2]);
+  });
+
+  test('rest brings back daily uses; a new week brings back weekly ones too', (t) => {
+    const c = caster('Paladin', 6, 'cha', 14);
+    c.trackers = { 'class:Paladin:Smite evil': 2, 'class:Paladin:Remove disease': 1 };
+    c.feats = [{ name: 'Once a day', uses: 1, usesUsed: 1 }];
+    const trackers = derive(c, srd).trackers;
+    const night = restedTrackers(c, trackers, 'day');
+    t.eq([night.trackers['class:Paladin:Smite evil'], night.trackers['class:Paladin:Remove disease'], night.feats[0].usesUsed], [0, 1, 0]);
+    t.eq(restedTrackers(c, trackers, 'week').trackers['class:Paladin:Remove disease'], 0);
   });
 
   return cases;

@@ -29,6 +29,7 @@ export * from './sync.js';
 export * from './campaign.js';
 export * from './preferences.js';
 export * from './magic.js';
+export * from './trackers.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 
