@@ -9,7 +9,7 @@
 // See MAINTAINING.md for deploying the Worker and filling this in.
 
 export const config = {
-  apiBase: '',
+  apiBase: 'https://antaera-sheets.antaerasheets.workers.dev',
 
   // The public name: a creator for the 3.5 SRD first, and a campaign's tool
   // second.
