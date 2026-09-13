@@ -141,7 +141,10 @@ export function signInSetup(env) {
     switchedOn: switchedOn(env, name),
     missing: missingSecrets(env, provider),
   }]));
-  const named = ['ADMIN_GOOGLE_EMAILS', 'ADMIN_DISCORD_IDS'].some((key) => list(env[key]).length);
+  // An admin list counts only for a provider that is switched on: a Discord id
+  // makes nobody an admin while nobody can sign in with Discord.
+  const lists = { google: 'ADMIN_GOOGLE_EMAILS', discord: 'ADMIN_DISCORD_IDS' };
+  const named = Object.entries(lists).some(([name, key]) => switchedOn(env, name) && list(env[key]).length);
   return { ...report, adminNamed: named };
 }
 

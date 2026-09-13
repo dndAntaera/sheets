@@ -171,6 +171,15 @@ export function buildWorkerSuite() {
       t.eq(r.data.signIn.discord, { offered: true, switchedOn: true, missing: [] });
       t.eq(r.data.signIn.adminNamed, true);
       const text = JSON.stringify(r.data);
+      const admins = env.ADMIN_GOOGLE_EMAILS;
+      env.SIGN_IN_WITH = 'google';
+      env.ADMIN_GOOGLE_EMAILS = '';
+      try {
+        t.eq((await call('GET', '/health')).data.signIn.adminNamed, false, 'a Discord admin does not count while Discord is off');
+      } finally {
+        env.ADMIN_GOOGLE_EMAILS = admins;
+        delete env.SIGN_IN_WITH;
+      }
       for (const value of ['google-app', 'discord-app', 'discord-secret', 'admin@example.com', 'admin-on-discord']) {
         t.ok(!text.includes(value), `${value} is not shown`);
       }

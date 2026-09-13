@@ -75,6 +75,31 @@ jobs:
           command: |
             d1 migrations apply antaera-sheets --remote --config worker/wrangler.toml
             deploy --config worker/wrangler.toml
+      # Sign-in secrets may be kept in this repository's Actions secrets instead
+      # of the Cloudflare dashboard. Any of these that is set here is sent to the
+      # Worker on every deploy; any that is not is left as the Worker has it.
+      - name: Send sign-in secrets to the Worker
+        if: steps.check.outputs.ready == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          ADMIN_GOOGLE_EMAILS: ${{ secrets.ADMIN_GOOGLE_EMAILS }}
+          GM_GOOGLE_EMAILS: ${{ secrets.GM_GOOGLE_EMAILS }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+          DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+        run: |
+          names='["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","ADMIN_GOOGLE_EMAILS","GM_GOOGLE_EMAILS","DISCORD_CLIENT_ID","DISCORD_CLIENT_SECRET"]'
+          file="$RUNNER_TEMP/worker-secrets.json"
+          jq -n --argjson names "$names" '$ENV | with_entries(select((.key | IN($names[])) and (.value | length > 0)))' > "$file"
+          if [ "$(jq length "$file")" -eq 0 ]; then
+            echo "No sign-in secrets in this repository; the Worker keeps its own."
+          else
+            echo "Sending: $(jq -r 'keys | join(", ")' "$file")"
+            npx --yes wrangler@4 secret bulk "$file" --config worker/wrangler.toml
+          fi
+          rm -f "$file"
       - name: Say why it was skipped
         if: steps.check.outputs.ready != 'true'
         run: echo "No CLOUDFLARE_API_TOKEN secret, so the Worker was not deployed. See MAINTAINING.md."

@@ -349,6 +349,13 @@ character as a player, those characters in it, and gestalt as it was.
    ```
 
    A provider without its secrets simply does not appear on the sign-in menu.
+
+   **Or keep them in GitHub instead.** Any of `GOOGLE_CLIENT_ID`,
+   `GOOGLE_CLIENT_SECRET`, `ADMIN_GOOGLE_EMAILS`, `GM_GOOGLE_EMAILS`,
+   `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` set as a repository Actions
+   secret is sent to the Worker on every deploy (`gh secret set NAME --repo
+   dndAntaera/sheets`, then push or run the workflow). Those not set in GitHub
+   are left as the Worker has them.
    Name at least one admin. With Google, that is your address in the
    `ADMIN_GOOGLE_EMAILS` **secret** (`GM_GOOGLE_EMAILS` likewise) - a secret, so
    addresses stay out of this public repository, and never also a var in
