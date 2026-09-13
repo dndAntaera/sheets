@@ -33,7 +33,7 @@ import {
   collectEffects, resolveEffects, bonusTo, bonusToWithAll, conditionsFor, allConditions,
   unknownTargets, describeTarget,
 } from './effects.js';
-import { contentIndex, raceFacts, resolveEntries } from './library.js';
+import { contentIndex, raceFacts, resolveEntries, usableContent, CONTENT_TYPES } from './library.js';
 import { activeModules } from './modules.js';
 import { num } from './util.js';
 
@@ -75,7 +75,9 @@ export function derive(character, rules, options = {}) {
   const gestalt = modules.gestalt;
 
   // --- 2. what the character is built of ---------------------------------
-  const index = contentIndex(rules, character);
+  // In a campaign, only the homebrew the campaign allows counts.
+  const usable = usableContent(character, rules);
+  const index = contentIndex(rules, { ...character, content: usable.content });
   const summary = buildSummary(character, rules, gestalt, index);
   const race = raceFacts(character, index);
   const size = rules.core.sizes.find((s) => s.name === race.size)
@@ -151,6 +153,7 @@ export function derive(character, rules, options = {}) {
     modules,
     gestalt,
     index,
+    homebrew: { blocked: usable.blocked, campaignNames: usable.campaignNames },
     race,
     summary,
     effects: {
@@ -249,6 +252,13 @@ function notices(character, d, rules) {
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const rs = rules.ruleset;
   const restrictions = rs.restrictions || {};
+
+  // --- Homebrew a campaign does not allow -----------------------------------
+  const blocked = d.homebrew?.blocked || [];
+  if (blocked.length) {
+    const named = blocked.map((b) => `${b.name} (${CONTENT_TYPES[b.kind].label.toLowerCase()})`).join(', ');
+    add('warn', `Not counted in ${rules.campaign?.name || 'this campaign'}: ${named}. Only the campaign's own homebrew counts here unless its GMs allow homebrew.`, 'content');
+  }
 
   // --- Ability scores ------------------------------------------------------
   const method = character.abilities?.method;

@@ -14,7 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
-  mergeLibraries, fillMissing,
+  mergeLibraries, fillMissing, applyCampaign,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -685,6 +685,55 @@ export function buildSuite(data) {
   test('the merged library keeps this browser order, with new entries after', (t) => {
     const r = mergeLibraries([entry('z', '1'), entry('a', '1')], [entry('m', '1'), entry('a', '1')], { a: '1' });
     t.eq(r.entries.map((e) => e.id), ['z', 'a', 'm']);
+  });
+
+  /* === whose homebrew counts =========================================== */
+
+  /** A fighter taking one feat of their own homebrew and one the campaign wrote. */
+  const homebrewFighter = () => {
+    const c = characterWith(srd, [['Fighter']]);
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    c.feats = [{ name: 'Stubborn' }, { name: 'Table Blessing' }];
+    c.content.feats = [
+      { id: 'mine', kind: 'feat', name: 'Stubborn', effects: [{ target: 'save.will', type: 'untyped', value: 2 }] },
+      // The sheet's copy of the campaign's feat, edited to be better than it is.
+      { id: 'theirs', kind: 'feat', name: 'Table Blessing', campaign: 'k1', effects: [{ target: 'save.fort', type: 'untyped', value: 5 }] },
+    ];
+    return c;
+  };
+  const tableLibrary = [{ id: 'theirs', kind: 'feat', name: 'Table Blessing', effects: [{ target: 'save.fort', type: 'untyped', value: 1 }] }];
+  const inCampaign = (settings, content) => applyCampaign(srd, { id: 'k1', name: 'The Table', ruleset: 'srd', settings, content }).rules;
+
+  test('an independent character counts all the homebrew it carries', (t) => {
+    const d = derive(homebrewFighter(), srd);
+    t.eq([d.saves.will.bonuses, d.saves.fort.bonuses], [2, 5]);
+    t.eq(d.homebrew.blocked, []);
+  });
+
+  test('in a campaign, only the campaign’s homebrew counts, as its GMs wrote it', (t) => {
+    const d = derive(homebrewFighter(), inCampaign({}, tableLibrary));
+    t.eq(d.saves.will.bonuses, 0, 'the player’s own feat does not count');
+    t.eq(d.saves.fort.bonuses, 1, 'the campaign’s feat counts from the campaign’s library, not the edited copy');
+    t.eq(d.homebrew.blocked, [{ kind: 'feat', name: 'Stubborn' }]);
+    t.ok(d.notices.some((n) => n.level === 'warn' && /Not counted in The Table: Stubborn/.test(n.text)));
+  });
+
+  test('a campaign that allows homebrew counts the player’s too', (t) => {
+    const d = derive(homebrewFighter(), inCampaign({ allowHomebrew: true }, tableLibrary));
+    t.eq([d.saves.will.bonuses, d.saves.fort.bonuses], [2, 1]);
+    t.eq(d.homebrew.blocked, []);
+  });
+
+  test('without the campaign’s library to hand, the sheet’s copies of its entries stand in', (t) => {
+    const d = derive(homebrewFighter(), inCampaign({}, undefined));
+    t.eq([d.saves.will.bonuses, d.saves.fort.bonuses], [0, 5]);
+    t.eq(d.homebrew.blocked.map((b) => b.name), ['Stubborn']);
+  });
+
+  test('nothing is taken off the sheet by a campaign’s rule', (t) => {
+    const c = homebrewFighter();
+    derive(c, inCampaign({}, tableLibrary));
+    t.eq(c.content.feats.map((f) => f.name), ['Stubborn', 'Table Blessing']);
   });
 
   return cases;

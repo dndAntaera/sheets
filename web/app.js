@@ -10,7 +10,7 @@
 
 import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
-  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing,
+  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm } from './ui/dom.js';
 import {
@@ -24,7 +24,7 @@ import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/c
 import { showLanding } from './ui/landing.js';
 import { config } from './config.js';
 import {
-  local, remote, library, preferences, account, syncLibrary, save as saveEverywhere, newId,
+  local, remote, library, campaignLibrary, preferences, account, syncLibrary, save as saveEverywhere, newId,
 } from './store.js';
 
 const PANELS = {
@@ -181,7 +181,24 @@ function campaignOf(character) {
 function rulesFor(character) {
   const campaign = campaignOf(character);
   const base = withRuleset(app.baseRules, campaign ? campaign.ruleset : character.ruleset);
-  return { campaign, ...applyCampaign(base, campaign) };
+  // The campaign's homebrew, when it has been fetched; the engine falls back on
+  // the sheet's own copies of it when it has not.
+  const shelf = campaign ? campaignLibrary(campaign.id) : null;
+  const content = shelf?.loaded() ? flattenLibrary(shelf.load(), CONTENT_TYPES) : undefined;
+  return { campaign, ...applyCampaign(base, campaign && { ...campaign, content }) };
+}
+
+/**
+ * The libraries a character may take homebrew from, in the order they are
+ * searched. Its player's own, if it is independent. In a campaign, the
+ * campaign's - and the player's own as well, only if the campaign allows it.
+ */
+function shelvesFor(character) {
+  const campaign = campaignOf(character);
+  if (!campaign) return [{ shelf: library }];
+  const shelves = [{ shelf: campaignLibrary(campaign.id), campaign: campaign.id }];
+  if (app.rules.campaign?.allowHomebrew) shelves.push({ shelf: library });
+  return shelves;
 }
 
 /* =========================================================================
@@ -206,15 +223,31 @@ function header() {
 
 const PROVIDER_LABELS = { google: 'Google', discord: 'Discord' };
 
-/** A button for each sign-in the server offers, or word that there are none. */
+// Google's "G", as its sign-in branding guidelines give it.
+const GOOGLE_G = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+
+/**
+ * A button for each sign-in the server offers, or word that there are none.
+ * Google's follows Google's own button design - white, its "G", "Sign in with
+ * Google" - because a sign-in button that looks unlike Google's is one people
+ * rightly hesitate over.
+ */
 function signInButtons() {
   const ORDER = ['google', 'discord'];
   const offered = Object.entries(app.providers || {}).filter(([, ready]) => ready).map(([name]) => name)
     .sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
   if (!offered.length) return h('p.hint', { text: 'Sign-in is not available right now. Please try again later.' });
-  return offered.map((name) => button(`Continue with ${PROVIDER_LABELS[name]}`, () => remote.signIn(name), {
-    className: `provider provider-${name}`,
-  }));
+  return offered.map((name) => {
+    if (name === 'google') {
+      const logo = h('span.gsi-logo');
+      logo.innerHTML = GOOGLE_G;
+      return h('button.gsi-button', { type: 'button', onclick: () => remote.signIn('google') },
+        logo, h('span.gsi-label', { text: 'Sign in with Google' }));
+    }
+    return button(`Continue with ${PROVIDER_LABELS[name]}`, () => remote.signIn(name), {
+      className: `provider provider-${name}`,
+    });
+  });
 }
 
 /**
@@ -302,17 +335,19 @@ function markNav(which) {
 function refreshDatalists() {
   const host = document.getElementById('datalists');
   if (!host) return;
-  const shelf = library.load();
+  // Suggest only what this character may use: see shelvesFor.
+  const shelves = app.character ? shelvesFor(app.character).map((s) => s.shelf.load()) : [];
+  const from = (plural) => shelves.flatMap((shelf) => shelf[plural].map((e) => e.name));
   const idx = app.derived?.index;
   const names = (...lists) => [...new Set(lists.flat().filter(Boolean))].sort();
 
   const lists = {
-    'class-names': names(app.rules.classes.classes.map((c) => c.name), idx ? [...idx.classByName.keys()] : [], shelf.classes.map((c) => c.name)),
-    'race-names': names((app.rules.races?.races || []).map((r) => r.name), idx ? [...idx.raceByName.keys()] : [], shelf.races.map((r) => r.name)),
-    'feat-names': names(idx ? [...idx.featByName.keys()] : [], shelf.feats.map((f) => f.name)),
-    'item-names': names(idx ? [...idx.itemByName.keys()] : [], shelf.items.map((i) => i.name)),
-    'template-names': names(idx ? [...idx.templateByName.keys()] : [], shelf.templates.map((t) => t.name)),
-    'feature-names': names(idx ? [...idx.featureByName.keys()] : [], shelf.features.map((f) => f.name)),
+    'class-names': names(app.rules.classes.classes.map((c) => c.name), idx ? [...idx.classByName.keys()] : [], from('classes')),
+    'race-names': names((app.rules.races?.races || []).map((r) => r.name), idx ? [...idx.raceByName.keys()] : [], from('races')),
+    'feat-names': names(idx ? [...idx.featByName.keys()] : [], from('feats')),
+    'item-names': names(idx ? [...idx.itemByName.keys()] : [], from('items')),
+    'template-names': names(idx ? [...idx.templateByName.keys()] : [], from('templates')),
+    'feature-names': names(idx ? [...idx.featureByName.keys()] : [], from('features')),
   };
   const signature = JSON.stringify(lists);
   if (host.dataset.signature === signature) return;
@@ -338,14 +373,12 @@ const VIEWS = [
   { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: ([id]) => showCampaign(main(), app, id) },
   { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
   { match: /^admin$/, nav: 'admin', title: 'Accounts', show: () => showAdmin(main(), app) },
+  { match: /^content(?:\/([^/]+))?(?:\/([^/]+))?$/, nav: 'content', title: 'Homebrew', show: ([kind, index]) => showLibrary(null, kind, index) },
   {
-    match: /^content(?:\/([^/]+))?(?:\/([^/]+))?$/,
+    match: /^campaign\/([^/]+)\/homebrew(?:\/([^/]+))?(?:\/([^/]+))?$/,
     nav: 'content',
-    title: 'Content',
-    show: ([kind, index]) => {
-      app.rules = app.baseRules;
-      showContent(main(), app, kind || 'race', index ?? null);
-    },
+    title: 'Campaign homebrew',
+    show: ([id, kind, index]) => showLibrary(id, kind, index),
   },
   { match: /^characters$/, nav: 'roster', title: 'Characters', show: () => showRoster() },
   { match: /^$/, nav: 'home', show: () => showHome() },
@@ -354,7 +387,7 @@ const VIEWS = [
 const NAV = [
   { key: 'roster', label: 'Characters', href: '#/characters', visible: () => true },
   { key: 'campaigns', label: 'Campaigns', href: '#/campaigns', visible: () => Boolean(app.user) },
-  { key: 'content', label: 'Content', href: '#/content', visible: () => true },
+  { key: 'content', label: 'Content', href: '#/content', visible: () => canCreate() },
   { key: 'admin', label: 'Accounts', href: '#/admin', visible: () => Boolean(app.user?.admin) },
 ];
 
@@ -368,6 +401,63 @@ function route() {
   if (view.nav !== 'roster' || !address.startsWith('sheet/')) app.character = null;
   if (view.title) document.title = `${view.title} - ${config.title}`;
   view.show(params);
+}
+
+/* =========================================================================
+   Homebrew libraries
+   ========================================================================= */
+
+/**
+ * A homebrew library: the player's own (campaignId null), or a campaign's,
+ * which only its GMs open. Both take signing in.
+ */
+async function showLibrary(campaignId, kind, index) {
+  app.rules = app.baseRules;
+  app.character = null;
+  if (!canCreate()) {
+    refill(main(), h('div.roster',
+      h('h1', { text: 'Content' }),
+      h('div.roster-new',
+        h('p.ruleset-blurb', { text: 'Sign in to write homebrew: races, classes, feats and items that count on your sheets. It is kept in a library of your own.' }),
+        h('div.roster-actions', signInButtons()))));
+    return;
+  }
+
+  const running = (app.campaigns || []).filter((c) => c.role === 'owner' || c.role === 'gm');
+  const switcher = [
+    { label: 'Your homebrew', href: '#/content', active: !campaignId },
+    ...running.map((c) => ({ label: c.name, href: `#/campaign/${c.id}/homebrew`, active: c.id === campaignId })),
+  ];
+
+  if (!campaignId) {
+    showContent(main(), app, kind || 'race', index ?? null, { switcher });
+    return;
+  }
+
+  const campaign = running.find((c) => c.id === campaignId);
+  if (!campaign) {
+    refill(main(), h('div.roster', h('h1', { text: 'Campaign homebrew' }),
+      h('p.empty', { text: 'Only the GMs of a campaign write its homebrew.' })));
+    return;
+  }
+  const shelf = campaignLibrary(campaignId);
+  if (!shelf.loaded()) {
+    refill(main(), h('div.roster', h('p.empty', { text: 'Opening the campaign\u2019s homebrew\u2026' })));
+    try {
+      await shelf.fetch();
+    } catch (err) {
+      refill(main(), h('div.roster', h('h1', { text: 'Campaign homebrew' }), h('p.empty', { text: err.message })));
+      return;
+    }
+  }
+  showContent(main(), app, kind || 'race', index ?? null, {
+    shelf,
+    base: `#/campaign/${campaignId}/homebrew`,
+    heading: `${campaign.name} homebrew`,
+    intro: `Homebrew for everyone in ${campaign.name}. Characters in the campaign can use it, and it always counts for them. ${campaign.settings?.allowHomebrew ? 'Players may also use their own homebrew here.' : 'Players\u2019 own homebrew does not count here unless you allow it in the campaign\u2019s settings.'}`,
+    where: 'Saved to the campaign. Its GMs can change it; its players can use it.',
+    switcher,
+  });
 }
 
 /* =========================================================================
@@ -565,6 +655,11 @@ async function openSheet(id, opts = {}) {
 
   app.character = migrate(character);
   app.character.id = app.character.id || id;
+  // In a campaign, its homebrew is what counts; have it to hand before the rules
+  // are made. Fetched afresh each time, since its GMs may have changed it since;
+  // if that fails, the copy already held (or the sheet's own copies) stand in.
+  const joined = campaignOf(app.character);
+  if (joined) await campaignLibrary(joined.id).fetch().catch(() => {});
   const { rules, overrides, campaign } = rulesFor(app.character);
   app.rules = rules;
   app.overrides = overrides;
@@ -599,7 +694,7 @@ function sheetToolbar() {
   const rs = app.rules.ruleset;
   return h('div.toolbar',
     h('a.back', { href: '#/characters', text: 'All characters' }),
-    rs.wiki ? h('a.back', { href: rs.wiki, target: '_blank', rel: 'noopener', text: `${rs.shortName} wiki` }) : null,
+    rs.wiki ? h('a.back', { href: rs.wiki, target: '_blank', rel: 'noopener', text: rs.wikiName || `${rs.shortName} Wiki` }) : null,
     h('span.grow'),
     button('Export', exportCharacter, { subtle: true, title: 'Download this sheet as a file. Any homebrew it uses goes with it.' }),
     canCreate() ? button('Duplicate', () => {
@@ -728,11 +823,15 @@ function onEdit(path, value, el, ev) {
   let embedded = false;
   for (const [pattern, kind] of NAMES_CONTENT) {
     if (!pattern.test(path) || !value) continue;
-    const entry = library.find(kind, value);
     const carried = (app.character.content?.[CONTENT_TYPES[kind].plural] || []).find((e) => e.name === value);
-    if (entry && !carried) {
-      embed(app.character, kind, entry);
+    if (carried) continue;
+    for (const { shelf, campaign } of shelvesFor(app.character)) {
+      const entry = shelf.find(kind, value);
+      if (!entry) continue;
+      // A campaign's entry is marked as the campaign's on the sheet.
+      embed(app.character, kind, campaign ? { ...entry, campaign } : entry);
       embedded = true;
+      break;
     }
   }
 

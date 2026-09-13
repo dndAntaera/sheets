@@ -169,10 +169,14 @@ a field is a one-line change and adding a kind is a new entry in
 `CONTENT_TYPES` plus wherever the engine should read it (`contentIndex`,
 `resolveEntries`).
 
-Content lives in three places, on purpose:
+Content lives in these places, on purpose:
 
 - **The account**, on the server, one row per entry, when the player is signed
   in. This is the copy that follows them to another device.
+- **A campaign**, on the server (`campaign_content`), written by the campaign's
+  GMs from `#/campaign/<id>/homebrew` and read by its members. The app holds it
+  in memory only (`campaignLibrary` in `store.js`), fetched afresh when a sheet
+  in the campaign opens.
 - **The library**, in the browser under `antaera-sheets/v1/library`: the working
   copy the editor reads and writes, kept in step with the account.
 - **The character**, under `content`: a copy of each entry the sheet uses. When
@@ -183,6 +187,21 @@ Content lives in three places, on purpose:
 
 The "Homebrew on this sheet" panel shows those copies and offers to update one
 when the library version is newer.
+
+**Whose homebrew counts** is one function, `usableContent` in
+`engine/library.js`, which `derive` applies before anything else reads content:
+
+| Character | Counts |
+| --- | --- |
+| Independent | everything it carries |
+| In a campaign | the campaign's library, as its GMs wrote it (not the sheet's copy) |
+| In a campaign that allows homebrew | that, and the rest of what it carries |
+
+A copy of a campaign's entry on a sheet is marked `campaign: <id>`; offline, those
+copies stand in for the campaign's library. What does not count is kept on the
+sheet, listed in `derived.homebrew.blocked`, and raised as a notice. The app
+follows the same rule for what it suggests and copies in (`shelvesFor` in
+`app.js`). The Content page, and the Content link, need a signed-in visitor.
 
 ### Keeping the library in step with the account
 
@@ -392,6 +411,7 @@ applied - and add a case that starts from the schema before it
 - `0003_roles.sql` turns every existing DM into a GM, and everyone else into a
   player.
 - `0004_campaigns.sql` turns the implicit Antaera arrangement into a campaign.
+- `0005_campaign_homebrew.sql` adds each campaign's homebrew library.
 
 ### The shape of the server
 
@@ -407,8 +427,9 @@ applied - and add a case that starts from the schema before it
         auth.js        sign-in with Google or Discord; /api/me
         accounts.js    the admin's Accounts page
         characters.js  characters, and who reaches them
-        content.js     homebrew libraries
+        content.js     each player's homebrew library
         campaigns.js   campaigns, invitations, members, characters in them
+        campaign-content.js  a campaign's homebrew, written by its GMs
 
 A feature is a module exporting `routes`:
 

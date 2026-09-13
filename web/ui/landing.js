@@ -21,11 +21,11 @@ const FEATURES = [
   },
   {
     title: 'Homebrew that counts',
-    text: 'Write your own races, classes, feats, items and templates. Give them effects, and they add into the sheet like anything printed.',
+    text: 'Write your own races, classes, feats, items and templates in a library of your own. Give them effects, and they add into your sheets like anything printed.',
   },
   {
     title: 'Campaigns by invitation',
-    text: 'A GM starts a campaign, sets its house rules, and invites players with a link. Characters brought in play by the table’s rules, and the GM can see them.',
+    text: 'A GM starts a campaign, sets its house rules, writes its homebrew, and invites players with a link. Characters brought in play by the table’s rules.',
   },
   {
     title: 'On any device',
@@ -112,7 +112,7 @@ export function showLanding(main, app, ways) {
       h('h2.section-title', { text: 'Playing in Antæra?' }),
       h('p.hero-lede', {},
         'Your GM will send you an invitation to the campaign. Until then, the ',
-        h('a', { href: 'https://dndantaera.github.io/antaera-wiki/', target: '_blank', rel: 'noopener', text: 'Antæra wiki' }),
+        h('a', { href: 'https://dndantaera.github.io/antaera-wiki/', target: '_blank', rel: 'noopener', text: 'Antæra Wiki' }),
         ' has the world and its rules.'),
       cta())));
 }

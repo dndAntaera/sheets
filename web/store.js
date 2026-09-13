@@ -94,88 +94,104 @@ export const local = {
    empty library never breaks a character.
    ------------------------------------------------------------------------- */
 
-export const library = {
-  load() {
-    const stored = read(libraryKey, null);
-    const shelf = blankLibrary();
-    let repaired = false;
-    const seen = new Set();
-    for (const kind of CONTENT_KINDS) {
-      const plural = CONTENT_TYPES[kind].plural;
-      shelf[plural] = (stored?.[plural] || []).map((entry) => {
-        const e = { ...entry };
-        // An entry with no id, or one a duplicate copied from another, gets its
-        // own - otherwise two entries would overwrite each other on the server.
-        if (!e.id || seen.has(e.id)) { e.id = newId(); repaired = true; }
-        if (e.kind !== kind) { e.kind = kind; repaired = true; }
-        if (!e.updated) { e.updated = e.created || new Date().toISOString(); repaired = true; }
-        seen.add(e.id);
-        return e;
-      });
-    }
-    if (repaired) write(libraryKey, shelf);
-    return shelf;
-  },
-
-  /** Save the shelf here, and send any changes to the account if signed in. */
-  save(shelf) {
-    const ok = write(libraryKey, shelf);
-    scheduleLibrarySync();
-    return ok;
-  },
-
-  /** One kind's list, by its singular name: library.list('race'). */
-  list(kind) {
-    return this.load()[CONTENT_TYPES[kind].plural];
-  },
-
-  find(kind, name) {
-    return this.list(kind).find((entry) => entry.name === name) || null;
-  },
-
-  /** Everything, as a file a player can hand to somebody else. */
-  exportFile() {
-    const shelf = this.load();
-    // Ids and timestamps belong to this account; a recipient's copies are theirs.
-    for (const list of Object.values(shelf)) {
-      for (const entry of list) { delete entry.id; delete entry.updated; }
-    }
-    return { format: 'antaera-sheets-content', version: 1, exported: new Date().toISOString(), ...shelf };
-  },
-
-  /**
-   * Merge a shared file into the shelf. An entry whose name is already on the
-   * shelf replaces it, keeping the shelf's id - importing a newer copy of a
-   * table's homebrew should update it, not sit beside it as a duplicate.
-   *
-   * Accepts a library export, a single entry, or an exported character, whose
-   * embedded content is exactly the homebrew it was built with.
-   */
-  importFile(data) {
-    const shelf = this.load();
-    let added = 0;
-    const stamp = new Date().toISOString();
-    const take = (kind, entry) => {
-      if (!entry?.name || !CONTENT_TYPES[kind]) return;
-      const list = shelf[CONTENT_TYPES[kind].plural];
-      const at = list.findIndex((e) => e.name === entry.name);
-      const copy = { ...entry, kind, id: at >= 0 ? list[at].id : newId(), updated: stamp };
-      if (at >= 0) list[at] = copy;
-      else list.push({ ...copy, created: stamp });
-      added++;
-    };
-
-    const source = data?.content && data?.levels ? data.content : data;
-    if (source?.kind && source?.name) {
-      take(source.kind, source);
-    } else {
+/**
+ * A shelf of homebrew, over somewhere to keep it. The player's own library and
+ * a campaign's are both shelves; they differ only in where the entries live.
+ *
+ * @param readShelf   () => the stored shelf, or null
+ * @param writeShelf  (shelf) => keep it; returns whether it was kept
+ */
+function shelfOf(readShelf, writeShelf) {
+  return {
+    load() {
+      const stored = readShelf();
+      const shelf = blankLibrary();
+      let repaired = false;
+      const seen = new Set();
       for (const kind of CONTENT_KINDS) {
-        for (const entry of source?.[CONTENT_TYPES[kind].plural] || []) take(kind, entry);
+        const plural = CONTENT_TYPES[kind].plural;
+        shelf[plural] = (stored?.[plural] || []).map((entry) => {
+          const e = { ...entry };
+          // An entry with no id, or one a duplicate copied from another, gets its
+          // own - otherwise two entries would overwrite each other on the server.
+          if (!e.id || seen.has(e.id)) { e.id = newId(); repaired = true; }
+          if (e.kind !== kind) { e.kind = kind; repaired = true; }
+          if (!e.updated) { e.updated = e.created || new Date().toISOString(); repaired = true; }
+          seen.add(e.id);
+          return e;
+        });
       }
-    }
-    this.save(shelf);
-    return added;
-  },
+      if (repaired) writeShelf(shelf);
+      return shelf;
+    },
+
+    /** Keep the shelf - here and, for the player's, on their account when signed in. */
+    save(shelf) {
+      return writeShelf(shelf);
+    },
+
+    /** One kind's list, by its singular name: library.list('race'). */
+    list(kind) {
+      return this.load()[CONTENT_TYPES[kind].plural];
+    },
+
+    find(kind, name) {
+      return this.list(kind).find((entry) => entry.name === name) || null;
+    },
+
+    /** Everything, as a file a player can hand to somebody else. */
+    exportFile() {
+      const shelf = this.load();
+      // Ids and timestamps belong to this account; a recipient's copies are theirs.
+      for (const list of Object.values(shelf)) {
+        for (const entry of list) { delete entry.id; delete entry.updated; }
+      }
+      return { format: 'antaera-sheets-content', version: 1, exported: new Date().toISOString(), ...shelf };
+    },
+
+    /**
+     * Merge a shared file into the shelf. An entry whose name is already on the
+     * shelf replaces it, keeping the shelf's id - importing a newer copy of a
+     * table's homebrew should update it, not sit beside it as a duplicate.
+     *
+     * Accepts a library export, a single entry, or an exported character, whose
+     * embedded content is exactly the homebrew it was built with.
+     */
+    importFile(data) {
+      const shelf = this.load();
+      let added = 0;
+      const stamp = new Date().toISOString();
+      const take = (kind, entry) => {
+        if (!entry?.name || !CONTENT_TYPES[kind]) return;
+        const list = shelf[CONTENT_TYPES[kind].plural];
+        const at = list.findIndex((e) => e.name === entry.name);
+        const copy = { ...entry, kind, id: at >= 0 ? list[at].id : newId(), updated: stamp };
+        if (at >= 0) list[at] = copy;
+        else list.push({ ...copy, created: stamp });
+        added++;
+      };
+
+      const source = data?.content && data?.levels ? data.content : data;
+      if (source?.kind && source?.name) {
+        take(source.kind, source);
+      } else {
+        for (const kind of CONTENT_KINDS) {
+          for (const entry of source?.[CONTENT_TYPES[kind].plural] || []) take(kind, entry);
+        }
+      }
+      this.save(shelf);
+      return added;
+    },
+
+  };
+}
+
+/** The player's own library: kept in this browser, and on their account once signed in. */
+export const library = {
+  ...shelfOf(
+    () => read(libraryKey, null),
+    (shelf) => { const ok = write(libraryKey, shelf); scheduleLibrarySync(); return ok; },
+  ),
 
   /** Remove the account's copy from this browser, on signing out. */
   clear() {
@@ -183,6 +199,76 @@ export const library = {
     forget(syncedKey);
   },
 };
+
+/* -------------------------------------------------------------------------
+   A campaign's homebrew library
+
+   Written by the campaign's GMs, read by everyone in it. It lives on the server
+   only: fetched when first needed, held in memory, and every change sent up as
+   it is saved - an entry whose `updated` has changed is put, one that has gone
+   is deleted. A failed request fires `campaign-library-failed` on window.
+   ------------------------------------------------------------------------- */
+
+const campaignShelves = new Map();
+
+export function campaignLibrary(campaignId) {
+  if (campaignShelves.has(campaignId)) return campaignShelves.get(campaignId);
+
+  let stored = null;
+  let loaded = false;
+  const known = new Map();   // id -> updated, as the server has it
+  let sending = Promise.resolve();
+
+  const send = () => {
+    sending = sending.then(async () => {
+      const entries = flattenLibrary(stored || blankLibrary(), CONTENT_TYPES);
+      const present = new Set();
+      for (const entry of entries) {
+        present.add(entry.id);
+        if (known.get(entry.id) === entry.updated) continue;
+        try {
+          await remote.campaigns.content.put(campaignId, entry);
+          known.set(entry.id, entry.updated);
+        } catch (err) {
+          window.dispatchEvent(new CustomEvent('campaign-library-failed', { detail: { campaignId, message: err.message } }));
+        }
+      }
+      for (const id of [...known.keys()]) {
+        if (present.has(id)) continue;
+        try {
+          await remote.campaigns.content.remove(campaignId, id);
+          known.delete(id);
+        } catch (err) {
+          window.dispatchEvent(new CustomEvent('campaign-library-failed', { detail: { campaignId, message: err.message } }));
+        }
+      }
+    });
+    return sending;
+  };
+
+  const shelf = {
+    ...shelfOf(
+      () => (stored ? structuredClone(stored) : null),
+      (next) => { stored = structuredClone(next); send(); return true; },
+    ),
+    campaignId,
+    loaded: () => loaded,
+    /** Fetch the campaign's entries from the server, replacing what is held. */
+    async fetch() {
+      await sending;   // edits made here reach the server before it is asked again
+      const entries = await remote.campaigns.content.list(campaignId);
+      stored = groupLibrary(entries, CONTENT_TYPES);
+      known.clear();
+      for (const e of entries) known.set(e.id, e.updated);
+      loaded = true;
+      return shelf;
+    },
+    /** Wait for changes already saved to reach the server. */
+    flush: () => send(),
+  };
+  campaignShelves.set(campaignId, shelf);
+  return shelf;
+}
 
 /* -------------------------------------------------------------------------
    Preferences
@@ -291,6 +377,7 @@ export const remote = {
     await api('/auth/signout', { method: 'POST' }).catch(() => {});
     account.clear();
     library.clear();
+    campaignShelves.clear();
   },
 
   list: () => api('/api/characters'),
@@ -316,6 +403,13 @@ export const remote = {
 
     setMemberRole: (id, userId, role) => api(`/api/campaigns/${id}/members/${userId}`, { method: 'PUT', body: JSON.stringify({ role }) }),
     removeMember: (id, userId) => api(`/api/campaigns/${id}/members/${userId}`, { method: 'DELETE' }),
+
+    /** The campaign's homebrew: members read it, its GMs write it. */
+    content: {
+      list: (id) => api(`/api/campaigns/${id}/content`),
+      put: (id, entry) => api(`/api/campaigns/${id}/content/${entry.id}`, { method: 'PUT', body: JSON.stringify(entry) }),
+      remove: (id, entryId) => api(`/api/campaigns/${id}/content/${entryId}`, { method: 'DELETE' }),
+    },
 
     addCharacter: (id, characterId) => api(`/api/campaigns/${id}/characters`, { method: 'POST', body: JSON.stringify({ characterId }) }),
     removeCharacter: (id, characterId) => api(`/api/campaigns/${id}/characters/${characterId}`, { method: 'DELETE' }),

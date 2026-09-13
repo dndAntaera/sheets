@@ -38,6 +38,13 @@ export const GENERAL_SETTINGS = [
     hint: 'Read only. The GMs can always see and edit every character in the campaign.',
   },
   {
+    key: 'allowHomebrew',
+    type: 'bool',
+    label: 'Allow homebrew',
+    default: false,
+    hint: 'Players may use homebrew from their own libraries on characters here. Homebrew the GMs write for this campaign is always allowed.',
+  },
+  {
     key: 'houseRules',
     type: 'textarea',
     label: 'House rules',
@@ -167,8 +174,9 @@ export function applyCampaign(rules, campaign) {
     overrides[name] = Boolean(settingValue(campaign, ruleset, `modules.${name}`));
   }
   const startingLevel = settingValue(campaign, ruleset, 'startingLevel');
+  const allowHomebrew = Boolean(settingValue(campaign, ruleset, 'allowHomebrew'));
   return {
-    rules: { ...rules, ruleset: { ...ruleset, startingLevel }, campaign },
+    rules: { ...rules, ruleset: { ...ruleset, startingLevel }, campaign: { ...campaign, allowHomebrew } },
     overrides,
   };
 }

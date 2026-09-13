@@ -747,24 +747,33 @@ export function paintContent(root, app, library) {
   const host = root.querySelector('[data-content-host]');
   if (!host) return;
   const c = app.character;
+  const homebrew = app.derived?.homebrew || { blocked: [], campaignNames: new Set() };
+  const campaignName = app.rules.campaign?.name;
   const rows = [];
   for (const kind of CONTENT_KINDS) {
     const plural = CONTENT_TYPES[kind].plural;
     (c.content?.[plural] || []).forEach((entry, i) => {
       if (!entry.name) return;
-      const original = library.find(kind, entry.name);
+      // The campaign's own homebrew is the campaign's: it is not the player's to
+      // compare with, or copy into, their library.
+      const theirs = Boolean(entry.campaign) || homebrew.campaignNames.has(entry.name);
+      const blocked = homebrew.blocked.some((b) => b.kind === kind && b.name === entry.name);
+      // Nor, where the player's own homebrew does not count, is their library.
+      const original = theirs || blocked ? null : library.find(kind, entry.name);
       const stale = original && original.updated && original.updated !== entry.updated;
       rows.push(h('li.carried',
         h('span.carried-kind', { text: CONTENT_TYPES[kind].label }),
         h('span.carried-name', { text: entry.name }),
+        theirs ? h('span.tag', { text: campaignName ? `${campaignName} homebrew` : 'campaign homebrew' }) : null,
+        blocked ? h('span.tag.is-blocked', { text: 'not counted here', title: 'Only the campaign\u2019s homebrew counts in this campaign, unless its GMs allow homebrew.' }) : null,
         stale ? h('span.tag.is-stale', { text: 'library copy is newer' }) : null,
-        !original ? h('span.tag', { text: 'not in your library' }) : null,
+        !theirs && !blocked && !original ? h('span.tag', { text: 'not in your library' }) : null,
         h('span.grow'),
         stale ? button('Update', () => {
           c.content[plural][i] = structuredClone(original);
           app.recompute();
         }, { subtle: true }) : null,
-        !original ? button('Save to library', () => {
+        !theirs && !blocked && !original ? button('Save to library', () => {
           const shelf = library.load();
           shelf[plural].push({ ...structuredClone(entry), kind, updated: entry.updated || new Date().toISOString() });
           library.save(shelf);

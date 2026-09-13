@@ -319,6 +319,54 @@ export function embed(character, kind, entry) {
   return copy;
 }
 
+/**
+ * The homebrew that counts for a character, and what it carries that does not.
+ *
+ *   independent   everything it carries: its player's own homebrew, embedded
+ *   in a campaign the campaign's homebrew, which its GMs write, always - and
+ *                 the player's own only if the campaign allows homebrew
+ *
+ * A campaign's entries are taken from the campaign's library when the app has
+ * it (`rules.campaign.content`), not from the copy on the sheet, so what counts
+ * is what the GMs wrote, however the sheet's copy was edited. Without the
+ * library - offline - the sheet's copies of campaign entries stand in.
+ *
+ * Nothing is removed from the sheet: an entry that does not count here is kept,
+ * listed in `blocked`, and counts again if the character leaves the campaign or
+ * the GMs allow homebrew.
+ *
+ * @returns { content, blocked: [{ kind, name }], campaignNames: Set }
+ */
+export function usableContent(character, rules) {
+  const carried = character?.content || {};
+  const campaign = rules?.campaign;
+  if (!campaign) return { content: carried, blocked: [], campaignNames: new Set() };
+
+  const fromLibrary = Array.isArray(campaign.content);
+  const content = {};
+  const blocked = [];
+  const campaignNames = new Set();
+
+  for (const kind of CONTENT_KINDS) {
+    const plural = CONTENT_TYPES[kind].plural;
+    const own = (carried[plural] || []).filter((e) => e && e.name);
+    const theirs = fromLibrary
+      ? campaign.content.filter((e) => e && e.kind === kind && e.name)
+      : own.filter((e) => e.campaign === campaign.id);
+    const names = new Set(theirs.map((e) => e.name));
+    names.forEach((n) => campaignNames.add(n));
+
+    const rest = own.filter((e) => !names.has(e.name) && e.campaign !== campaign.id);
+    if (campaign.allowHomebrew) {
+      content[plural] = [...rest, ...theirs];
+    } else {
+      content[plural] = theirs;
+      for (const e of rest) blocked.push({ kind, name: e.name });
+    }
+  }
+  return { content, blocked, campaignNames };
+}
+
 /** Content the character carries that nothing on the sheet refers to. */
 export function unusedContent(character) {
   const content = character.content || {};

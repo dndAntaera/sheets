@@ -11,36 +11,66 @@ import {
 import { effectsEditor } from './effects-editor.js';
 import { CONTENT_TYPES, CONTENT_KINDS, blankEntry } from '../engine/library.js';
 import { TARGETS } from '../engine/effects.js';
-import { library, remote } from '../store.js';
+import { library } from '../store.js';
 
 const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
+/** The player's own library, as showContent draws it. */
+function personalSource(app) {
+  return {
+    shelf: library,
+    base: '#/content',
+    heading: 'Your homebrew',
+    intro: 'Anything the SRD does not have. Write it once here, pick it by name on any of your own characters, and it counts - its numbers and its effects, not just its name. In a campaign, only the campaign\u2019s homebrew counts, unless its GMs allow yours.',
+    where: app.user
+      ? `Saved to your account, ${app.user.name}. It counts on your own characters outside campaigns.`
+      : 'Kept in this browser. Export it to share or back it up.',
+    switcher: [],
+  };
+}
+
+// Only one page listens for failed campaign saves at a time.
+let listening = null;
+
 /**
- * Draw the library for one kind, with one entry open for editing.
+ * Draw a library for one kind, with one entry open for editing.
  *
- * @param main   the element to draw into
- * @param app    for the rules (sizes, skill names) and navigation
- * @param kind   'race' | 'class' | ...
- * @param at     index of the open entry, or null
+ * @param main    the element to draw into
+ * @param app     for the rules (sizes, skill names) and navigation
+ * @param kind    'race' | 'class' | ...
+ * @param at      index of the open entry, or null
+ * @param source  which library: { shelf, base, heading, intro, where, switcher },
+ *                over the player's own - pass only what differs
  */
-export function showContent(main, app, kind = 'race', at = null) {
+export function showContent(main, app, kind = 'race', at = null, source = null) {
+  const src = { ...personalSource(app), ...(source || {}) };
+  const { shelf: store } = src;
   if (!CONTENT_TYPES[kind]) kind = 'race';
   const type = CONTENT_TYPES[kind];
-  const shelf = library.load();
+  const shelf = store.load();
   const entries = shelf[type.plural];
   const index = at === null || at === undefined || at === '' ? null : Number(at);
   const open = index !== null && entries[index] ? entries[index] : null;
 
-  const go = (k, i = null) => { location.hash = `#/content/${k}${i === null ? '' : `/${i}`}`; };
+  const go = (k, i = null) => { location.hash = `${src.base}/${k}${i === null ? '' : `/${i}`}`; };
+
+  const failure = h('p.banner.fail', { hidden: true });
+  listening?.abort();
+  listening = new AbortController();
+  window.addEventListener('campaign-library-failed', (ev) => {
+    if (ev.detail?.campaignId !== store.campaignId) return;
+    failure.textContent = `Not saved to the campaign: ${ev.detail.message}.`;
+    failure.hidden = false;
+  }, { signal: listening.signal });
 
   const tabs = h('nav.content-tabs', CONTENT_KINDS.map((k) => h('a.content-tab', {
-    href: `#/content/${k}`,
+    href: `${src.base}/${k}`,
     class: k === kind ? 'is-active' : '',
   }, CONTENT_TYPES[k].label, h('span.count', { text: String(shelf[CONTENT_TYPES[k].plural].length) }))));
 
   const list = h('ul.content-list', entries.length
     ? entries.map((entry, i) => h('li', h('a.content-item', {
-      href: `#/content/${kind}/${i}`,
+      href: `${src.base}/${kind}/${i}`,
       class: i === index ? 'is-active' : '',
     },
     h('span.content-item-name', { text: entry.name || `Unnamed ${type.label.toLowerCase()}` }),
@@ -48,25 +78,27 @@ export function showContent(main, app, kind = 'race', at = null) {
     : h('li.hint', { text: `No ${type.plural} yet.` }));
 
   const create = button(`New ${type.label.toLowerCase()}`, () => {
-    const fresh = library.load();
+    const fresh = store.load();
     fresh[type.plural].push({ ...blankEntry(kind), created: new Date().toISOString() });
-    library.save(fresh);
+    store.save(fresh);
     go(kind, fresh[type.plural].length - 1);
   });
 
   refill(main, h('div.content-page',
+    src.switcher.length > 1
+      ? h('nav.library-switch', { 'aria-label': 'Libraries' }, src.switcher.map((s) => h('a.library-choice', {
+        href: s.href, class: s.active ? 'is-active' : '',
+      }, s.label)))
+      : null,
     h('div.content-head',
       h('div',
-        h('h1', { text: 'Content' }),
-        h('p.hint', { text: 'Anything the SRD does not have. Write it once here, pick it by name on any sheet, and it counts - its numbers and its effects, not just its name.' }),
-        h('p.hint.content-where', { text: app.user
-          ? `Saved to your account, ${app.user.name}, and available wherever you sign in.`
-          : remote.enabled() && !app.serverDown
-            ? 'Kept in this browser. Sign in to save your homebrew to your account.'
-            : 'Kept in this browser. Export it to share or back it up.' })),
+        h('h1', { text: src.heading }),
+        h('p.hint', { text: src.intro }),
+        h('p.hint.content-where', { text: src.where })),
       h('div.content-actions',
-        button('Export all', exportLibrary, { subtle: true, title: 'Download every entry as one file, to share with your table.' }),
-        importControl(() => showContent(main, app, kind, index)))),
+        button('Export all', () => exportLibrary(store), { subtle: true, title: 'Download every entry as one file.' }),
+        importControl(store, () => showContent(main, app, kind, index, source)))),
+    failure,
     tabs,
     h('div.content-body',
       h('aside.content-side',
@@ -74,7 +106,7 @@ export function showContent(main, app, kind = 'race', at = null) {
         create,
         list),
       open
-        ? editor(app, kind, index, open, () => showContent(main, app, kind, index), go)
+        ? editor(app, store, kind, index, open, go)
         : h('div.content-empty',
           h('p', { text: entries.length ? `Choose a ${type.label.toLowerCase()} to edit.` : `Start with New ${type.label.toLowerCase()}.` }),
           effectsPrimer()))));
@@ -97,11 +129,11 @@ function summaryLine(kind, e) {
    The editor
    ========================================================================== */
 
-function editor(app, kind, index, entry, redraw, go) {
+function editor(app, store, kind, index, entry, go) {
   const type = CONTENT_TYPES[kind];
   const sizes = app.rules.core.sizes.map((s) => s.name);
   const skillNames = app.rules.skills.skills.map((s) => s.name)
-    .concat(library.list('skill').map((s) => s.name).filter(Boolean));
+    .concat(store.list('skill').map((s) => s.name).filter(Boolean));
 
   const status = h('span.status', { text: 'saved' });
   let timer = null;
@@ -122,19 +154,19 @@ function editor(app, kind, index, entry, redraw, go) {
       : null,
     h('div.content-form-actions',
       button('Duplicate', () => {
-        const shelf = library.load();
+        const shelf = store.load();
         const stamp = new Date().toISOString();
         const copy = { ...structuredClone(entry), id: undefined, name: `${entry.name || 'Unnamed'} (copy)`, created: stamp, updated: stamp };
         shelf[type.plural].push(copy);
-        library.save(shelf);
+        store.save(shelf);
         go(kind, shelf[type.plural].length - 1);
       }, { subtle: true }),
       button('Download', () => download(`${slug(entry.name || kind)}.json`, { ...entry, kind }), { subtle: true, title: 'Just this one, as a file.' }),
       button('Delete', () => {
-        if (!confirm(`Delete ${entry.name || 'this entry'} from your library? Characters already using it keep their own copy.`)) return;
-        const shelf = library.load();
+        if (!confirm(`Delete ${entry.name || 'this entry'} from this library? Characters already using it keep their own copy.`)) return;
+        const shelf = store.load();
         shelf[type.plural].splice(index, 1);
-        library.save(shelf);
+        store.save(shelf);
         go(kind);
       }, { subtle: true, danger: true })));
 
@@ -144,11 +176,11 @@ function editor(app, kind, index, entry, redraw, go) {
     status.textContent = 'editing';
     clearTimeout(timer);
     timer = setTimeout(() => {
-      const shelf = library.load();
+      const shelf = store.load();
       entry.kind = kind;
       entry.updated = new Date().toISOString();
       shelf[type.plural][index] = entry;
-      library.save(shelf);
+      store.save(shelf);
       status.textContent = 'saved';
       form.querySelector('.content-form-head h2').textContent = entry.name || `New ${type.label.toLowerCase()}`;
       const link = document.querySelector('.content-item.is-active .content-item-name');
@@ -228,19 +260,19 @@ function download(filename, data) {
   URL.revokeObjectURL(url);
 }
 
-function exportLibrary() {
-  download(`content-${new Date().toISOString().slice(0, 10)}.json`, library.exportFile());
+function exportLibrary(store) {
+  download(`content-${new Date().toISOString().slice(0, 10)}.json`, store.exportFile());
 }
 
-function importControl(after) {
+function importControl(store, after) {
   const input = h('input', {
     type: 'file', accept: 'application/json', class: 'hidden',
     onchange: async (ev) => {
       const file = ev.target.files?.[0];
       if (!file) return;
       try {
-        const added = library.importFile(JSON.parse(await file.text()));
-        alert(added ? `${added} ${added === 1 ? 'entry' : 'entries'} added to your library.` : 'That file held no content the library could read.');
+        const added = store.importFile(JSON.parse(await file.text()));
+        alert(added ? `${added} ${added === 1 ? 'entry' : 'entries'} added.` : 'That file held no content the library could read.');
         after();
       } catch (err) {
         alert(`That file could not be read: ${err.message}`);

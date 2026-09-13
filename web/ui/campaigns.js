@@ -8,7 +8,9 @@
 
 import { h, field, select, checkbox, textarea, labelled, button, refill, bindForm } from './dom.js';
 import { settingsSchema } from '../engine/campaign.js';
-import { remote } from '../store.js';
+import { CONTENT_TYPES } from '../engine/library.js';
+import { flattenLibrary } from '../engine/sync.js';
+import { remote, campaignLibrary } from '../store.js';
 
 const ROLE_LABELS = { owner: 'Owner', gm: 'GM', player: 'Player' };
 const PENDING_INVITE = 'antaera-sheets/v1/pending-invite';
@@ -159,11 +161,34 @@ export async function showCampaign(main, app, id) {
     campaign.description ? h('p.campaign-description', { text: campaign.description }) : null,
     message,
     tableSettings(campaign, ruleset),
+    homebrewBlock(campaign, runs),
     myCharacters(app, campaign, attempt),
     membersBlock(app, campaign, attempt),
     runs ? settingsForm(app, campaign, ruleset, attempt) : null,
     runs ? invitesBlock(campaign, attempt, say) : null,
     leaveOrDelete(app, campaign, attempt)));
+}
+
+/**
+ * The campaign's homebrew: what its GMs have written, and whether players'
+ * own counts here. GMs get the way to write it; everyone sees what there is.
+ */
+function homebrewBlock(campaign, runs) {
+  const list = h('p.hint', { text: 'Loading\u2026' });
+  campaignLibrary(campaign.id).fetch().then((shelf) => {
+    const entries = flattenLibrary(shelf.load(), CONTENT_TYPES);
+    list.textContent = entries.length
+      ? entries.map((e) => `${e.name || 'Unnamed'} (${CONTENT_TYPES[e.kind].label.toLowerCase()})`).join(', ')
+      : 'None yet.';
+  }).catch((err) => { list.textContent = err.message; });
+
+  return h('section.campaign-section',
+    h('h2', { text: 'Homebrew' }),
+    h('p.hint', { text: campaign.settings?.allowHomebrew
+      ? 'Characters here can use the campaign\u2019s homebrew, and their players\u2019 own.'
+      : 'Characters here can use only the campaign\u2019s homebrew. Players\u2019 own homebrew does not count here.' }),
+    list,
+    runs ? h('a.btn', { href: `#/campaign/${campaign.id}/homebrew` }, 'Write campaign homebrew') : null);
 }
 
 /** What the table plays by, for everyone to read. */

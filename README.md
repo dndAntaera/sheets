@@ -66,12 +66,14 @@ change, because the sheet cannot know whether you are fighting a giant. A
 **Bonuses in force** panel shows every bonus being counted, where it came from,
 and which ones do not stack.
 
-Homebrew is written once and picked by name on any sheet. Signed in, your
-library is saved to your account and follows you to any device; signed out, it
-stays in the browser. When a sheet uses a piece of homebrew, it keeps its own
-copy — so an exported character still adds up for your DM, even though their
-library has never seen your Warblade. Libraries also export and import as
-files, for sharing a table's homebrew in one go.
+Homebrew is written once and picked by name. Each player has a library of their
+own, on their account, and it counts on their characters outside campaigns.
+A campaign has a library too, written by its GMs: characters in the campaign
+count that, and their players' own homebrew only if the GM turns on **Allow
+homebrew**. Homebrew that does not count stays on the sheet, marked. When a
+sheet uses a piece of homebrew, it keeps its own copy — so an exported character
+still adds up for your DM. Libraries also export and import as files. The
+Content page, where homebrew is written, is there once you sign in.
 
 ## Using it
 
@@ -112,7 +114,7 @@ Technical documentation is in [MAINTAINING.md](MAINTAINING.md).
 
 ## Legal
 
-The sheets share the wiki's
+The sheets share the Antæra Wiki's
 [Disclaimer & Legal Information](https://dndantaera.github.io/antaera-wiki/disclaimer-legal/)
 page, which carries the Open Game License and the Fan Content Policy notice, and
 every page of the app links to it. [LEGAL.md](LEGAL.md) lists which files here

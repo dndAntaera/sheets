@@ -65,6 +65,10 @@ export const campaignCan = {
 
   /** The character's owner takes it out; so may anyone running the campaign. */
   removeCharacter: (role, ownsCharacter) => ownsCharacter || runs(role),
+
+  /** The campaign's homebrew: every member reads it, since their characters use it; GMs write it. */
+  seeHomebrew: (role) => role !== null,
+  writeHomebrew: (role) => runs(role),
 };
 
 /** Whether one role in a campaign outranks another. */

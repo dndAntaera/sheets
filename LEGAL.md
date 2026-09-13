@@ -1,6 +1,6 @@
 # Legal notes
 
-The sheets are the Antæra wiki's sister site and share its legal page:
+The sheets are the Antæra Wiki's sister site and share its legal page:
 
 **[Disclaimer & Legal Information](https://dndantaera.github.io/antaera-wiki/disclaimer-legal/)**
 (`docs/disclaimer-legal.md` in the wiki repository)
@@ -10,7 +10,7 @@ copyright notice for the System Reference Document, and the Fan Content Policy
 notice. Every page of the app ends with a footer that repeats the Fan Content
 Policy notice and links there, so the license accompanies the content wherever
 the app is used. Keep the link in `web/config.js` (`legalUrl`) pointing at it if
-the wiki's page ever moves.
+the Antæra Wiki's page ever moves.
 
 ## What in this repository is Open Game Content
 
@@ -28,7 +28,7 @@ The app's code, the Antæra ruleset (`web/data/rulesets/antaera.json`) and the
 campaign's backgrounds are not Open Game Content; they are the owner's own.
 
 If content from another open source is ever added to the data files, add its
-Section 15 notice to the wiki's legal page in the same change.
+Section 15 notice to the Antæra Wiki's legal page in the same change.
 
 ## Accounts and what players store
 
@@ -38,9 +38,9 @@ user id, a display name and avatar URL, a role (player, GM or admin), and each
 player's characters and homebrew. Email addresses are read at sign-in and not stored. There is no
 password.
 
-Homebrew written under Content is saved to the player's own account when they
-are signed in, and is visible to nobody else except inside a sheet they choose
-to share. The app ships no copyrighted non-SRD material and should not; but a
+Homebrew written under Content is saved to the player's own account, and is
+visible to nobody else except inside a sheet they choose to share. Homebrew a
+GM writes for a campaign is saved with the campaign and visible to its members. The app ships no copyrighted non-SRD material and should not; but a
 player can type anything into a homebrew entry, including text copied from
 non-open books. The terms of service say players must only store content they have the right
 to.

@@ -2,12 +2,23 @@
 //
 // Strictly the account's own. Nobody - GMs and admins included - reads another
 // player's library. Homebrew a GM needs to see arrives inside the sheet using it.
+// A campaign's own homebrew, which its GMs write, is campaign-content.js.
 
 import { fail, json, noContent, now } from '../http.js';
 
-const MAX_ENTRY_BYTES = 128 * 1024;
+export const MAX_ENTRY_BYTES = 128 * 1024;
 const MAX_ENTRIES_PER_ACCOUNT = 2000;
 const CONTENT_KINDS = new Set(['race', 'class', 'feat', 'skill', 'item', 'template', 'feature']);
+
+/**
+ * An entry as it arrives, checked: a kind the app knows, and an `updated`
+ * timestamp - the browser's, or now. Shared with campaign homebrew.
+ */
+export function checkedEntry(entry, id) {
+  if (!entry || !CONTENT_KINDS.has(entry.kind)) throw fail(400, 'that is not a kind of content');
+  const updated = typeof entry.updated === 'string' && !Number.isNaN(Date.parse(entry.updated)) ? entry.updated : now();
+  return { ...entry, id, updated };
+}
 
 async function listContent({ env, user }) {
   const rows = await env.DB.prepare('SELECT data FROM content WHERE owner = ? ORDER BY kind, name').bind(user.id).all();
@@ -19,11 +30,10 @@ async function listContent({ env, user }) {
  * newer timestamp wins, so an older copy arriving late does not undo a newer edit.
  */
 async function putContent({ env, user, params, body }) {
-  const entry = await body(MAX_ENTRY_BYTES);
-  if (!CONTENT_KINDS.has(entry.kind)) throw fail(400, 'that is not a kind of content');
-  const updated = typeof entry.updated === 'string' && !Number.isNaN(Date.parse(entry.updated)) ? entry.updated : now();
-  entry.id = params.id;
-  entry.updated = updated;
+  const entry = checkedEntry(await body(MAX_ENTRY_BYTES), params.id);
+  // A copy of a campaign's entry saved to a player's own library is theirs now.
+  delete entry.campaign;
+  const { updated } = entry;
 
   const existing = await env.DB.prepare('SELECT updated FROM content WHERE owner = ? AND id = ?').bind(user.id, params.id).first();
   if (existing && existing.updated > updated) {

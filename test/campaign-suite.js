@@ -414,5 +414,56 @@ export function buildCampaignSuite() {
     t.eq(v.campaign_id, null);
   }, { upTo: '0003' });
 
+  /** A GM's campaign, a player who has joined it, and someone who has not. */
+  const tableOfThree = async () => {
+    const gm = await gmAccount();
+    const c = await campaignWith(gm);
+    const ada = await player('Ada');
+    await join(ada, (await invite(gm, c.id)).code);
+    const cai = await player('Cai');
+    return { gm, ada, cai, c };
+  };
+
+  /* --- the campaign's homebrew -------------------------------------------- */
+
+  test('the GMs write a campaign’s homebrew; its players read it; nobody else sees it', async (t) => {
+    const { gm, ada, cai, c } = await tableOfThree();
+    const feat = { kind: 'feat', name: 'Table Blessing', updated: '2026-09-13T00:00:00.000Z', effects: [{ target: 'save.fort', value: 1 }] };
+
+    t.eq((await call('PUT', `/api/campaigns/${c.id}/content/tb`, { token: gm.token, body: feat })).status, 200);
+    t.eq((await call('PUT', `/api/campaigns/${c.id}/content/x`, { token: ada.token, body: feat })).status, 403, 'a player cannot write it');
+    t.eq((await call('PUT', `/api/campaigns/${c.id}/content/x`, { token: gm.token, body: { kind: 'spaceship' } })).status, 400);
+
+    const read = await call('GET', `/api/campaigns/${c.id}/content`, { token: ada.token });
+    t.eq(read.data.map((e) => [e.id, e.name, e.campaign]), [['tb', 'Table Blessing', c.id]], 'a player reads it, marked as the campaign’s');
+    t.eq((await call('GET', `/api/campaigns/${c.id}/content`, { token: cai.token })).status, 404, 'someone not in the campaign does not');
+
+    const older = await call('PUT', `/api/campaigns/${c.id}/content/tb`, { token: gm.token, body: { ...feat, name: 'Old', updated: '2026-01-01T00:00:00.000Z' } });
+    t.eq(older.data.stale, true, 'an older edit does not undo a newer one');
+
+    t.eq((await call('DELETE', `/api/campaigns/${c.id}/content/tb`, { token: ada.token })).status, 403);
+    t.eq((await call('DELETE', `/api/campaigns/${c.id}/content/tb`, { token: gm.token })).status, 204);
+    t.eq((await call('GET', `/api/campaigns/${c.id}/content`, { token: gm.token })).data, []);
+  });
+
+  test('a campaign’s homebrew goes with the campaign, and never into a player’s library', async (t) => {
+    const { gm, ada, c } = await tableOfThree();
+    await call('PUT', `/api/campaigns/${c.id}/content/tb`, { token: gm.token, body: { kind: 'feat', name: 'Table Blessing' } });
+    // A player saving their sheet's copy to their own library gets a copy of their own.
+    await call('PUT', '/api/content/tb', { token: ada.token, body: { kind: 'feat', name: 'Table Blessing', campaign: c.id } });
+    t.eq((await call('GET', '/api/content', { token: ada.token })).data[0].campaign, undefined);
+
+    t.eq((await call('DELETE', `/api/campaigns/${c.id}`, { token: gm.token })).status, 204);
+    const left = await d1('', { sql: 'SELECT COUNT(*) AS n FROM campaign_content WHERE campaign_id = ?', params: [c.id], mode: 'first' });
+    t.eq(left.n, 0);
+  });
+
+  test('allowing homebrew is a campaign setting, off unless a GM turns it on', async (t) => {
+    const { gm, c } = await tableOfThree();
+    t.eq((await call('GET', `/api/campaigns/${c.id}`, { token: gm.token })).data.settings.allowHomebrew, undefined, 'unset: the default, off');
+    const on = await call('PUT', `/api/campaigns/${c.id}`, { token: gm.token, body: { settings: { allowHomebrew: true } } });
+    t.eq(on.data.settings.allowHomebrew, true);
+  });
+
   return cases;
 }
