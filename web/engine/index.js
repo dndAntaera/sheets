@@ -27,6 +27,7 @@ export * from './library.js';
 export * from './modules.js';
 export * from './sync.js';
 export * from './campaign.js';
+export * from './preferences.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 

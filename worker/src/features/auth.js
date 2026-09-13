@@ -15,6 +15,7 @@
 import { fail, json, list, noContent, now, randomToken, redirect, siteUrl } from '../http.js';
 import { createSession, endSession } from '../sessions.js';
 import { higher } from '../roles.js';
+import { normalizePreferences } from '../../../web/engine/preferences.js';
 
 const CODE_TTL_SECONDS = { state: 600, code: 120, link: 300 };
 
@@ -190,20 +191,32 @@ async function attachIdentity(env, provider, profile, linkUserId) {
   }
 
   await env.DB.prepare(
-    `INSERT INTO identities (provider, subject, user_id, floor, created, last_seen)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(provider, subject) DO UPDATE SET floor = excluded.floor, last_seen = excluded.last_seen`
-  ).bind(provider, profile.subject, userId, profile.floor, now(), now()).run();
+    `INSERT INTO identities (provider, subject, user_id, floor, name, avatar, created, last_seen)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(provider, subject) DO UPDATE SET floor = excluded.floor, name = excluded.name,
+       avatar = excluded.avatar, last_seen = excluded.last_seen`
+  ).bind(provider, profile.subject, userId, profile.floor, profile.name, profile.avatar, now(), now()).run();
 
   // Raised to the highest floor, never lowered here: a role an admin gave stays
   // until an admin takes it away. Linking does not rename the account.
   const current = (await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first())?.role || 'player';
   const role = higher(current, await accountFloor(env, userId) || 'player');
+  // A name the player chose is theirs, and sign-in leaves it be. The picture
+  // follows their choice: the last sign-in's (unset), or this provider's if they
+  // picked it; an upload or no picture stays as it is.
   if (linkUserId) {
-    await env.DB.prepare('UPDATE users SET role = ?, last_seen = ? WHERE id = ?').bind(role, now(), userId).run();
+    await env.DB.prepare(
+      `UPDATE users SET role = ?, last_seen = ?,
+         avatar = CASE WHEN picture = 'provider:' || ? THEN ? ELSE avatar END
+       WHERE id = ?`
+    ).bind(role, now(), provider, profile.avatar, userId).run();
   } else {
-    await env.DB.prepare('UPDATE users SET name = ?, avatar = ?, role = ?, last_seen = ? WHERE id = ?')
-      .bind(profile.name, profile.avatar, role, now(), userId).run();
+    await env.DB.prepare(
+      `UPDATE users SET role = ?, last_seen = ?,
+         name = CASE WHEN name_custom = 1 THEN name ELSE ? END,
+         avatar = CASE WHEN picture IS NULL OR picture = 'provider:' || ? THEN ? ELSE avatar END
+       WHERE id = ?`
+    ).bind(role, now(), profile.name, provider, profile.avatar, userId).run();
   }
   return userId;
 }
@@ -301,7 +314,13 @@ async function signOut({ env, request }) {
 
 async function me({ env, user }) {
   const rows = await env.DB.prepare('SELECT provider FROM identities WHERE user_id = ? ORDER BY provider').bind(user.id).all();
-  return json({ ...user, providers: (rows.results || []).map((r) => r.provider), available: configuredProviders(env) });
+  const extra = await env.DB.prepare('SELECT preferences FROM users WHERE id = ?').bind(user.id).first();
+  return json({
+    ...user,
+    providers: (rows.results || []).map((r) => r.provider),
+    available: configuredProviders(env),
+    preferences: normalizePreferences(JSON.parse(extra?.preferences || '{}')),
+  });
 }
 
 export const routes = [

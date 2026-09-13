@@ -28,6 +28,7 @@ import * as characters from './features/characters.js';
 import * as content from './features/content.js';
 import * as campaigns from './features/campaigns.js';
 import * as campaignContent from './features/campaign-content.js';
+import * as profile from './features/profile.js';
 
 const health = {
   routes: [
@@ -37,7 +38,7 @@ const health = {
   ],
 };
 
-export const FEATURES = [health, auth, accounts, characters, content, campaigns, campaignContent];
+export const FEATURES = [health, auth, accounts, characters, content, campaigns, campaignContent, profile];
 
 const route = createRouter(FEATURES);
 

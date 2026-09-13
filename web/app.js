@@ -22,6 +22,8 @@ import { showContent } from './ui/content.js';
 import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
 import { showLanding } from './ui/landing.js';
+import { showProfile, showSettings, avatarFor } from './ui/profile.js';
+import { applyAppearance, adoptAccountAppearance, setAppearance, isDark } from './ui/appearance.js';
 import { config } from './config.js';
 import {
   local, remote, library, campaignLibrary, preferences, account, syncLibrary, save as saveEverywhere, newId,
@@ -63,6 +65,8 @@ const app = {
    ========================================================================= */
 
 async function start() {
+  // How this player likes the site to look, before anything is drawn.
+  applyAppearance();
   app.baseRules = await loadRules('./data/');
   app.rules = app.baseRules;
 
@@ -138,6 +142,7 @@ async function connect() {
   }
 
   if (app.user) {
+    adoptAccountAppearance(app.user.preferences);
     app.campaigns = await remote.campaigns.list().catch(() => []);
   }
 }
@@ -219,6 +224,15 @@ function shelvesFor(character) {
    Header
    ========================================================================= */
 
+/** Draw the header again - after a change to the account it shows, say. */
+function refreshHeader() {
+  const old = document.querySelector('header.top');
+  if (!old) return;
+  old.replaceWith(header());
+  const view = VIEWS.find((v) => v.match.test(location.hash.replace(/^#\/?/, '')));
+  if (view) markNav(view.nav);
+}
+
 function header() {
   app.status = h('span.status', { text: '' });
 
@@ -289,8 +303,11 @@ function accountMenu() {
 
   const unlinked = offered.filter((name) => !(app.user.providers || []).includes(name));
   return h('details.account-menu',
-    h('summary.account-name', { text: app.user.name, title: 'Your account' }),
+    h('summary.account-name', { title: 'Your account' }, avatarFor(app.user, 'sm'), h('span', { text: app.user.name })),
     h('div.account-pop',
+      h('div.account-links',
+        h('a', { href: '#/profile', text: 'Your profile' }),
+        h('a', { href: '#/settings', text: 'Settings' })),
       h('p.hint', { text: `Signed in with ${(app.user.providers || []).map((p) => PROVIDER_LABELS[p]).join(' and ')}.` }),
       h('p.account-role', h('span.badge', { text: ROLE_LABELS[app.user.role] || 'Player' }),
         h('span.hint', { text: app.user.admin
@@ -325,16 +342,13 @@ function footer() {
       h('a', { href: config.termsUrl, text: 'Terms of Service' })));
 }
 
+/** The header's Day / Night switch: a shortcut to the Theme setting. */
 function themeSwitch() {
-  const stored = preferences.get('theme');
-  if (stored) document.documentElement.dataset.theme = stored;
-  const label = () => (document.documentElement.dataset.theme === 'dark' ? 'Day' : 'Night');
-  const btn = button(label(), () => {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    preferences.set('theme', next);
+  const label = () => (isDark() ? 'Day' : 'Night');
+  const btn = button(label(), async () => {
+    await setAppearance({ theme: isDark() ? 'light' : 'dark' }, { signedIn: Boolean(app.user) });
     btn.textContent = label();
-  }, { subtle: true, title: 'Parchment or slate' });
+  }, { subtle: true, title: 'Parchment or slate. More in Settings.' });
   return btn;
 }
 
@@ -387,6 +401,13 @@ const VIEWS = [
   { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: ([id]) => showCampaign(main(), app, id) },
   { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
   { match: /^admin$/, nav: 'admin', title: 'Accounts', show: () => showAdmin(main(), app) },
+  {
+    match: /^profile(?:\/([^/]+))?$/,
+    nav: 'profile',
+    title: 'Profile',
+    show: ([id]) => (app.user ? showProfile(main(), app, id) : signInPage('Profile', 'Sign in to see your profile.')),
+  },
+  { match: /^settings$/, nav: 'settings', title: 'Settings', show: () => (app.user ? showSettings(main(), app, settingsWays()) : signInPage('Settings', 'Sign in to change your username, picture and how the site looks.')) },
   { match: /^content(?:\/([^/]+))?(?:\/([^/]+))?$/, nav: 'content', title: 'Homebrew', show: ([kind, index]) => showLibrary(null, kind, index) },
   {
     match: /^campaign\/([^/]+)\/homebrew(?:\/([^/]+))?(?:\/([^/]+))?$/,
@@ -415,6 +436,27 @@ function route() {
   if (view.nav !== 'roster' || !address.startsWith('sheet/')) app.character = null;
   if (view.title) document.title = `${view.title} - ${config.title}`;
   view.show(params);
+}
+
+/* =========================================================================
+   Settings
+   ========================================================================= */
+
+/** What the Settings page needs from the app. */
+function settingsWays() {
+  return {
+    linkable: Object.entries(app.providers || {}).filter(([, ready]) => ready).map(([name]) => name),
+    link: (name) => remote.link(name).catch((err) => alert(`Could not start linking: ${err.message}`)),
+    onAccountChanged: (profile) => {
+      app.user = { ...app.user, name: profile.name, avatar: profile.avatar };
+      refreshHeader();
+    },
+    signOut: async () => {
+      await remote.signOut();
+      location.hash = '#/';
+      location.reload();
+    },
+  };
 }
 
 /* =========================================================================

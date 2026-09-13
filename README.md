@@ -82,6 +82,10 @@ write homebrew: the Characters and Content pages appear once you have. Character
 are saved as you type and kept with your account, on every device you use. Signed
 out, the site shows its front page.
 
+Each player has a **profile** and a **Settings** page: a username and profile
+picture of their own, and how the site looks to them - day or night, an accent
+colour, larger text, reduced motion - kept with their account.
+
 The server is a Cloudflare Worker with a D1 database.
 
 **Campaigns.** A GM starts a campaign, picks its ruleset and the choices the

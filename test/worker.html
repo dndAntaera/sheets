@@ -28,12 +28,14 @@
   // fresh database, because they share the one stand-in.
   import { buildWorkerSuite, resetFor } from './worker-suite.js';
   import { buildCampaignSuite } from './campaign-suite.js';
+  import { buildProfileSuite } from './profile-suite.js';
   import { checker } from './assert.js';
 
   // Every server suite, in order. A new feature's tests are one more entry.
   const SUITES = [
     ['Accounts, sign-in, homebrew, roles', buildWorkerSuite],
     ['Campaigns', buildCampaignSuite],
+    ['Profiles', buildProfileSuite],
   ];
 
   const tally = document.getElementById('tally');

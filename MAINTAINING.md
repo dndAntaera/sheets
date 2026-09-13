@@ -297,6 +297,28 @@ other players' characters in those campaigns are released, not deleted.
 
 A role change applies at once, to sessions already open.
 
+### Profiles and settings
+
+Every account has a profile (`#/profile`) and a Settings page (`#/settings`),
+both reached from the account menu.
+
+- **Username.** Starts as the provider's name. A player may choose their own
+  (`checkUsername` in `web/engine/preferences.js`: 2-32 letters and numbers,
+  with a little punctuation between); it must not match another account's name,
+  whatever the capitals. Once chosen, sign-in no longer changes it.
+- **Picture.** The last sign-in's by default; or one sign-in's, which then
+  follows that sign-in; or one uploaded - the app cuts a 256-pixel square and
+  sends it as a small WebP or JPEG data URL, and the server keeps only PNG, JPEG
+  or WebP data of at most 200,000 characters; or none, when initials show.
+- **Appearance.** Theme, accent colour, text size and motion, described in
+  `APPEARANCE` and applied by `web/ui/appearance.js` as attributes on `<html>`
+  that the "Appearance" section of `css/sheet.css` answers. Kept in the browser,
+  so a page is drawn right at once, and on the account, which wins at sign-in.
+  A new setting is an entry in `APPEARANCE` and its CSS.
+- **Who sees a profile.** Its owner, admins, and anyone who shares a campaign
+  with its owner (`accountCan.viewProfile`), who see the name, picture, role,
+  when the account was made, and the campaigns they share - nothing it keeps.
+
 ### Campaigns
 
 A campaign is a table: an owner, the people they invite, one ruleset, and the
@@ -414,6 +436,8 @@ applied - and add a case that starts from the schema before it
   player.
 - `0004_campaigns.sql` turns the implicit Antaera arrangement into a campaign.
 - `0005_campaign_homebrew.sql` adds each campaign's homebrew library.
+- `0006_profiles.sql` adds chosen usernames and pictures, preferences, and each
+  sign-in's own name and picture.
 
 ### The shape of the server
 
@@ -432,6 +456,7 @@ applied - and add a case that starts from the schema before it
         content.js     each player's homebrew library
         campaigns.js   campaigns, invitations, members, characters in them
         campaign-content.js  a campaign's homebrew, written by its GMs
+        profile.js     profiles: username, picture, preferences; others' profiles
 
 A feature is a module exporting `routes`:
 

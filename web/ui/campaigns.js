@@ -11,6 +11,7 @@ import { settingsSchema } from '../engine/campaign.js';
 import { CONTENT_TYPES } from '../engine/library.js';
 import { flattenLibrary } from '../engine/sync.js';
 import { remote, campaignLibrary } from '../store.js';
+import { avatarFor } from './profile.js';
 
 const ROLE_LABELS = { owner: 'Owner', gm: 'GM', player: 'Player' };
 const PENDING_INVITE = 'antaera-sheets/v1/pending-invite';
@@ -269,7 +270,9 @@ function membersBlock(app, campaign, attempt) {
           }, { subtle: true, danger: true }));
         }
         return h('tr', { class: self ? 'is-me' : '' },
-          h('th', { scope: 'row' }, h('span', { text: m.name }), self ? h('span.badge', { text: 'you' }) : null),
+          h('th', { scope: 'row' },
+            h('a.member-link', { href: `#/profile/${m.id}` }, avatarFor(m, 'sm'), h('span', { text: m.name })),
+            self ? h('span.badge', { text: 'you' }) : null),
           h('td', h(`span.badge.campaign-role-${m.role}`, { text: ROLE_LABELS[m.role] })),
           h('td', m.characters
             ? (m.characters.length

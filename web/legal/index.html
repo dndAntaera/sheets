@@ -9,11 +9,16 @@
 <link rel="stylesheet" href="../css/tokens.css">
 <link rel="stylesheet" href="../css/sheet.css">
 <script>
-  // The theme a player chose in the app, so this page matches it.
+  // How the player likes the site to look, as the app keeps it, so this page matches.
   try {
-    var theme = JSON.parse(localStorage.getItem('antaera-sheets/v1/pref/theme'));
-    if (theme) document.documentElement.dataset.theme = theme;
-  } catch (e) { /* no stored theme */ }
+    var root = document.documentElement;
+    var looks = JSON.parse(localStorage.getItem('antaera-sheets/v1/pref/appearance')) || {};
+    var theme = looks.theme || JSON.parse(localStorage.getItem('antaera-sheets/v1/pref/theme'));
+    if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+    if (looks.accent && looks.accent !== 'violet') root.setAttribute('data-accent', looks.accent);
+    if (looks.textSize && looks.textSize !== 'standard') root.setAttribute('data-text-size', looks.textSize);
+    if (looks.motion === 'reduced') root.setAttribute('data-motion', 'reduced');
+  } catch (e) { /* nothing kept */ }
 </script>
 </head>
 <body>
@@ -53,6 +58,7 @@
   <li>your display name and the address of your avatar picture</li>
   <li>which of the two you have linked to your account</li>
   <li>your role on the site (player, GM or admin), and when you signed up and last signed in</li>
+  <li>a username and profile picture, if you choose your own, and how you like the site to look (theme, accent colour, text size and motion)</li>
 </ul>
 <p>Google also sends your email address. It is checked once, at sign-in, against the site's list of administrators, and is <strong>not stored</strong>. From Discord we ask only for the <code>identify</code> permission; we do not receive your email, your servers or your messages.</p>
 
@@ -68,6 +74,7 @@
 <h3>Who can see it</h3>
 <ul>
   <li><strong>Your characters and homebrew</strong> are visible only to you, except as described next.</li>
+  <li><strong>Your username and profile picture</strong> can be seen by people in campaigns you share, and by site admins. Your profile shows them the campaigns you share, and nothing you keep.</li>
   <li><strong>Homebrew written for a campaign</strong> can be seen by everyone in that campaign, and changed by its GMs.</li>
   <li><strong>A character you add to a campaign</strong> can be seen and edited by that campaign's GMs, and seen by its other players if the campaign allows it. Take the character out of the campaign and they lose that access.</li>
   <li><strong>Site admins</strong> can see the list of accounts (names, roles, and how many characters, homebrew entries and campaigns each holds) in order to manage them. The site does not show admins the contents of anyone's homebrew library.</li>

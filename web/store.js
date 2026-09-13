@@ -415,6 +415,14 @@ export const remote = {
     removeCharacter: (id, characterId) => api(`/api/campaigns/${id}/characters/${characterId}`, { method: 'DELETE' }),
   },
 
+  /** Your profile and preferences, and the profiles of people you share a campaign with. */
+  profile: {
+    mine: () => api('/api/profile'),
+    get: (id) => api(`/api/profile/${encodeURIComponent(id)}`),
+    update: (changes) => api('/api/profile', { method: 'PUT', body: JSON.stringify(changes) }),
+    setPreferences: (prefs) => api('/api/profile/preferences', { method: 'PUT', body: JSON.stringify(prefs) }),
+  },
+
   /** Accounts and roles. The server refuses all of these to anyone but an admin. */
   admin: {
     users: () => api('/api/admin/users'),

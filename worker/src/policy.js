@@ -111,4 +111,10 @@ export const characterCan = {
 
 export const accountCan = {
   manage: (user) => atLeast(user, 'admin'),
+
+  /**
+   * A profile is seen by its owner, by admins, and by anyone who shares a
+   * campaign with its owner - the people who already see their name at the table.
+   */
+  viewProfile: (viewer, targetId, sharesCampaign) => viewer.id === targetId || atLeast(viewer, 'admin') || Boolean(sharesCampaign),
 };
