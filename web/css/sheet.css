@@ -454,6 +454,21 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .notice.info { border-left-color: var(--rule); color: var(--ink-soft); }
 
 /* ---------------------------------------------------------------------------
+   The legal footer - printed straight on the sky, quietly
+   --------------------------------------------------------------------------- */
+
+.legal {
+  max-width: var(--sheet-width);
+  margin: 0 auto;
+  padding: var(--sp-4) var(--sp-4) var(--sp-6);
+  font-size: var(--text-tiny);
+  line-height: var(--leading);
+  color: var(--sky-ink-dim);
+  text-align: center;
+}
+.legal p { margin: 0 0 var(--sp-1); }
+
+/* ---------------------------------------------------------------------------
    Rulesets and variants
 
    The ruleset is a segmented control, not a dropdown: there are two, and a

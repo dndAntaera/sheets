@@ -90,5 +90,12 @@ Sheets print to something that can be carried to a table with no power.
     test/         the engine's tests, runnable under Node or in a browser
     scripts/      the dev server, the JSON formatter, the background sync
 
-Technical documentation is in [MAINTAINING.md](MAINTAINING.md). Licensing of
-the SRD material is in [LEGAL.md](LEGAL.md).
+Technical documentation is in [MAINTAINING.md](MAINTAINING.md).
+
+## Legal
+
+The sheets share the wiki's
+[Disclaimer & Legal Information](https://dndantaera.github.io/antaera-wiki/disclaimer-legal/)
+page, which carries the Open Game License and the Fan Content Policy notice, and
+every page of the app links to it. [LEGAL.md](LEGAL.md) lists which files here
+are Open Game Content.

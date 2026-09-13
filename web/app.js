@@ -75,7 +75,7 @@ async function start() {
     }
   }
 
-  document.body.append(header(), h('main#main'), h('div#datalists.hidden'));
+  document.body.append(header(), h('main#main'), footer(), h('div#datalists.hidden'));
   window.addEventListener('hashchange', route);
   route();
 }
@@ -113,11 +113,27 @@ function header() {
       h('span.brand-name', { text: config.title })),
     h('nav.top-nav',
       h('a', { href: '#/', text: 'Characters', dataset: { nav: 'roster' } }),
-      h('a', { href: '#/content', text: 'Content', dataset: { nav: 'content' } })),
+      h('a', { href: '#/content', text: 'Content', dataset: { nav: 'content' } }),
+      h('a', { href: config.wikiUrl, target: '_blank', rel: 'noopener', text: 'Wiki' })),
     h('div.top-right',
       app.status,
       themeSwitch(),
       account()));
+}
+
+/**
+ * The legal footer, on every page. The notices themselves - the Open Game
+ * License, the SRD's copyright notice, the Fan Content Policy - are kept on the
+ * wiki's legal page, which this site shares; the footer states which material
+ * here is Open Game Content and points there.
+ */
+function footer() {
+  return h('footer.legal',
+    h('p', { text: 'Unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.' }),
+    h('p',
+      'Class, skill and race rules are Open Game Content from the System Reference Document, used under the Open Game License v1.0a. ',
+      h('a', { href: config.legalUrl, target: '_blank', rel: 'noopener', text: 'License and legal information' }),
+      '.'));
 }
 
 function themeSwitch() {

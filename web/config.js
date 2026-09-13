@@ -11,11 +11,16 @@
 export const config = {
   apiBase: '',
 
-  // The public name. Deliberately generic: this is a creator for the 3.5 SRD
-  // first, and a campaign's tool second. See LEGAL.md before putting a
-  // trademark in it.
+  // The public name: a creator for the 3.5 SRD first, and a campaign's tool
+  // second.
   title: '3.5 Sheets',
   tagline: 'A character creator for the 3.5 System Reference Document',
+
+  // The sheets are the wiki's sister site, and share its legal page: the Open
+  // Game License, the SRD copyright notice and the Fan Content Policy notice
+  // all live there, and the footer of every page here links to it.
+  wikiUrl: 'https://dndantaera.github.io/antaera-wiki/',
+  legalUrl: 'https://dndantaera.github.io/antaera-wiki/disclaimer-legal/',
 
   // The ruleset a new character is built under when nobody has chosen.
   defaultRuleset: 'srd',

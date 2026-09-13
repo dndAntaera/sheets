@@ -159,8 +159,10 @@ Only `web/` is published. The repository must be named **`sheets`** in the
 `dndAntaera` organisation for that URL, with *Settings → Pages* set to
 **GitHub Actions**.
 
-**Before announcing it publicly, read [LEGAL.md](LEGAL.md)** — the OGL text has
-to be added to the site.
+The legal notices live on the wiki's Disclaimer & Legal page, and the app's
+footer links there (`legalUrl` in `web/config.js`). If that page moves, update the
+link; if Open Game Content from a new source is added, add its notice there. See
+[LEGAL.md](LEGAL.md).
 
 ## The campaign server
 
