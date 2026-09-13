@@ -77,10 +77,10 @@ Content page, where homebrew is written, is there once you sign in.
 
 ## Using it
 
-**Sign in with Google or Discord to create a character.** Characters are saved as you
-type and kept with your account, on every device you use, along with your
-homebrew. Characters made in a browser before signing in was required still
-open there.
+**Sign in with Google or Discord** to see, create and edit characters, and to
+write homebrew: the Characters and Content pages appear once you have. Characters
+are saved as you type and kept with your account, on every device you use. Signed
+out, the site shows its front page.
 
 The server is a Cloudflare Worker with a D1 database.
 

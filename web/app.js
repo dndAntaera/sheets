@@ -150,11 +150,25 @@ async function connect() {
 const publicRulesets = () => RULESET_IDS.filter((id) => app.baseRules.rulesets[id]?.public);
 
 /**
- * Whether this visitor may make a character. With a server, that takes signing
- * in; a build with no server (apiBase empty) has no one to sign in to, and
- * stays open.
+ * Whether this visitor has signed in, which the Characters and Content pages
+ * and making a character all take. A build with no server (apiBase empty) has
+ * no one to sign in to, and counts everyone as signed in.
  */
-const canCreate = () => !remote.enabled() || Boolean(app.user);
+const signedIn = () => !remote.enabled() || Boolean(app.user);
+const canCreate = signedIn;
+
+const CHARACTERS_NEED_SIGN_IN = 'Sign in to see your characters and create new ones. They are kept with your account, on any device.';
+
+/** In place of a page that needs signing in: why, and the buttons to do it. */
+function signInPage(heading, reason) {
+  app.character = null;
+  document.title = `${heading} - ${config.title}`;
+  refill(main(), h('div.roster',
+    h('h1', { text: heading }),
+    h('div.roster-new', app.serverDown
+      ? h('p.ruleset-blurb', { text: 'The server cannot be reached right now, so signing in is not possible. Please try again shortly.' })
+      : [h('p.ruleset-blurb', { text: reason }), h('div.roster-actions', signInButtons())])));
+}
 
 /**
  * A character about to be saved as new - imported, or a copy - made this
@@ -368,7 +382,7 @@ function refreshDatalists() {
 const main = () => document.getElementById('main');
 
 const VIEWS = [
-  { match: /^sheet\/([^/]+)$/, nav: 'roster', show: ([id]) => openSheet(id) },
+  { match: /^sheet\/([^/]+)$/, nav: 'roster', show: ([id]) => (signedIn() ? openSheet(id) : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)) },
   { match: /^campaigns$/, nav: 'campaigns', title: 'Campaigns', show: () => showCampaigns(main(), app) },
   { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: ([id]) => showCampaign(main(), app, id) },
   { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
@@ -380,14 +394,14 @@ const VIEWS = [
     title: 'Campaign homebrew',
     show: ([id, kind, index]) => showLibrary(id, kind, index),
   },
-  { match: /^characters$/, nav: 'roster', title: 'Characters', show: () => showRoster() },
+  { match: /^characters$/, nav: 'roster', title: 'Characters', show: () => (signedIn() ? showRoster() : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)) },
   { match: /^$/, nav: 'home', show: () => showHome() },
 ];
 
 const NAV = [
-  { key: 'roster', label: 'Characters', href: '#/characters', visible: () => true },
+  { key: 'roster', label: 'Characters', href: '#/characters', visible: () => signedIn() },
   { key: 'campaigns', label: 'Campaigns', href: '#/campaigns', visible: () => Boolean(app.user) },
-  { key: 'content', label: 'Content', href: '#/content', visible: () => canCreate() },
+  { key: 'content', label: 'Content', href: '#/content', visible: () => signedIn() },
   { key: 'admin', label: 'Accounts', href: '#/admin', visible: () => Boolean(app.user?.admin) },
 ];
 
@@ -414,12 +428,8 @@ function route() {
 async function showLibrary(campaignId, kind, index) {
   app.rules = app.baseRules;
   app.character = null;
-  if (!canCreate()) {
-    refill(main(), h('div.roster',
-      h('h1', { text: 'Content' }),
-      h('div.roster-new',
-        h('p.ruleset-blurb', { text: 'Sign in to write homebrew: races, classes, feats and items that count on your sheets. It is kept in a library of your own.' }),
-        h('div.roster-actions', signInButtons()))));
+  if (!signedIn()) {
+    signInPage('Content', 'Sign in to write homebrew: races, classes, feats and items that count on your sheets. It is kept in a library of your own.');
     return;
   }
 
@@ -487,7 +497,7 @@ async function showRoster() {
   const main = document.getElementById('main');
 
   let rows = local.list();
-  let source = remote.enabled() && !app.serverDown ? 'Kept in this browser. Sign in to keep them with your account.' : 'Kept in this browser.';
+  let source = 'Kept in this browser.';
   if (remote.enabled() && app.user) {
     try {
       const server = await remote.list();
@@ -505,7 +515,7 @@ async function showRoster() {
     h('div.roster-intro',
       h('h1', { text: 'Characters' }),
       h('p.hint', { text: config.tagline })),
-    canCreate() ? newCharacterPanel() : signInToCreate(),
+    newCharacterPanel(),
     h('p.hint', { text: source }),
     rows.length
       ? h('ul.roster-list', rows.map(rosterRow))
@@ -534,18 +544,6 @@ function newCharacterPanel() {
     h('div.roster-actions',
       button(`New ${rs.shortName} character`, () => createCharacter(chosen)),
       importButton()));
-}
-
-/** In place of making a character, for a visitor who has not signed in. */
-function signInToCreate() {
-  if (app.serverDown) {
-    return h('div.roster-new',
-      h('p.ruleset-blurb', { text: 'The server cannot be reached, so new characters cannot be made right now. Characters already in this browser still open.' }));
-  }
-  return h('div.roster-new',
-    h('div.roster-new-rules',
-      h('p.ruleset-blurb', { text: 'Sign in to create a character. It is kept with your account, on any device.' })),
-    h('div.roster-actions', signInButtons()));
 }
 
 /**

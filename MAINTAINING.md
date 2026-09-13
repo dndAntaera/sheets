@@ -115,9 +115,11 @@ ruleset that is not public (one that already has it keeps it). Today the SRD is
 public and Antæra is not. With more than one public ruleset, the roster shows a
 switch between them; with one, it shows none.
 
-**Making a character takes signing in** when the app has a server (`apiBase`
-set): creating, importing and duplicating are offered only to a signed-in
-visitor. A build without a server has nobody to sign in to, and stays open.
+**Characters and homebrew take signing in** when the app has a server
+(`apiBase` set): the Characters and Content pages, every sheet, and creating,
+importing and duplicating are for a signed-in visitor (`signedIn` in `app.js`);
+anyone else gets the front page, or a sign-in prompt in place of the page they
+asked for. A build without a server has nobody to sign in to, and stays open.
 
 ### Keeping Antæra in step with the wiki
 
