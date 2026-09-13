@@ -20,7 +20,7 @@ const CAMPAIGN_ROLE_LABELS = { owner: 'Owner', gm: 'GM', player: 'Player' };
 const since = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : '');
 
 /**
- * A person's picture, or their initials on a colour of their own when they have
+ * A person's picture, or their initials on a color of their own when they have
  * none - or when the picture will not load.
  *
  * @param person  { id, name, avatar }

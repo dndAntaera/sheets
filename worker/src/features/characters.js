@@ -30,6 +30,7 @@ async function accessFor(env, userId, row) {
 async function listCharacters({ env, user }) {
   const rows = await env.DB.prepare(
     `SELECT c.id, c.name, c.player, c.build, c.level, c.ruleset, c.updated, c.owner,
+            json_extract(c.data, '$.meta.wizard.step') AS draftStep,
             c.campaign_id AS campaignId, k.name AS campaignName, u.name AS ownerName
        FROM characters c
        JOIN users u ON u.id = c.owner

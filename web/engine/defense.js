@@ -1,12 +1,12 @@
-// Armour Class and the two variants of it that come up every session, plus the
-// armour check penalty the skill table needs.
+// Armor Class and the two variants of it that come up every session, plus the
+// armor check penalty the skill table needs.
 
 import { num } from './util.js';
 import { resolveEffects, AC_OFF_TOUCH, AC_OFF_FLATFOOTED } from './effects.js';
 
 /**
- * Dexterity reaching Armour Class is capped by the most restrictive thing worn.
- * Armour is the usual limit; a tower shield is the other one that matters.
+ * Dexterity reaching Armor Class is capped by the most restrictive thing worn.
+ * Armor is the usual limit; a tower shield is the other one that matters.
  */
 function dexToAC(dexMod, gear) {
   const caps = [gear.armor?.maxDex, gear.shield?.maxDex]
@@ -22,9 +22,9 @@ export function armorCheckPenalty(gear) {
 }
 
 /**
- * The sheet's own armour fields, as effects.
+ * The sheet's own armor fields, as effects.
  *
- * Treating the typed-in armour, shield and natural armour exactly like an
+ * Treating the typed-in armor, shield and natural armor exactly like an
  * item's effects is what makes stacking honest: a +2 deflection typed on the
  * sheet and a ring of protection +1 carried as an item do not add to +3. The
  * better one counts, as the rules say.
@@ -32,7 +32,7 @@ export function armorCheckPenalty(gear) {
 export function gearEffects(gear) {
   const source = 'typed on the sheet';
   const list = [
-    { target: 'ac', type: 'armor', value: num(gear.armor?.bonus), source: gear.armor?.name || 'armour' },
+    { target: 'ac', type: 'armor', value: num(gear.armor?.bonus), source: gear.armor?.name || 'armor' },
     { target: 'ac', type: 'shield', value: num(gear.shield?.bonus), source: gear.shield?.name || 'shield' },
     { target: 'ac', type: 'natural', value: num(gear.natural), source },
     { target: 'ac', type: 'deflection', value: num(gear.deflection), source },
@@ -43,9 +43,9 @@ export function gearEffects(gear) {
 }
 
 /**
- * Armour Class, touch, and flat-footed, from typed bonuses.
+ * Armor Class, touch, and flat-footed, from typed bonuses.
  *
- * Touch drops armour, shield and natural armour. Flat-footed drops Dexterity
+ * Touch drops armor, shield and natural armor. Flat-footed drops Dexterity
  * and dodge - but a Dexterity PENALTY still applies when flat-footed, because
  * being caught unawares does not make a clumsy character less clumsy.
  *

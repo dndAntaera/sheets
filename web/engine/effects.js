@@ -19,7 +19,7 @@
 //
 // STACKING. Two bonuses of the same type do not add; the larger applies. Dodge,
 // circumstance and untyped bonuses are the exceptions and stack with themselves.
-// Getting this wrong is how a character ends up four points of Armour Class
+// Getting this wrong is how a character ends up four points of Armor Class
 // better than the rules allow, and it is tedious enough by hand that it is worth
 // a computer doing it.
 //
@@ -44,7 +44,7 @@ export const TARGETS = {
   'ability.wis': 'Wisdom',
   'ability.cha': 'Charisma',
 
-  ac: 'Armour Class',
+  ac: 'Armor Class',
 
   'save.all': 'all saving throws',
   'save.fort': 'Fortitude',
@@ -232,9 +232,9 @@ export function unknownTargets(resolved) {
 }
 
 /**
- * The AC buckets, separated the way the three Armour Classes need them.
+ * The AC buckets, separated the way the three Armor Classes need them.
  *
- * Touch drops armour, shield and natural armour. Flat-footed drops Dexterity
+ * Touch drops armor, shield and natural armor. Flat-footed drops Dexterity
  * and dodge. Everything else - deflection, luck, insight, sacred, untyped -
  * counts towards all three, which is a rule people get wrong constantly.
  */

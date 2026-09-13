@@ -12,7 +12,8 @@ import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
   moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary,
 } from './engine/index.js';
-import { h, paint, refill, button, bindForm } from './ui/dom.js';
+import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
+import { wizardPage, paintWizard, WIZARD_STEPS, stepForNotice } from './ui/wizard.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
   featsPanel, houserulesPanel, wealthPanel, textPanel, castingPanel,
@@ -397,6 +398,12 @@ const main = () => document.getElementById('main');
 
 const VIEWS = [
   { match: /^sheet\/([^/]+)$/, nav: 'roster', show: ([id]) => (signedIn() ? openSheet(id) : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)) },
+  {
+    match: /^create\/([^/]+)(?:\/([^/]+))?$/,
+    nav: 'roster',
+    title: 'Create a character',
+    show: ([id, step]) => (signedIn() ? openSheet(id, { wizard: step || 'resume' }) : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)),
+  },
   { match: /^campaigns$/, nav: 'campaigns', title: 'Campaigns', show: () => showCampaigns(main(), app) },
   { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: ([id]) => showCampaign(main(), app, id) },
   { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
@@ -430,6 +437,7 @@ function route() {
   const address = location.hash.replace(/^#\/?/, '');
   app.unbind?.();
   app.unbind = null;
+  app.wizard = null;
   const view = VIEWS.find((v) => v.match.test(address)) || VIEWS[VIEWS.length - 1];
   const params = address.match(view.match)?.slice(1) || [];
   markNav(view.nav);
@@ -612,9 +620,10 @@ function rulesetToggle(current, onPick, opts = {}) {
 function rosterRow(row) {
   const rs = app.baseRules.rulesets[row.ruleset || 'srd'];
   return h('li.roster-row',
-    h('a.roster-link', { href: `#/sheet/${row.id}` },
+    h('a.roster-link', { href: row.draftStep ? `#/create/${row.id}/${row.draftStep}` : `#/sheet/${row.id}` },
       h('span.roster-name', { text: row.name || 'Unnamed' }),
       h('span.roster-meta', { text: [row.player, row.build || `level ${row.level || '?'}`].filter(Boolean).join(' - ') })),
+    row.draftStep ? h('span.badge.draft', { text: 'draft', title: 'Still in the character creator. Open it to carry on where you left off.' }) : null,
     row.hereOnly ? h('span.badge.here-only', { text: 'this browser', title: 'Not on your account yet. Open it and it is saved there.' }) : null,
     row.ownerName && app.user && row.owner !== app.user.id ? h('span.badge', { text: row.ownerName, title: 'Another player\u2019s character, in a campaign you run.' }) : null,
     row.campaignName ? h('a.badge.campaign-badge', { href: `#/campaign/${row.campaignId}`, text: row.campaignName, title: 'The campaign this character is in.' }) : null,
@@ -633,9 +642,9 @@ function createCharacter(rulesetId) {
   const rules = withRuleset(app.baseRules, rulesetId);
   const character = blankCharacter(rules);
   character.id = newId();
-  character.meta = { ...character.meta, created: new Date().toISOString(), owner: app.user?.id || null };
+  character.meta = { ...character.meta, created: new Date().toISOString(), owner: app.user?.id || null, wizard: { step: WIZARD_STEPS[0].key } };
   local.save(character);
-  location.hash = `#/sheet/${character.id}`;
+  location.hash = `#/create/${character.id}/${WIZARD_STEPS[0].key}`;
 }
 
 function importButton() {
@@ -711,6 +720,27 @@ async function openSheet(id, opts = {}) {
   app.derived = derive(app.character, app.rules, { overrides });
   refreshDatalists();
 
+  // The character creator: one step of the wizard, drawing only that step's panels.
+  if (opts.wizard) {
+    const saved = app.character.meta?.wizard?.step;
+    const step = WIZARD_STEPS.some((s) => s.key === opts.wizard) ? opts.wizard
+      : WIZARD_STEPS.some((s) => s.key === saved) ? saved : WIZARD_STEPS[0].key;
+    if (opts.wizard !== step) history.replaceState(null, '', `${location.pathname}${location.search}#/create/${app.character.id}/${step}`);
+    app.wizard = { step };
+    if (app.character.meta?.wizard?.step !== step) {
+      app.character.meta = { ...app.character.meta, wizard: { step } };
+      scheduleSave();
+    }
+    const page = wizardPage(app, step, wizardWays());
+    app.panels = page.panels;
+    refill(main, page.root);
+    app.unbind = bindForm(main, () => app.character, onEdit);
+    recompute();
+    window.scrollTo(0, scroll);
+    return;
+  }
+  app.wizard = null;
+
   app.panels = {};
   const sheet = h('div.sheet');
   for (const [key, build] of Object.entries(PANELS)) {
@@ -730,10 +760,54 @@ async function openSheet(id, opts = {}) {
   window.scrollTo(0, scroll);
 }
 
+/** Draw the open character again, in the sheet or the wizard step it is in, once its changes are saved. */
+async function reopen() {
+  if (!app.character) return;
+  await flush();
+  openSheet(app.character.id, { keepScroll: true, wizard: app.wizard?.step });
+}
+
+/** What the wizard needs from the app. See ui/wizard.js. */
+function wizardWays() {
+  const id = app.character.id;
+  const byName = (lists) => [...new Map(lists.flat().filter((e) => e?.name).map((e) => [e.name, e])).values()];
+  return {
+    panels: PANELS,
+    hrefFor: (step) => `#/create/${id}/${step}`,
+    fullSheetHref: `#/sheet/${id}`,
+    go: async (step) => {
+      await flush();
+      location.hash = `#/create/${id}/${step}`;
+    },
+    finish: async () => {
+      if (app.character.meta) delete app.character.meta.wizard;
+      await flush();
+      location.hash = `#/sheet/${id}`;
+    },
+    /** A choice made by clicking a card: set as though it were typed, then drawn again. */
+    choose: async (path, value) => {
+      setPath(app.character, path, value);
+      onEdit(path, value, null, { type: 'change' });
+      await reopen();
+    },
+    variants: () => variantsStrip(),
+    raceChoices: () => byName([
+      app.rules.races?.races || [],
+      shelvesFor(app.character).map((s) => s.shelf.list('race').map((r) => ({ ...r, custom: true }))),
+    ]),
+    classChoices: () => byName([
+      app.rules.classes.classes,
+      shelvesFor(app.character).map((s) => s.shelf.list('class').map((k) => ({ ...k, custom: true }))),
+    ]),
+  };
+}
+
 function sheetToolbar() {
   const rs = app.rules.ruleset;
+  const draft = app.character.meta?.wizard?.step;
   return h('div.toolbar',
     h('a.back', { href: '#/characters', text: 'All characters' }),
+    draft ? h('a.btn.primary', { href: `#/create/${app.character.id}/${draft}` }, 'Continue in the creator') : null,
     rs.wiki ? h('a.back', { href: rs.wiki, target: '_blank', rel: 'noopener', text: rs.wikiName || `${rs.shortName} Wiki` }) : null,
     h('span.grow'),
     button('Export', exportCharacter, { subtle: true, title: 'Download this sheet as a file. Any homebrew it uses goes with it.' }),
@@ -765,8 +839,7 @@ function variantsStrip() {
       : '';
     if (!confirm(`Rebuild ${c.name || 'this character'} under ${target.name}?${note} Nothing you have typed is lost, and you can switch back.`)) return;
     c.ruleset = id;
-    flush();
-    openSheet(c.id, { keepScroll: true });
+    reopen();
   };
 
   const modules = MODULES.map((name) => {
@@ -779,8 +852,7 @@ function variantsStrip() {
           checked: state.on,
           onchange: (ev) => {
             c.options = { ...c.options, [name]: ev.target.checked };
-            flush();
-            openSheet(c.id, { keepScroll: true });
+            reopen();
           },
         }),
         h('span', { text: MODULE_LABELS[name] }));
@@ -895,6 +967,7 @@ function recompute() {
   paintEffects(root, app.derived);
   paintConditions(root, app.derived);
   paintContent(root, app, library);
+  paintWizard(root, app);
   refreshDatalists();
   document.title = `${app.character.name || 'Unnamed'} - ${config.title}`;
 }
@@ -907,11 +980,15 @@ function paintNotices() {
   const rail = document.getElementById('notices');
   if (!rail) return;
   const order = { error: 0, warn: 1, info: 2 };
-  const notices = [...app.derived.notices].sort((a, b) => order[a.level] - order[b.level]);
+  const all = [...app.derived.notices].sort((a, b) => order[a.level] - order[b.level]);
+  // In the wizard, the rail speaks for the step on screen; the review, for every step.
+  const stepFields = app.wizard ? WIZARD_STEPS.find((s) => s.key === app.wizard.step)?.notices : null;
+  const notices = stepFields ? all.filter((n) => stepFields.includes(n.field)) : all;
+  const elsewhere = stepFields ? all.length - notices.length : 0;
   const counts = notices.reduce((acc, n) => ({ ...acc, [n.level]: (acc[n.level] || 0) + 1 }), {});
 
   refill(rail,
-    h('h2.notices-title', { text: 'The sheet says' }),
+    h('h2.notices-title', { text: app.wizard ? (stepFields ? 'This step' : 'Still to do') : 'The sheet says' }),
     h('p.notices-tally', { text: notices.length
       ? [
         counts.error ? `${counts.error} to fix` : null,
@@ -919,6 +996,7 @@ function paintNotices() {
         counts.info ? `${counts.info} to finish` : null,
       ].filter(Boolean).join(', ')
       : 'Nothing outstanding.' }),
+    elsewhere ? h('p.hint', { text: `${elsewhere} more for other steps; the review lists them all.` }) : null,
     h('ul.notice-list', notices.map((n) => h(`li.notice.${n.level}`,
       h('a', {
         href: `#panel-${n.field}`,
@@ -926,6 +1004,10 @@ function paintNotices() {
         onclick: (ev) => {
           ev.preventDefault();
           const target = app.panels[NOTICE_PANEL[n.field] || n.field];
+          if (!target && app.wizard) {
+            location.hash = `#/create/${app.character.id}/${stepForNotice(n.field)}`;
+            return;
+          }
           if (!target) return;
           target.scrollIntoView({ behavior: 'smooth', block: 'start' });
           target.classList.add('flash');
@@ -996,7 +1078,7 @@ async function flush() {
   const result = await saveEverywhere(app.character);
   if (!app.status) return;
   // Signed out is a normal way to use the app, not a failure: "saved" either
-  // way, and the warning colour only for a signed-in save that did not arrive.
+  // way, and the warning color only for a signed-in save that did not arrive.
   const trouble = !result.synced && remote.enabled() && app.user;
   app.status.textContent = trouble ? `saved here (${result.reason})` : 'saved';
   app.status.dataset.state = trouble ? 'local' : 'saved';

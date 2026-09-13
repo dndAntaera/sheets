@@ -436,6 +436,18 @@ export function buildWorkerSuite() {
     t.eq((await call('PUT', '/api/characters/old-ant', { token: ada.token, body: { name: 'Vashti', ruleset: 'srd', levels: [{}] } })).data.ruleset, 'srd', 'and may leave it for a public one');
   });
 
+  test('a character still in the creator is listed with the step it is on', async (t) => {
+    people.google = googler('g-100', 'Ada', 'ada@example.com');
+    const ada = await signIn('google');
+    await call('PUT', '/api/characters/draft', { token: ada.token, body: { name: 'Half-made', ruleset: 'srd', levels: [{}], meta: { wizard: { step: 'skills' } } } });
+    await call('PUT', '/api/characters/done', { token: ada.token, body: { name: 'Finished', ruleset: 'srd', levels: [{}] } });
+    const listed = (await call('GET', '/api/characters', { token: ada.token })).data;
+    t.eq(listed.map((c) => [c.name, c.draftStep]), [['Finished', null], ['Half-made', 'skills']]);
+
+    await call('PUT', '/api/characters/draft', { token: ada.token, body: { name: 'Half-made', ruleset: 'srd', levels: [{}], meta: {} } });
+    t.eq((await call('GET', '/api/characters', { token: ada.token })).data.find((c) => c.id === 'draft').draftStep, null, 'finishing clears it');
+  });
+
   test('a player sees only their own characters', async (t) => {
     people.google = googler('g-100', 'Ada', 'ada@example.com');
     const ada = await signIn('google');

@@ -19,7 +19,7 @@ export const APPEARANCE = [
   },
   {
     key: 'accent',
-    label: 'Accent colour',
+    label: 'Accent color',
     hint: 'Links, buttons and highlights.',
     options: [
       ['violet', 'Violet'],

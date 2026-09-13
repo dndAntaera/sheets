@@ -45,7 +45,7 @@ export function identityPanel(app) {
       total('Size', 'race.size'),
       total('Speed', 'speed'),
       total('Level adj.', 'race.la', { format: 'signed' }),
-      total('Favoured class', 'race.favoredClass'),
+      total('Favored class', 'race.favoredClass'),
       h('p.hint.race-traits', { text: d.race.traits }))
     : row(
       labelled('Size', select('race.size', c.race?.size, sizes, { className: 'narrow' })),
@@ -263,7 +263,7 @@ export function abilitiesPanel(app) {
 }
 
 /* ==========================================================================
-   Combat: hit points, defences, attacks, saves
+   Combat: hit points, defenses, attacks, saves
    ========================================================================== */
 
 export function combatPanel(app) {
@@ -285,9 +285,9 @@ export function combatPanel(app) {
     h('p.hint', { text: lock ? `${lock} Rolls are entered beside each level, under Levels.` : 'Rolls are entered beside each level, under Levels.' }));
 
   const acBlock = h('div.block',
-    h('h3', 'Armour class'),
+    h('h3', 'Armor class'),
     row(
-      labelled('Armour', field('gear.armor.name', c.gear?.armor?.name, { placeholder: 'Chain shirt', className: 'grow' })),
+      labelled('Armor', field('gear.armor.name', c.gear?.armor?.name, { placeholder: 'Chain shirt', className: 'grow' })),
       labelled('Bonus', field('gear.armor.bonus', c.gear?.armor?.bonus, { type: 'int', width: '3.5rem' })),
       labelled('Max Dex', field('gear.armor.maxDex', c.gear?.armor?.maxDex, { type: 'int', width: '3.5rem', placeholder: '-' })),
       labelled('Check', field('gear.armor.acp', c.gear?.armor?.acp, { type: 'int', width: '3.5rem', title: 'As a positive number. The skill table subtracts it.' })),
@@ -306,7 +306,7 @@ export function combatPanel(app) {
       labelled('Deflection', field('gear.deflection', c.gear?.deflection, { type: 'int', width: '3.5rem' })),
       labelled('Dodge', field('gear.dodge', c.gear?.dodge, { type: 'int', width: '3.5rem' })),
       labelled('Misc', field('gear.misc', c.gear?.misc, { type: 'int', width: '3.5rem' })),
-      labelled('Dex to AC', out('ac.parts.dex', { format: 'signed', title: 'Capped by the armour you are wearing.' })),
+      labelled('Dex to AC', out('ac.parts.dex', { format: 'signed', title: 'Capped by the armor you are wearing.' })),
       labelled('Check penalty', out('ac.acp')),
       labelled('Spell failure', out('ac.arcaneSpellFailure')),
     ),
@@ -445,7 +445,7 @@ function skillRows(app) {
         title: 'Filled when the skill is on a class list you have taken.' }),
       h('span.skill-name', { title: def.trainedOnly ? 'Trained only: useless at 0 ranks.' : (def.description || '') },
         h('span', { text: line?.label || entry.name }),
-        def.acp ? h('span.tag', { text: def.acpDouble ? 'armour x2' : 'armour', title: 'The armour check penalty applies.' }) : null,
+        def.acp ? h('span.tag', { text: def.acpDouble ? 'armor x2' : 'armor', title: 'The armor check penalty applies.' }) : null,
         def.trainedOnly ? h('span.tag', { text: 'trained' }) : null,
         def.custom ? h('span.tag', { text: 'yours' }) : null,
         h('span.cond-mark', { dataset: { condMark: `skill.${entry.name}` } })),

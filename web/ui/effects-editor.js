@@ -12,7 +12,7 @@ import { BONUS_TYPES } from '../engine/library.js';
 
 const GROUPS = [
   ['Abilities', ['ability.str', 'ability.dex', 'ability.con', 'ability.int', 'ability.wis', 'ability.cha']],
-  ['Defence', ['ac', 'spellResistance']],
+  ['Defense', ['ac', 'spellResistance']],
   ['Saving throws', ['save.all', 'save.fort', 'save.ref', 'save.will']],
   ['Attacks and damage', ['attack.all', 'attack.melee', 'attack.ranged', 'damage.melee', 'damage.ranged', 'grapple']],
   ['Everything else', ['initiative', 'speed', 'hp', 'skillPoints.perLevel', 'feats.bonus']],

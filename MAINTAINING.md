@@ -205,6 +205,21 @@ sheet, listed in `derived.homebrew.blocked`, and raised as a notice. The app
 follows the same rule for what it suggests and copies in (`shelvesFor` in
 `app.js`). The Content page, and the Content link, need a signed-in visitor.
 
+### The character creator
+
+A new character opens in a wizard (`web/ui/wizard.js`, at `#/create/<id>/<step>`)
+rather than on the sheet. It is not a second sheet: `openSheet(id, { wizard })`
+draws one step's panels from the same `PANELS` the sheet uses, binds them the
+same way, and recomputes the same derived character - so a step shows exactly
+the numbers and notices the sheet would. What the wizard adds is order, the
+words at the top of each step, and cards for choosing a race and a class.
+
+Each step in `WIZARD_STEPS` names its panels, the notice fields it answers for
+(the rail shows only those; the review shows all), and optionally a `body` of
+its own. **Adding a step** is an entry there. A character in the creator carries
+`meta.wizard.step`, which the character list reports as `draftStep` so a draft
+reopens where it was left; Finish removes it and opens the sheet.
+
 ### Keeping the library in step with the account
 
 Every library entry has an id and an `updated` timestamp. The browser remembers,

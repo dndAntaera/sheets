@@ -230,9 +230,9 @@ function effectsPrimer() {
   return h('section.primer',
     h('h2', { text: 'How content changes a sheet' }),
     h('p', { text: 'Most of an entry is description. Its effects are the part the sheet can count: each one names a number, a bonus type and an amount.' }),
-    example('A ring of protection +2', [['Armour Class', 'deflection', '+2', '']]),
+    example('A ring of protection +2', [['Armor Class', 'deflection', '+2', '']]),
     example('A homebrew race of stone-skinned folk', [
-      ['Armour Class', 'natural', '+2', ''],
+      ['Armor Class', 'natural', '+2', ''],
       ['Hide', 'racial', '+4', 'in rocky terrain'],
       ['Fortitude', 'racial', '+2', 'against poison'],
     ]),

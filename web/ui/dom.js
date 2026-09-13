@@ -159,7 +159,7 @@ const FORMATS = {
   plain: (n) => (n === null || n === undefined || n === '' ? '-' : String(n)),
   // A class skill is shown as a filled dot rather than the word "true".
   dot: (v) => (v ? '●' : '○'),
-  // Taint severity reads as a word, and the class it carries colours it.
+  // Taint severity reads as a word, and the class it carries colors it.
   severity: (v) => (v && v !== 'none' ? String(v) : 'none'),
   // An over-cap item needs a mark, not a boolean.
   cap: (v) => (v ? 'over cap' : ''),

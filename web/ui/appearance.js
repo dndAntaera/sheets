@@ -1,4 +1,4 @@
-// How the site looks for this player: theme, accent colour, text size, motion.
+// How the site looks for this player: theme, accent color, text size, motion.
 //
 // Choices are kept in this browser, so the page is drawn right before anything
 // has loaded, and on the player's account, so they follow them to another

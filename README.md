@@ -82,6 +82,12 @@ write homebrew: the Characters and Content pages appear once you have. Character
 are saved as you type and kept with your account, on every device you use. Signed
 out, the site shows its front page.
 
+**New characters are made in a creator** that walks through 3.5 creation a step
+at a time - concept, race, class, ability scores, skills, feats, hit points and
+gear, details - with a running summary beside it and the sheet's own checks at
+each step. A character left half-made is a draft that picks up where it stopped;
+finishing opens the full sheet.
+
 Each player has a **profile** and a **Settings** page: a username and profile
 picture of their own, and how the site looks to them - day or night, an accent
 colour, larger text, reduced motion - kept with their account.

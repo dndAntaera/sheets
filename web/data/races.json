@@ -29,7 +29,7 @@
           "note": "4 extra skill points at 1st level, 1 per level after"
         }
       ],
-      "traits": "Bonus feat at 1st level. Four extra skill points at 1st level and one per level after. Favoured class: any."
+      "traits": "Bonus feat at 1st level. Four extra skill points at 1st level and one per level after. Favored class: any."
     },
     {
       "name": "Dwarf",
@@ -67,7 +67,7 @@
         },
         {"target": "skill.Craft", "type": "racial", "value": 2, "condition": "on stone or metal"}
       ],
-      "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armour or load."
+      "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load."
     },
     {
       "name": "Elf",

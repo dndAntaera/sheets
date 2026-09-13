@@ -4,14 +4,14 @@
 
    The wiki keeps every value its look depends on in one file and writes its
    rules entirely in terms of them. This is that file for the sheets, and the
-   colours are deliberately the wiki's own: the same deep-blue sky, the same
+   colors are deliberately the wiki's own: the same deep-blue sky, the same
    parchment by day and slate by night, the same purple accent. The two sites
    are siblings and should look it, so a player moving from a rules page to
    their character sheet does not feel they have left.
 
    Two rules, as next door:
 
-     1. No rule in sheet.css contains a literal colour or a literal spacing.
+     1. No rule in sheet.css contains a literal color or a literal spacing.
         A value gets a name here first.
      2. Tokens are grouped by what they mean, not by where they are used.
 
@@ -73,7 +73,7 @@
   --field-height: 1.9rem;
 
   /* -------------------------------------------------------------------------
-     Colour: the sky
+     Color: the sky
 
      Straight from the wiki, and not redefined per theme for the same reason:
      day and night are a property of the paper, not of what is outside.
@@ -90,9 +90,9 @@
   --sky-link: #d773ff;
 
   /* -------------------------------------------------------------------------
-     Colour: accent and status
+     Color: accent and status
 
-     The accent is the wiki's purple. The three status colours are new here,
+     The accent is the wiki's purple. The three status colors are new here,
      because the wiki never has to tell you that you have overspent your skill
      points. They are chosen to sit on both parchment and slate.
      ------------------------------------------------------------------------- */

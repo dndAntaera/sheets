@@ -296,6 +296,7 @@ export function summarise(character) {
     level: (character.levels || []).length,
     updated: character.meta?.updated || null,
     owner: character.meta?.owner || null,
+    draftStep: character.meta?.wizard?.step || null,
   };
 }
 

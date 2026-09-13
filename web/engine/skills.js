@@ -52,7 +52,7 @@ export const rankCost = (ranks, classSkill) => (classSkill ? ranks : ranks * 2);
  * +2, a feat's +2, an item's +5 competence. Both count, and the bonuses are
  * already stacked by type before they get here.
  *
- * The armour check penalty is stored as a positive number and subtracted,
+ * The armor check penalty is stored as a positive number and subtracted,
  * twice for Swim, the only skill that suffers it double.
  */
 export function skillLine(entry, ctx) {

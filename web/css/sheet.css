@@ -2,11 +2,11 @@
    Antaera Sheets - the sheet
    ===========================================================================
 
-   Written entirely in terms of the tokens next door: no literal colour and no
+   Written entirely in terms of the tokens next door: no literal color and no
    literal spacing appears below this line. The layout follows a printed
    character sheet rather than a web form - panels of related numbers, labels
    in small caps above their fields, and the totals boxed so the eye can find
-   Armour Class without reading.
+   Armor Class without reading.
 
    The one visual idea worth stating: a field you may type in looks like paper
    you can write on, and a number the sheet worked out looks like ink already
@@ -417,8 +417,8 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 /* ---------------------------------------------------------------------------
    The notices rail
 
-   Three severities, and the colour is the only thing that distinguishes them,
-   so each also carries a word in its tally line above. Colour alone never
+   Three severities, and the color is the only thing that distinguishes them,
+   so each also carries a word in its tally line above. Color alone never
    carries the meaning.
    --------------------------------------------------------------------------- */
 
@@ -780,6 +780,132 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 @media print { .landing { display: none; } }
 
 /* ---------------------------------------------------------------------------
+   The character creator - a wizard over the sheet's own panels (ui/wizard.js)
+   --------------------------------------------------------------------------- */
+
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-on); font-weight: 600; }
+.btn.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+.roster a.btn.primary, .toolbar a.btn.primary { color: var(--accent-on); }
+.badge.draft { border-color: var(--accent); color: var(--link); }
+
+.wizard { max-width: var(--sheet-width); margin: 0 auto; padding: 0 var(--sp-3) var(--sp-6); color: var(--sky-ink); }
+.wizard-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-4) 0 var(--sp-3); }
+.wizard-top .eyebrow { margin-bottom: var(--sp-1); }
+.wizard-top a { color: var(--sky-ink-dim); }
+.wizard-title { margin: 0; font: 600 clamp(1.5rem, 3vw, 2rem)/1.15 var(--font-display); letter-spacing: -.01em; }
+
+.wizard-progress { overflow-x: auto; margin-bottom: var(--sp-4); }
+.wizard-steps { list-style: none; margin: 0; padding: 0 0 var(--sp-2); display: flex; gap: var(--sp-1); min-width: max-content; }
+.wizard-step a {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: .35rem .7rem .35rem .35rem;
+  border-radius: 999px;
+  color: var(--sky-ink-dim);
+  text-decoration: none;
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+.wizard-step a:hover { color: var(--sky-ink); background: rgba(255, 255, 255, .05); }
+.wizard-step-number {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: var(--hair) solid rgba(215, 220, 237, .35);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wizard-step.is-done .wizard-step-number { background: var(--accent-dark); border-color: var(--accent-dark); color: var(--accent-on); }
+.wizard-step.is-current a { color: var(--sky-ink); background: rgba(255, 255, 255, .07); }
+.wizard-step.is-current .wizard-step-number { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+.wizard-step.is-current .wizard-step-title { font-weight: 600; }
+
+.wizard-layout { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; gap: var(--gap); align-items: start; }
+.wizard-main { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+.wizard-intro { max-width: 46rem; }
+.wizard-intro h2 { margin: 0 0 var(--sp-2); font: 600 1.35rem/1.2 var(--font-display); }
+.wizard-intro p { margin: 0 0 var(--sp-2); color: var(--sky-ink-dim); line-height: 1.6; }
+.wizard-count { font-size: var(--text-tiny); letter-spacing: .12em; text-transform: uppercase; color: var(--sky-link) !important; margin: 0 0 var(--sp-1) !important; }
+.wizard-body { display: flex; flex-direction: column; gap: var(--gap); }
+.wizard-body .panel h3 { margin-top: 0; }
+.wizard-name-field { font-size: 1.1em; }
+
+.choice-group { display: flex; flex-direction: column; gap: var(--sp-2); }
+.choice-group-title { margin: var(--sp-2) 0 0; font: 600 var(--text-small)/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--sky-ink-dim); }
+.choice-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr)); gap: var(--sp-2); }
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .2rem;
+  padding: var(--sp-3);
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--grain), var(--surface);
+  border: var(--hair) solid var(--surface-edge);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.choice-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.choice-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.choice-card.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), var(--shadow-card); }
+.choice-card-title { font-weight: 600; font-size: 1rem; }
+.choice-card-line { font-size: var(--text-small); }
+.choice-card .hint { color: var(--ink-faint); }
+
+.wizard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: var(--hair) solid rgba(215, 220, 237, .12);
+}
+.wizard-nav .btn { font-size: var(--text-body); padding: .55rem 1rem; }
+.wizard-nav .btn.subtle { color: var(--sky-ink-dim); }
+.wizard-nav-note { margin: 0; flex: 1; text-align: center; font-size: var(--text-small); color: var(--sky-ink-dim); }
+
+.wizard-side { position: sticky; top: var(--sp-3); display: flex; flex-direction: column; gap: var(--gap); }
+.wizard-summary {
+  padding: var(--sp-3);
+  background: var(--grain), var(--surface);
+  color: var(--ink);
+  border: var(--hair) solid var(--surface-edge);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.wizard-summary-head { display: flex; flex-direction: column; gap: .1rem; padding-bottom: var(--sp-2); border-bottom: var(--hair) solid var(--rule); }
+.wizard-summary-name { font: 600 1.05rem/1.2 var(--font-display); overflow-wrap: anywhere; }
+.wizard-summary-build { font-size: var(--text-small); color: var(--ink-soft); }
+.wizard-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); margin-top: var(--sp-2); }
+.wizard-summary-grid .total { align-items: center; text-align: center; }
+.wizard-summary-abilities { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .2rem; margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: var(--hair) solid var(--rule); }
+.wizard-ability { display: flex; flex-direction: column; align-items: center; font-variant-numeric: tabular-nums; }
+.wizard-ability .out { font-weight: 600; }
+.wizard-ability .mod { font-size: var(--text-tiny); color: var(--ink-soft); font-weight: 400; }
+.wizard-side .notices { position: static; }
+
+.wizard-review { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.wizard-review li { display: flex; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-1) 0; border-bottom: var(--hair) solid var(--rule); }
+.wizard-review li.has-errors .hint { color: var(--fail); }
+
+@media (max-width: 60rem) {
+  .wizard-layout { grid-template-columns: minmax(0, 1fr); }
+  .wizard-side { position: static; }
+}
+@media (max-width: 34rem) {
+  .wizard-nav { flex-wrap: wrap; }
+  .wizard-nav-note { order: -1; flex-basis: 100%; }
+}
+@media print { .wizard-progress, .wizard-nav, .wizard-top a { display: none; } }
+
+/* ---------------------------------------------------------------------------
    Appearance - the choices on the Settings page (engine/preferences.js)
 
    Violet, standard text and standard motion are the defaults, and set no
@@ -804,7 +930,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 }
 :root[data-motion="reduced"] .example-sheet { transform: none; }
 
-/* A person's picture, or their initials on a colour of their own. */
+/* A person's picture, or their initials on a color of their own. */
 .avatar {
   display: inline-grid;
   place-items: center;
@@ -1061,7 +1187,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .library-choice.is-active { border-color: var(--accent); color: var(--ink); background: var(--surface-sunk); }
 
 /* Sign in with Google, as Google's branding guidelines draw it: white, a grey
-   outline, the four-colour G on the left, dark grey medium-weight text. */
+   outline, the four-color G on the left, dark grey medium-weight text. */
 .gsi-button {
   display: inline-flex;
   align-items: center;
@@ -1199,7 +1325,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   .skill-row .out[data-out$="bonuses"],
   .skill-row .out[data-out$="maxRanks"],
   .skill-row .out[data-out$="cost"] { display: none; }
-  /* The armour and trained marks are reference, not data. The column is
+  /* The armor and trained marks are reference, not data. The column is
      needed for the skill's own name. */
   .skill-name .tag { display: none; }
 

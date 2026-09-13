@@ -4,7 +4,7 @@
     "not in effect in this campaign, but psionics itself very much is.",
     "",
     "  ability      the key ability; null for Speak Language, which is never rolled",
-    "  acp          the armour check penalty applies to this skill",
+    "  acp          the armor check penalty applies to this skill",
     "  acpDouble    ... and applies twice, which is true only of Swim",
     "  trainedOnly  unusable at 0 ranks, so the sheet shows no total for it",
     "  subtype      the skill is taken per-subject (Craft, Knowledge, Perform ...)",
