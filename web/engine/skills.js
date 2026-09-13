@@ -58,7 +58,12 @@ export const rankCost = (ranks, classSkill) => (classSkill ? ranks : ranks * 2);
 export function skillLine(entry, ctx) {
   const def = ctx.skillsByName.get(entry.name) || { name: entry.name, ability: null, unknown: true };
   const classSkill = isClassSkill(ctx.classSkills, entry.name, entry.subtype);
-  const ranks = num(entry.ranks);
+  // Under an alternative skill system (Unearthed Arcana) ranks are not bought:
+  // a known skill has the most it can, or a class skill has the character level.
+  const cap = maxRanks(ctx.hitDice, classSkill);
+  const ranks = ctx.system === 'maxRanks' ? (entry.known ? Math.floor(cap) : 0)
+    : ctx.system === 'levelBased' ? (classSkill ? ctx.hitDice : 0)
+      : num(entry.ranks);
   const ability = def.ability ? ctx.abilities[def.ability] : null;
   const acp = def.acp ? ctx.armorCheckPenalty * (def.acpDouble ? 2 : 1) : 0;
   const sizeMod = def.sizeMod ? num(ctx.sizeHideMod) : 0;
@@ -67,7 +72,6 @@ export function skillLine(entry, ctx) {
   const conditions = ctx.resolved ? conditionsFor(ctx.resolved, `skill.${entry.name}`, 'skill.*') : [];
 
   const total = (ability ? ability.mod : 0) + ranks + misc + bonuses + sizeMod - acp;
-  const cap = maxRanks(ctx.hitDice, classSkill);
 
   return {
     ...entry,
@@ -82,9 +86,10 @@ export function skillLine(entry, ctx) {
     misc,
     bonuses,
     conditions,
-    cost: rankCost(ranks, classSkill),
+    cost: ctx.system ? 0 : rankCost(ranks, classSkill),
     maxRanks: cap,
-    overCap: ranks > cap,
+    overCap: !ctx.system && ranks > cap,
+    known: ctx.system === 'maxRanks' ? Boolean(entry.known) : undefined,
     untrained: Boolean(def.trainedOnly) && ranks <= 0,
     total: def.noCheck ? null : total,
   };

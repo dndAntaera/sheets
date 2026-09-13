@@ -7,6 +7,7 @@
 import { call, signIn, people, googler, discorder, d1 } from './worker-suite.js';
 import { campaignCan, campaignRole, characterAccess, characterCan } from '../worker/src/policy.js';
 import { normalizeSettings, settableModules, applyCampaign } from '../web/engine/campaign.js';
+import { VARIANT_MODULES } from '../web/engine/modules.js';
 import srd from '../web/data/rulesets/srd.json' with { type: 'json' };
 import antaera from '../web/data/rulesets/antaera.json' with { type: 'json' };
 
@@ -74,7 +75,7 @@ export function buildCampaignSuite() {
   });
 
   test('settings: only what exists for the ruleset, coerced', async (t) => {
-    t.eq(settableModules(srd), ['gestalt', 'actionPoints', 'traitsFlaws'], 'the SRD hands its variants to the GM');
+    t.eq(settableModules(srd), ['gestalt', 'actionPoints', 'traitsFlaws', ...VARIANT_MODULES], 'the SRD hands every variant to the GM');
     t.eq(settableModules(antaera), ['gestalt'], 'Antaera only hands over gestalt');
 
     const { settings, dropped } = normalizeSettings({
@@ -94,7 +95,7 @@ export function buildCampaignSuite() {
   test('settings: a campaign’s choices become the character’s rules', async (t) => {
     const rules = { ruleset: srd };
     const { rules: applied, overrides } = applyCampaign(rules, { settings: { modules: { gestalt: true }, startingLevel: 5 } });
-    t.eq(overrides, { gestalt: true, actionPoints: false, traitsFlaws: false }, 'unset variants take the ruleset default');
+    t.eq(overrides, { gestalt: true, actionPoints: false, traitsFlaws: false, ...Object.fromEntries(VARIANT_MODULES.map((m) => [m, false])) }, 'unset variants take the ruleset default');
     t.eq(applied.ruleset.startingLevel, 5);
     t.eq(srd.startingLevel, 1, 'the ruleset itself is untouched');
   });

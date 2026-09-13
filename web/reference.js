@@ -13,6 +13,7 @@ export const REFERENCE_KINDS = {
   classes: { label: 'Classes', singular: 'class' },
   domains: { label: 'Domains', singular: 'domain' },
   equipment: { label: 'Equipment', singular: 'item' },
+  variants: { label: 'Variant rules', singular: 'variant rule' },
 };
 
 const loading = new Map();

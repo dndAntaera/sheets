@@ -10,7 +10,7 @@
 
 import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
-  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic, restedTrackers,
+  moduleState, MODULES, VARIANT_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic, restedTrackers,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
 import { wizardPage, paintWizard, WIZARD_STEPS, stepForNotice } from './ui/wizard.js';
@@ -25,6 +25,7 @@ import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/c
 import { showLanding } from './ui/landing.js';
 import { showReference } from './ui/reference.js';
 import { magicPanel } from './ui/magic.js';
+import { variantRulesPanel, variantCombatPanel, variantTracksPanel } from './ui/variants.js';
 import { referenceNow, lookUp } from './reference.js';
 import { SHEET_PAGES, pageFor, pageForNotice, sheetTabs } from './ui/sheet-pages.js';
 import { showProfile, showSettings, avatarFor } from './ui/profile.js';
@@ -47,6 +48,9 @@ const PANELS = {
   houserules: houserulesPanel,
   casting: (a) => magicPanel(a, { rest: restCharacter }),
   trackers: (a) => trackersPanel(a, { rest: restCharacter, newWeek: () => restCharacter('week'), setUsed: setTrackerUsed }),
+  variantRules: (a) => variantRulesPanel(a, { reopen }),
+  variantCombat: variantCombatPanel,
+  variantTracks: variantTracksPanel,
   wealth: wealthPanel,
   effects: effectsPanel,
   content: contentPanel,
@@ -850,6 +854,7 @@ function wizardWays() {
     ]),
     classChoices: () => byName([
       app.rules.classes.classes,
+      [...(app.derived?.index?.classByName?.values() || [])].filter((k) => k.variant && !k.classVariant),
       shelvesFor(app.character).map((s) => s.shelf.list('class').map((k) => ({ ...k, custom: true }))),
     ]),
   };
@@ -899,7 +904,7 @@ function variantsStrip() {
     reopen();
   };
 
-  const modules = MODULES.map((name) => {
+  const modules = MODULES.filter((name) => !VARIANT_MODULES.includes(name)).map((name) => {
     const state = moduleState(app.rules, c, name, app.overrides);
     if (!state.available) return null;
     if (state.choosable) {

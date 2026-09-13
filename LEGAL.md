@@ -28,6 +28,10 @@ game mechanics taken from the 3.5 System Reference Document:
   Andargor's SRD 3.5 database (SQLite conversion by highmage), whose Section 15
   lines are on the Antæra Wiki's legal page with the SRD's, the Expanded
   Psionics Handbook's and Unearthed Arcana's
+- `web/data/variants.json` (its tables) and `web/data/srd/variants.json` (its
+  rule text) — the variant rules from Unearthed Arcana, built by
+  `scripts/build-variants.py`; the catalog's own descriptions are not Open Game
+  Content
 
 The app's code, the Antæra ruleset (`web/data/rulesets/antaera.json`) and the
 campaign's backgrounds are not Open Game Content; they are the owner's own.

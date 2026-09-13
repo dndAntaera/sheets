@@ -237,7 +237,8 @@ function conceptStep(app, ways) {
         row(small('Eyes', 'eyes'), small('Hair', 'hair'), small('Skin', 'skin'))))),
     h('section.panel', h('div.panel-body',
       h('h3', { text: 'Rules for this character' }),
-      ways.variants())));
+      ways.variants(),
+      h('p.hint', { text: 'Every other variant rule in the SRD - defense bonus, spell points, vitality and wound points and the rest - can be switched on from the sheet\u2019s Rules page.' }))));
 }
 
 function raceStep(app, ways) {

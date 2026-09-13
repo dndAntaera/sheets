@@ -87,6 +87,13 @@ export function referenceCard(kind, e) {
         h('ol.reference-domain-spells', (e.spells || []).map((s) => h('li', s
           ? h('a', { href: referenceHref('spells', s), text: s[0].toUpperCase() + s.slice(1) })
           : '-'))));
+    case 'variants':
+      return h('article.reference-card',
+        head(`${e.category} - Unearthed Arcana`),
+        h('p', { text: e.summary }),
+        h('p.reference-note', h('b', { text: 'On the sheet: ' }), e.onSheet),
+        prose(e.text),
+        h('p.hint', {}, 'Also on the ', h('a', { href: e.url, target: '_blank', rel: 'noopener', text: 'Hypertext d20 SRD' }), '.'));
     case 'equipment':
       return h('article.reference-card',
         head([e.category, e.subcategory].filter(Boolean).join(' - ')),
@@ -168,7 +175,7 @@ export async function showReference(main, app, kind = 'spells', name = null) {
     h('div.content-head',
       h('div',
         h('h1', { text: 'Reference' }),
-        h('p.hint', { text: 'The System Reference Document: every spell, power, feat, class, domain and piece of equipment. Pick one on a sheet and it reads the same as it does here.' }))),
+        h('p.hint', { text: 'The System Reference Document: every spell, power, feat, class, domain, piece of equipment and variant rule. Pick one on a sheet and it reads the same as it does here.' }))),
     h('nav.content-tabs', Object.entries(REFERENCE_KINDS).map(([k, v]) => h('a.content-tab', { href: referenceHref(k), class: k === kind ? 'is-active' : '' }, v.label))),
     h('div.content-body',
       h('aside.content-side',
@@ -209,6 +216,8 @@ function filterControls(kind, list, state, draw) {
       return h('div.reference-filters', choose('Kind', 'kind', distinct((e) => e.kinds)));
     case 'equipment':
       return h('div.reference-filters', choose('Category', 'category', distinct((e) => e.category)));
+    case 'variants':
+      return h('div.reference-filters', choose('Category', 'group', distinct((e) => e.category)));
     default:
       return null;
   }
@@ -227,6 +236,7 @@ function matches(kind, e, state) {
   if (state.type && !(e.types || []).includes(state.type)) return false;
   if (state.kind && !(e.kinds || []).includes(state.kind)) return false;
   if (state.category && e.category !== state.category) return false;
+  if (state.group && e.category !== state.group) return false;
   return true;
 }
 
@@ -241,6 +251,7 @@ function listLine(kind, e, state) {
     case 'classes': return [(e.kinds || []).join(', '), e.hitDie ? `d${e.hitDie}` : ''].filter(Boolean).join(' - ');
     case 'domains': return e.grantedPower ? `${e.grantedPower.slice(0, 60)}…` : '';
     case 'equipment': return [e.category, e.cost].filter(Boolean).join(' - ');
+    case 'variants': return e.category;
     default: return '';
   }
 }

@@ -37,6 +37,10 @@ import { contentIndex, raceFacts, resolveEntries, usableContent, CONTENT_TYPES }
 import { activeModules } from './modules.js';
 import { magicFor, magicNotices } from './magic.js';
 import { trackersFor, trackerNotices } from './trackers.js';
+import {
+  variantClassIndex, variantArmorClass, variantHealth, variantScores, magicRatingFor, spontaneousMetamagicFor,
+  skillSystemOf, skillsKnownAllowed, variantNotices,
+} from './variants.js';
 import { num } from './util.js';
 
 const SAVE_ABILITY = { fort: 'con', ref: 'dex', will: 'wis' };
@@ -80,7 +84,17 @@ export function derive(character, rules, options = {}) {
   // In a campaign, only the homebrew the campaign allows counts.
   const usable = usableContent(character, rules);
   const index = contentIndex(rules, { ...character, content: usable.content });
+  // Variant rules that change classes: generic and paragon classes, class variants.
+  index.classByName = variantClassIndex(index.classByName, character, rules, modules);
   const summary = buildSummary(character, rules, gestalt, index);
+  // Reducing level adjustments: reductions paid for lower the adjustment, and ECL with it.
+  summary.baseLA = summary.la;
+  if (modules.reducingLA) {
+    const schedule = rules.variants?.tables?.reducingLA?.[String(summary.la)] || [];
+    const cut = Math.min(num(character.variants?.laReductions), schedule.filter((l) => summary.classLevels >= l).length);
+    summary.la -= cut;
+    summary.ecl -= cut;
+  }
   const race = raceFacts(character, index);
   const size = rules.core.sizes.find((s) => s.name === race.size)
     || rules.core.sizes.find((s) => s.name === 'Medium');
@@ -91,6 +105,12 @@ export function derive(character, rules, options = {}) {
     ...collectEffects(entries),
     ...sheetEffects(character).map((e) => ({ condition: null, perLevel: false, note: null, ...e })),
   ];
+  // Taint (Unearthed Arcana) is a penalty to Constitution and Wisdom, not ability damage.
+  if (modules.uaTaint && num(character.variants?.taint) > 0) {
+    for (const key of ['con', 'wis']) {
+      effects.push({ target: `ability.${key}`, type: 'untyped', value: -num(character.variants.taint), source: 'taint', condition: null, perLevel: false, note: null });
+    }
+  }
   const resolved = resolveEffects(effects, summary.hitDiceCount);
 
   // --- 4. abilities ------------------------------------------------------
@@ -98,7 +118,8 @@ export function derive(character, rules, options = {}) {
 
   // --- 5. everything else ------------------------------------------------
   const gear = character.gear || {};
-  const ac = armorClass(gear, abilities.dex.mod, size.ac, resolved.ac);
+  const armorVariants = variantArmorClass(armorClass(gear, abilities.dex.mod, size.ac, resolved.ac), gear, summary, rules, modules);
+  const ac = armorVariants.ac;
   const init = initiative(abilities.dex.mod, character.combat?.initiativeMisc, bonusTo(resolved, 'initiative'));
   const attackSet = attacks(summary, abilities, size, character.combat?.misc, {
     melee: bonusToWithAll(resolved, 'attack.melee', 'attack.all'),
@@ -136,6 +157,7 @@ export function derive(character, rules, options = {}) {
     armorCheckPenalty: armorCheckPenalty(gear),
     sizeHideMod: size.hide,
     resolved,
+    system: skillSystemOf(modules),
   };
   const skills = skillTable(character, skillCtx);
   const extraSkillPoints = bonusTo(resolved, 'skillPoints.perLevel')
@@ -174,12 +196,15 @@ export function derive(character, rules, options = {}) {
     attacks: attackSet,
     weapons,
     saves,
-    skills: { ...skills, budget, remaining: budget.total - skills.spent },
+    skills: { ...skills, budget, remaining: skillCtx.system ? 0 : budget.total - skills.spent, system: skillCtx.system },
     wealth: money,
     levelAdjustment: la,
     feats,
     casting: castingSummary(summary, abilities),
-    magic: magicFor(character, summary, abilities, rules),
+    magic: magicFor(character, summary, abilities, rules, {
+      modules,
+      rating: modules.magicRating ? magicRatingFor(summary, rules, Boolean(character.variants?.magicRatingSeparate)) : null,
+    }),
     trackers: trackersFor(character, summary, abilities, rules, index),
     // Only the modules in force produce anything; the rest are null, and the
     // interface draws no panel for a null.
@@ -189,6 +214,35 @@ export function derive(character, rules, options = {}) {
     taint: modules.taint ? taint(character, abilities, rules) : null,
     training: modules.training ? nextLevelTraining(character, rules, summary, gestalt, index) : null,
   };
+
+  // The variant rules' own readouts and tracks.
+  const highestSpell = Math.max(-1, ...derived.magic.classes.filter((m) => m.kind === 'casting').map((m) => m.highestCastable ?? -1));
+  derived.variants = {
+    defenseBonus: armorVariants.defenseBonus,
+    damageReduction: armorVariants.damageReduction,
+    health: variantHealth(character, derived, summary, abilities, size, rules, modules),
+    scores: variantScores(character, derived, summary, abilities, rules, modules),
+    magicRating: modules.magicRating ? magicRatingFor(summary, rules, Boolean(character.variants?.magicRatingSeparate)) : null,
+    playersRoll: modules.playersRollDice ? {
+      defense: ac.total - 10,
+      touch: ac.touch - 10,
+      flatFooted: ac.flatFooted - 10,
+      spellResistance: derived.spellResistance ? derived.spellResistance - 10 : null,
+    } : null,
+    skills: skillCtx.system ? {
+      system: skillCtx.system,
+      known: skills.lines.filter((l) => l.known).length,
+      allowed: skillCtx.system === 'maxRanks' ? skillsKnownAllowed(summary, abilities.int.mod, extraSkillPoints) : null,
+    } : null,
+    classesChosing: [...new Set(summary.sides.flatMap((s) => s.classes))]
+      .filter((c) => c.def?.chooseSkills && (character.variants?.chosenSkills?.[c.name] || []).length < c.def.chooseSkills)
+      .map((c) => [c.name, c.def]),
+  };
+  if (modules.spontaneousMetamagic && highestSpell >= 0) {
+    for (const m of spontaneousMetamagicFor(character, highestSpell, rules)) {
+      derived.trackers.push({ ...m, source: 'spontaneous metamagic', per: 'day', unit: null, used: num(character.trackers?.[m.key]), remaining: 3 - num(character.trackers?.[m.key]) });
+    }
+  }
 
   // Two readouts beside the ability block. Derived, not stored, so switching
   // between methods never edits anything a player typed.
@@ -344,8 +398,13 @@ function notices(character, d, rules) {
     add('warn', `Hit points rolled but no roll recorded for ${d.hp.missingRolls.length === 1 ? 'level' : 'levels'} ${d.hp.missingRolls.join(', ')}.`, 'hp');
   }
 
+  // --- Variant rules -------------------------------------------------------
+  variantNotices(d, d.modules, add);
+
   // --- Skills --------------------------------------------------------------
-  if (d.skills.remaining < 0) {
+  if (d.skills.system) {
+    // An alternative skill system has no points to spend, and no caps to pass.
+  } else if (d.skills.remaining < 0) {
     add('error', `Skill points overspent by ${-d.skills.remaining}.`, 'skills');
   } else if (d.skills.remaining > 0 && d.summary.classLevels) {
     add('info', `${plural(d.skills.remaining, 'skill point', 'skill points')} unspent.`, 'skills');

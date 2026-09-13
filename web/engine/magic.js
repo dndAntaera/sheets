@@ -33,6 +33,7 @@
 // Nothing here is stored on the derived side; resting is restedMagic().
 
 import { bonusSlots } from './abilities.js';
+import { spellPointsFor, rechargeTimesFor } from './variants.js';
 
 const MAX_LEVEL = 20;
 
@@ -59,7 +60,8 @@ const byLevel = (list, level) => (list || []).filter((e) => e && e.name && Numbe
  * @param rules      the rules context, with `progression`
  * @returns { classes: [...], powerPoints: { base, bonus, total, used, remaining } | null, kinds: Set }
  */
-export function magicFor(character, summary, abilities, rules) {
+export function magicFor(character, summary, abilities, rules, options = {}) {
+  const modules = options.modules || {};
   const classes = [];
   const seen = new Set();
   let pool = null;
@@ -80,7 +82,9 @@ export function magicFor(character, summary, abilities, rules) {
       const state = character.magic?.[c.name] || {};
 
       if (casting) {
-        classes.push(spellcaster(c, casting, level, at, ability, score, mod, state));
+        const castingScore = casting.castingScore ? abilities[casting.castingScore].total : score;
+        const entry = spellcaster(c, casting, level, at, ability, score, mod, state, { castingScore, rules, modules, rating: options.rating });
+        classes.push(entry);
       } else {
         const entry = manifester(c, manifesting, level, at, ability, score, mod, state);
         classes.push(entry);
@@ -99,24 +103,30 @@ export function magicFor(character, summary, abilities, rules) {
   return { classes, powerPoints: pool, kinds: new Set(classes.map((c) => c.kind)) };
 }
 
-function spellcaster(c, casting, level, at, ability, score, mod, state) {
+function spellcaster(c, casting, level, at, ability, score, mod, state, extra = {}) {
   const slots = at('slots') || [];
-  const knownRow = at('known') || [];
   const bonus = bonusSlots(mod);
   const spontaneous = Boolean(casting.spontaneous);
-  const spellbook = Boolean(casting.spellbook);
-  const casterLevel = casting.half ? (level >= 4 ? Math.floor(level / 2) : 0) : level;
+  const spellbook = Boolean(casting.spellbook) && !casting.spontaneous;
+  const classCasterLevel = casting.half ? (level >= 4 ? Math.floor(level / 2) : 0) : level;
+  // Magic rating (Unearthed Arcana): caster level is the character's total rating.
+  const casterLevel = extra.rating ? extra.rating.casterLevelOf(c.name, c.def) : classCasterLevel;
   const specialist = spellbook && state.specialty ? 1 : 0;
+  // Spontaneous divine casters (Unearthed Arcana) learn from their own table.
+  const divineKnown = casting.spontaneousDivine ? extra.rules?.variants?.tables?.spontaneousDivineKnown?.[String(level)] : null;
+  const knownRow = divineKnown ? divineKnown.map((n) => (n === null ? null : String(n))) : at('known') || [];
+  const castingScore = extra.castingScore ?? score;
 
   const levels = [];
   for (let L = 0; L < Math.max(slots.length, knownRow.length); L++) {
     const table = slotCount(slots[L]);
     const known = slotCount(knownRow[L]);
     if (!table && !known) continue;
-    const castable = score >= 10 + L;
-    const base = castable && table ? table.base : 0;
+    const castable = castingScore >= 10 + L;
+    // A spontaneous divine caster gets one more spell a day at each level, and no domain slot.
+    const base = castable && table ? Math.max(0, table.base + (casting.slotAdjust || 0)) + (casting.spontaneousDivine ? 1 : 0) : 0;
     const fromAbility = castable && table && L > 0 ? bonus[L] : 0;
-    const domain = castable && table ? table.extra : 0;
+    const domain = castable && table ? (casting.spontaneousDivine ? 0 : table.extra) + (casting.domainSlot || 0) : 0;
     const school = castable && table ? specialist : 0;
     const perDay = base + fromAbility;
     const prepared = state.prepared?.[L] || [];
@@ -132,7 +142,11 @@ function spellcaster(c, casting, level, at, ability, score, mod, state) {
       domain,
       school,
       perDay: perDay + extraSlots,
-      knownAllowed: known ? known.base : null,
+      knownAllowed: known
+        ? Math.max(known.base > 0 || casting.knownAdjust ? 1 : 0, known.base + (casting.knownAdjust || 0))
+          + (castable && casting.extraKnown ? casting.extraKnown : 0)
+          + (casting.spontaneousDivine && L > 0 ? casting.knownBonus || 0 : 0)
+        : null,
       knownCount: byLevel(state.known, L).length,
       preparedCount: prepared.filter((p) => p?.name && !p.domain && !p.school).length,
       preparedExtra: prepared.filter((p) => p?.name && (p.domain || p.school)).length,
@@ -142,12 +156,28 @@ function spellcaster(c, casting, level, at, ability, score, mod, state) {
     });
   }
 
+  const highestCastable = levels.filter((l) => l.castable && l.perDay > 0).reduce((n, l) => Math.max(n, l.level), -1);
+  const modules = extra.modules || {};
+  const spellPoints = modules.spellPoints && highestCastable >= 0
+    ? spellPointsFor(c.name, level, score, highestCastable, extra.rules)
+    : null;
+  if (spellPoints) spellPoints.used = Math.max(0, Number(state.spellPointsUsed) || 0);
+  const recharge = modules.rechargeMagic && highestCastable >= 0
+    ? rechargeTimesFor(highestCastable, spontaneous && casting.type !== 'divine', extra.rules)
+    : null;
+
   return {
     name: c.name,
     kind: 'casting',
     type: casting.type || null,
     classLevel: level,
     casterLevel,
+    classCasterLevel,
+    highestCastable,
+    spellPoints: spellPoints ? { ...spellPoints, remaining: spellPoints.total - spellPoints.used } : null,
+    recharge,
+    recharging: recharge ? state.recharging || {} : null,
+    variant: c.def?.classVariant || null,
     ability,
     score,
     mod,
@@ -235,5 +265,11 @@ export function restedMagic(magic = {}) {
     next[key] = state;
   }
   next.powerPointsUsed = 0;
+  for (const state of Object.values(next)) {
+    if (state && typeof state === 'object') {
+      state.spellPointsUsed = 0;
+      state.recharging = {};
+    }
+  }
   return next;
 }

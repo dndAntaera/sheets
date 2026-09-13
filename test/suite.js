@@ -14,7 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
-  mergeLibraries, fillMissing, applyCampaign, restedMagic, usesInSpecial, restedTrackers,
+  mergeLibraries, fillMissing, applyCampaign, restedMagic, usesInSpecial, restedTrackers, VARIANT_MODULES,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -841,6 +841,132 @@ export function buildSuite(data) {
     const night = restedTrackers(c, trackers, 'day');
     t.eq([night.trackers['class:Paladin:Smite evil'], night.trackers['class:Paladin:Remove disease'], night.feats[0].usesUsed], [0, 1, 0]);
     t.eq(restedTrackers(c, trackers, 'week').trackers['class:Paladin:Remove disease'], 0);
+  });
+
+  /* === variant rules (Unearthed Arcana) ================================== */
+
+  /** A character with some variants switched on, on a blank sheet. */
+  const withVariants = (cls, n, variants, extra = {}) => {
+    const c = characterWith(srd, repeat([cls], n));
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, ...(extra.abilities || {}) };
+    c.options = Object.fromEntries(variants.map((v) => [v, true]));
+    return { ...c, ...extra, abilities: { ...c.abilities, base: { ...c.abilities.base, ...(extra.abilities || {}) } } };
+  };
+
+  test('every variant in the catalog is a module, and every variant module is in the catalog', (t) => {
+    const catalog = data.variants.variants.map((v) => v.id).filter((id) => !['gestalt', 'actionPoints', 'traitsFlaws'].includes(id)).sort();
+    t.eq(catalog, [...VARIANT_MODULES].sort());
+    t.ok(VARIANT_MODULES.every((id) => srd.ruleset.modules[id]?.available), 'and the SRD ruleset offers each');
+  });
+
+  test('defense bonus: the better of it and armor, and it counts against touch attacks', (t) => {
+    const fighter = derive(withVariants('Fighter', 1, ['defenseBonus']), srd);
+    t.eq([fighter.variants.defenseBonus, fighter.ac.total, fighter.ac.touch], [6, 16, 16], 'a 1st-level fighter: +6');
+    const wizard = withVariants('Wizard', 3, ['defenseBonus']);
+    wizard.gear.armor = { name: 'Chain shirt', bonus: 4, maxDex: 4 };
+    const d = derive(wizard, srd);
+    t.eq([d.variants.defenseBonus, d.ac.total, d.ac.touch], [3, 14, 13], 'armor +4 beats defense +3; touch still gets +3');
+  });
+
+  test('armor as damage reduction trades half the armor bonus for DR, and combines with defense bonus', (t) => {
+    const c = withVariants('Fighter', 5, ['armorAsDR']);
+    c.gear.armor = { name: 'Full plate', bonus: 8, maxDex: 1 };
+    const d = derive(c, srd);
+    t.eq([d.variants.damageReduction, d.ac.total], [4, 14], 'full plate: DR 4/-, +4 AC');
+    c.options.defenseBonus = true;
+    const both = derive(c, srd);
+    t.eq([both.variants.damageReduction, both.variants.defenseBonus, both.ac.total], [4, 7, 17], 'defense +7 beats the remaining +4');
+  });
+
+  test('vitality, wounds, reserve and massive damage come from the sheet\u2019s own numbers', (t) => {
+    const c = withVariants('Fighter', 5, ['vitalityWounds', 'reservePoints', 'massiveDamage'], { abilities: { con: 14 } });
+    c.variants = { woundsTaken: 3, massiveDamage: { threshold: 'hd', result: 'dying' } };
+    const d = derive(c, srd);
+    t.eq([d.variants.health.vitality.max, d.variants.health.wounds.current, d.variants.health.reserve.max], [d.hp.total, 11, d.hp.total]);
+    t.eq([d.variants.health.massiveDamage.threshold, d.variants.health.massiveDamage.result], [35, 'dying'], '25 + 2 per Hit Die');
+  });
+
+  test('level-based skills and maximum ranks set ranks without spending points', (t) => {
+    const c = withVariants('Fighter', 5, ['skillsLevelBased']);
+    const line = (d, name) => d.skills.lines.find((l) => l.name === name);
+    let d = derive(c, srd);
+    t.eq([line(d, 'Climb').ranks, line(d, 'Hide').ranks, d.skills.remaining], [5, 0, 0], 'class skill: level; cross-class: nothing');
+    c.options = { skillsMaxRanks: true };
+    c.skills.find((s) => s.name === 'Climb').known = true;
+    c.skills.find((s) => s.name === 'Hide').known = true;
+    d = derive(c, srd);
+    t.eq([line(d, 'Climb').ranks, line(d, 'Hide').ranks, d.variants.skills.known, d.variants.skills.allowed], [8, 4, 2, 2]);
+  });
+
+  test('craft points, contacts, reputation, honor and sanity follow their tables', (t) => {
+    const c = withVariants('Bard', 6, ['craftPoints', 'contacts', 'reputation', 'honor', 'sanity'], { abilities: { wis: 14 } });
+    c.feats = [{ name: 'Scribe Scroll' }, { name: 'Renown' }];
+    c.concept.alignment = 'LG';
+    c.variants = { honor: { ancestry: 'hero' }, contacts: [{ name: 'Old Tam', type: 'information' }] };
+    const v = derive(c, srd).variants.scores;
+    t.eq(v.craftPoints.total, 2600, '2,100 for 6th level + 500 for Scribe Scroll');
+    t.eq(v.contacts.allowed, 3, 'a bard gains contacts at 2nd, 4th and 6th');
+    t.eq(v.reputation.total, 5, '+2 for bard 6 and +3 for Renown');
+    t.eq([v.honor.starting, v.sanity.starting, v.sanity.maximum], [27, 70, 99]);
+  });
+
+  test('magic rating adds up across classes and becomes caster level', (t) => {
+    const c = characterWith(srd, [...repeat(['Wizard'], 6), ...repeat(['Rogue'], 4)]);
+    c.abilities.base.int = 16;
+    c.options = { magicRating: true };
+    const wizard = derive(c, srd).magic.classes.find((m) => m.name === 'Wizard');
+    t.eq([wizard.casterLevel, wizard.classCasterLevel], [7, 6], 'wizard 6 (6) + rogue 4 (1)');
+  });
+
+  test('spell points: the class table plus the bonus for the ability score and highest spell', (t) => {
+    const c = withVariants('Wizard', 5, ['spellPoints'], { abilities: { int: 16 } });
+    const m = derive(c, srd).magic.classes[0];
+    t.eq([m.spellPoints.base, m.spellPoints.bonus, m.spellPoints.total, m.spellPoints.cantripsPerDay], [16, 9, 25, 5]);
+  });
+
+  test('spontaneous divine casters: spells known from their table, and a spell more a day', (t) => {
+    const m = derive(withVariants('Cleric', 3, ['spontaneousDivine'], { abilities: { wis: 15 } }), srd).magic.classes[0];
+    t.eq(m.spontaneous, true);
+    t.eq(m.levels.map((l) => l.knownAllowed), [5, 5, 2], 'table 5/3/0, plus two domain spells at 1st and 2nd');
+    t.eq(m.levels.map((l) => l.perDay), [5, 4, 3], 'table + 1 + bonus, no domain slot');
+  });
+
+  test('class variants change the class: cloistered cleric and battle sorcerer', (t) => {
+    const cleric = withVariants('Cleric', 4, ['classVariants']);
+    cleric.variants = { classVariant: { Cleric: 'cloisteredCleric' } };
+    const d = derive(cleric, srd);
+    t.eq([d.summary.bab, d.summary.hitDice[1].die, d.summary.skillPointsPerLevel[0].base], [2, 6, 6]);
+    const sorcerer = withVariants('Sorcerer', 1, ['classVariants'], { abilities: { cha: 11 } });
+    sorcerer.variants = { classVariant: { Sorcerer: 'battleSorcerer' } };
+    const m = derive(sorcerer, srd).magic.classes[0];
+    t.eq([m.levels.map((l) => l.perDay), m.levels.map((l) => l.knownAllowed)], [[4, 2], [3, 1]], 'one fewer a day and known, to a minimum of one known');
+  });
+
+  test('generic and paragon classes join the class list when their variants are on', (t) => {
+    const warrior = withVariants('Warrior (generic)', 2, ['genericClasses']);
+    warrior.variants = { genericSaves: { 'Warrior (generic)': ['ref'] } };
+    const w = derive(warrior, srd);
+    t.eq([w.summary.bab, w.saves.ref.base, w.saves.fort.base], [2, 3, 0]);
+    const dwarf = withVariants('Dwarf paragon', 2, ['paragonClasses']);
+    const p = derive(dwarf, srd);
+    t.eq([p.summary.bab, p.saves.fort.base, p.summary.hitDice[0].die], [2, 3, 10]);
+    t.eq(derive(characterWith(srd, [['Dwarf paragon']]), srd).summary.hitDice[0].die, 0, 'and not when it is off');
+  });
+
+  test('reducing level adjustments lowers ECL once paid for; taint takes Constitution and Wisdom', (t) => {
+    const c = withVariants('Fighter', 6, ['reducingLA', 'uaTaint'], { abilities: { con: 16, wis: 14 } });
+    c.race.la = 2;
+    c.variants = { laReductions: 1, taint: 4 };
+    const d = derive(c, srd);
+    t.eq([d.summary.la, d.summary.ecl, d.variants.scores.levelAdjustment.nextAt], [1, 7, 9]);
+    t.eq([d.abilities.con.total, d.abilities.wis.total, d.variants.health.taint.severity], [12, 10, 'mild']);
+  });
+
+  test('spontaneous metamagic gives each metamagic feat three uses a day', (t) => {
+    const c = withVariants('Wizard', 5, ['spontaneousMetamagic'], { abilities: { int: 16 } });
+    c.feats = [{ name: 'Empower Spell' }];
+    const tracker = derive(c, srd).trackers.find((x) => x.name === 'Empower Spell');
+    t.eq([tracker.max, tracker.highestSpell], [3, 1], 'highest spell 3, less 2 for Empower');
   });
 
   return cases;

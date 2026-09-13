@@ -17,9 +17,9 @@ import { h } from './dom.js';
  */
 export const SHEET_PAGES = [
   { key: 'character', label: 'Character', panels: ['identity', 'levels', 'abilities'], notices: ['identity', 'levels', 'abilities'] },
-  { key: 'combat', label: 'Combat', panels: ['combat', 'effects'], notices: ['hp', 'effects'] },
+  { key: 'combat', label: 'Combat', panels: ['combat', 'variantCombat', 'effects'], notices: ['hp', 'effects'] },
   { key: 'skills', label: 'Skills', panels: ['skills'], notices: ['skills'] },
-  { key: 'feats', label: 'Feats & abilities', panels: ['trackers', 'feats', 'houserules'], notices: ['feats', 'houserules', 'trackers'] },
+  { key: 'feats', label: 'Feats & abilities', panels: ['trackers', 'variantTracks', 'feats', 'houserules'], notices: ['feats', 'houserules', 'trackers'] },
   {
     key: 'magic',
     label: (d) => magicLabel(d),
@@ -29,7 +29,7 @@ export const SHEET_PAGES = [
   },
   { key: 'gear', label: 'Gear & wealth', panels: ['wealth'], notices: ['wealth'] },
   { key: 'story', label: 'Story', panels: ['text'], notices: [] },
-  { key: 'rules', label: 'Rules', panels: ['variants', 'content'], notices: ['content', 'variants'] },
+  { key: 'rules', label: 'Rules', panels: ['variants', 'variantRules', 'content'], notices: ['content', 'variants'] },
   { key: 'all', label: 'Full sheet', panels: null, notices: null },
 ];
 

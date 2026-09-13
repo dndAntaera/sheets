@@ -88,6 +88,12 @@ gear, details - with a running summary beside it and the sheet's own checks at
 each step. A character left half-made is a draft that picks up where it stopped;
 finishing opens the full sheet.
 
+**Every variant rule in the SRD** - defense bonus, armor as damage reduction,
+vitality and wound points, spell points, recharge magic, magic rating, the
+alternative skill systems, class variants, generic and paragon classes, craft
+points, reputation, sanity and the rest - can be switched on from a character's
+Rules page, or set for everyone by a campaign's GM, and the sheet follows it.
+
 Each player has a **profile** and a **Settings** page: a username and profile
 picture of their own, and how the site looks to them - day or night, an accent
 colour, larger text, reduced motion - kept with their account.

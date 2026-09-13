@@ -427,7 +427,7 @@ export function skillsPanel(app) {
       h('span.label', { text: 'Skill' }),
       h('span.label', { text: 'Total' }),
       h('span.label', { text: 'Ability' }),
-      h('span.label', { text: 'Ranks' }),
+      h('span.label', { text: app.derived.skills.system === 'maxRanks' ? 'Known' : 'Ranks' }),
       h('span.label', { text: 'Misc' }),
       h('span.label', { text: 'Effects', title: 'From race, feats and items, already stacked.' }),
       h('span.label', { text: 'Max' }),
@@ -454,7 +454,11 @@ function skillRows(app) {
         h('span.cond-mark', { dataset: { condMark: `skill.${entry.name}` } })),
       out(`skills.lines.${i}.total`, { big: true, format: 'signed' }),
       out(`skills.lines.${i}.abilityMod`, { format: 'signed' }),
-      field(`skills.${i}.ranks`, entry.ranks, { type: 'int', step: '0.5' }),
+      app.derived.skills.system === 'maxRanks'
+        ? h('label.check.skill-known', { title: 'Known: takes the most ranks it can.' }, h('input', { type: 'checkbox', checked: Boolean(entry.known), dataset: { field: `skills.${i}.known`, kind: 'bool' } }))
+        : app.derived.skills.system === 'levelBased'
+          ? out(`skills.lines.${i}.ranks`, { title: 'Class skills take your character level; cross-class skills none.' })
+          : field(`skills.${i}.ranks`, entry.ranks, { type: 'int', step: '0.5' }),
       field(`skills.${i}.misc`, entry.misc, { type: 'int' }),
       out(`skills.lines.${i}.bonuses`, { format: 'signed' }),
       out(`skills.lines.${i}.maxRanks`),

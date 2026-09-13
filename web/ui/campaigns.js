@@ -8,6 +8,7 @@
 
 import { h, field, select, checkbox, textarea, labelled, button, refill, bindForm } from './dom.js';
 import { settingsSchema } from '../engine/campaign.js';
+import { VARIANT_MODULES } from '../engine/modules.js';
 import { CONTENT_TYPES } from '../engine/library.js';
 import { flattenLibrary } from '../engine/sync.js';
 import { remote, campaignLibrary } from '../store.js';
@@ -283,6 +284,20 @@ function membersBlock(app, campaign, attempt) {
       })))));
 }
 
+/** The SRD's variant rules in the settings form: a folding list, by category. */
+function variantSettings(app, fields, control) {
+  if (!fields.length) return null;
+  const catalog = app.baseRules.variants;
+  const byId = new Map((catalog?.variants || []).map((v) => [v.id, v]));
+  return h('details.variant-settings',
+    h('summary', { text: `SRD variant rules (${fields.length})` }),
+    h('p.hint', { text: 'Whatever is set here is what every character in the campaign plays by. Each rule\u2019s full text is in the Reference.' }),
+    (catalog?.categories || []).map(([key, label]) => {
+      const here = fields.filter((f) => byId.get(f.module)?.category === key);
+      return here.length ? [h('h4', { text: label }), h('div.settings-grid', here.map((f) => control({ ...f, hint: byId.get(f.module)?.summary || f.hint })))] : null;
+    }));
+}
+
 /** The GMs' settings form, drawn from the schema. */
 function settingsForm(app, campaign, ruleset, attempt) {
   const isOwner = campaign.role === 'owner';
@@ -320,7 +335,10 @@ function settingsForm(app, campaign, ruleset, attempt) {
     labelled('Description', textarea('description', draft.description, { rows: 2 }), { wide: true }),
     h('h3', { text: 'Rules for the table' }),
     schema.filter((f) => f.group === 'rules').length
-      ? h('div.settings-grid', schema.filter((f) => f.group === 'rules').map(control))
+      ? [
+        h('div.settings-grid', schema.filter((f) => f.group === 'rules' && !VARIANT_MODULES.includes(f.module)).map(control)),
+        variantSettings(app, schema.filter((f) => f.group === 'rules' && VARIANT_MODULES.includes(f.module)), control),
+      ]
       : h('p.hint', { text: `${ruleset.name} leaves nothing more for the GM to decide.` }),
     h('h3', { text: 'The table' }),
     h('div.settings-grid', schema.filter((f) => f.group === 'table').map(control)),

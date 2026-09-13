@@ -79,31 +79,52 @@ function casterBlock(app, m, state, changed) {
   return h('section.magic-class',
     h('header.magic-class-head',
       h('h3', { text: `${m.name} ${m.classLevel}` }),
+      m.variant ? h('span.tag', { text: m.variant.name }) : null,
       h('span.hint', { text: [
-        `Caster level ${m.casterLevel}`,
+        `Caster level ${m.casterLevel}${m.casterLevel !== m.classCasterLevel ? ' (magic rating)' : ''}`,
         `${m.ability.toUpperCase()} ${m.score} (${sign(m.mod)})`,
         `save DC 10 + spell level ${sign(m.mod)}`,
         m.type ? `${m.type} ${m.spontaneous ? 'spontaneous' : 'prepared'}` : null,
       ].filter(Boolean).join(' - ') })),
     options(app, m, state, changed),
+    m.spellPoints ? spellPointPool(m, state, changed) : null,
     m.levels.length
       ? h('div.table-scroll', h('table.magic-slots',
-        h('thead', h('tr', ['Level', 'Per day', m.spontaneous ? 'Known' : m.spellbook ? 'In spellbook' : 'Prepared', m.spontaneous ? 'Cast today' : 'Left today', 'Save DC'].map((c) => h('th', { text: c })))),
+        h('thead', h('tr', ['Level', m.spellPoints ? 'Cost' : 'Per day', m.spontaneous ? 'Known' : m.spellbook ? 'In spellbook' : 'Prepared', m.spellPoints ? 'Cast' : m.recharge ? 'Recharge' : m.spontaneous ? 'Cast today' : 'Left today', 'Save DC'].map((c) => h('th', { text: c })))),
         h('tbody', m.levels.map((l) => h(`tr${l.castable ? '' : '.is-closed'}`,
           h('th', { text: ordinal(l.level) }),
-          h('td', { title: perDayTitle(l), text: l.castable ? String(l.perDay) : `needs ${m.ability.toUpperCase()} ${10 + l.level}` }),
+          h('td', { title: m.spellPoints ? 'Spell points to cast one' : perDayTitle(l), text: !l.castable ? `needs ${m.ability.toUpperCase()} ${10 + l.level}` : m.spellPoints ? (l.level === 0 ? `free (${m.spellPoints.cantripsPerDay} a day)` : `${m.spellPoints.cost[l.level]} pts`) : String(l.perDay) }),
           h('td', { text: m.spontaneous
             ? `${l.knownCount} / ${l.knownAllowed ?? '-'}`
             : m.spellbook
               ? String(l.knownCount)
               : `${l.preparedCount + l.preparedExtra} / ${l.perDay}` }),
-          h('td', m.spontaneous
-            ? slotPips(l.perDay, l.used, (used) => { state.used = { ...(state.used || {}), [l.level]: used }; changed(); })
-            : h('span', { text: `${l.remaining} of ${l.preparedCount + l.preparedExtra}` })),
+          h('td', m.spellPoints
+            ? (l.castable && l.level > 0 ? button(`Cast (${m.spellPoints.cost[l.level]})`, () => { state.spellPointsUsed = (Number(state.spellPointsUsed) || 0) + m.spellPoints.cost[l.level]; changed(); }, { subtle: true }) : h('span.hint', { text: l.level === 0 ? 'free' : '-' }))
+            : m.recharge
+              ? h('label.check', { title: `After casting a spell of this level, ${m.recharge[l.level] || '0'} before the next.` },
+                h('input', { type: 'checkbox', checked: Boolean(m.recharging?.[l.level]), onchange: (ev) => { state.recharging = { ...(state.recharging || {}), [l.level]: ev.target.checked }; changed(); } }),
+                h('span', { text: m.recharging?.[l.level] ? `recharging (${m.recharge[l.level]})` : m.recharge[l.level] || 'ready' }))
+              : m.spontaneous
+                ? slotPips(l.perDay, l.used, (used) => { state.used = { ...(state.used || {}), [l.level]: used }; changed(); })
+                : h('span', { text: `${l.remaining} of ${l.preparedCount + l.preparedExtra}` })),
           h('td', { text: String(l.saveDC) }))))))
       : h('p.hint', { text: `No ${m.name.toLowerCase()} spells yet at this level.` }),
     m.spontaneous || m.spellbook ? knownLists(app, m, state, choices, changed) : null,
     m.spontaneous ? null : preparedLists(app, m, state, choices, changed));
+}
+
+/** Spell points (Unearthed Arcana): a class's daily pool, spent a spell at a time. */
+function spellPointPool(m, state, changed) {
+  const p = m.spellPoints;
+  const amount = h('input.field.narrow', { type: 'number', min: 0, value: 1, 'aria-label': 'Spell points' });
+  const set = (used) => { state.spellPointsUsed = Math.max(0, used); changed(); };
+  return h('div.magic-pool',
+    h('div.magic-pool-numbers',
+      h('span.magic-pool-left', { text: String(p.remaining) }),
+      h('span.hint', { text: `of ${p.total} spell points (${p.base} from class, ${p.bonus} bonus). 0-level spells are free, ${p.cantripsPerDay} a day.` })),
+    h('div.magic-meter', h('span', { style: `width: ${p.total ? Math.max(0, Math.min(100, (p.remaining / p.total) * 100)) : 0}%` })),
+    h('div.row', amount, button('Spend', () => set(p.used + (Number(amount.value) || 0))), button('Regain', () => set(p.used - (Number(amount.value) || 0)), { subtle: true })));
 }
 
 function perDayTitle(l) {

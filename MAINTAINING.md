@@ -255,6 +255,37 @@ feature or item row - or homebrew entry - given a number of uses. Used counts
 are `character.trackers[key]`, or `usesUsed` on the row. `restedTrackers` is a
 rest ('day') or a new week ('week'). The panel is on the Feats page.
 
+### Variant rules
+
+Every variant rule in the SRD (Unearthed Arcana) is a module, beside gestalt,
+action points and traits and flaws: `VARIANT_MODULES` in `web/engine/modules.js`,
+each available and off in the SRD ruleset, so a player switches it on from the
+Rules page and a campaign's GM can set it for the table.
+
+- `web/data/variants.json` is the catalog - each variant's name, category, what
+  it does, and what the sheet does about it - and the SRD tables the engine
+  reads (defense bonus, magic rating, spell points, craft points, contacts,
+  reputation, honor, recharge times, spontaneous divine spells known, reducing
+  level adjustments, bloodline levels, the paragon classes). Its rule text is
+  `web/data/srd/variants.json`, for the Reference page. Both are built by
+  `scripts/build-variants.py` from the SRD's variant pages.
+- `web/engine/variants.js` is the rules: class variants, generic and paragon
+  classes (`variantClassIndex`), defense bonus and armor as DR
+  (`variantArmorClass`), vitality and wounds, reserve points, injury, massive
+  damage, death and dying, damage conversion and taint (`variantHealth`), craft
+  points, contacts, reputation, honor, sanity, bloodlines and level adjustment
+  reductions (`variantScores`), magic rating, spell points, recharge times and
+  spontaneous metamagic. `magic.js` and `skills.js` read the rest: spontaneous
+  divine casters, battle sorcerer and bardic sage casting, the alternative
+  skill systems. A player's choices within a variant are `character.variants`.
+- Variants that change only how the game is played at the table - hex grid,
+  combat facing, complex skill checks, incantations and so on - are switched on
+  like the others, noted where they apply, and open to their full text.
+- `web/ui/variants.js` draws them: the catalog on the Rules page, what the
+  adventuring variants change on the Combat page, and the scores and tracks on
+  the Feats page. The SRD taint variant is `uaTaint`, separate from Antaera's
+  corruption and depravity (`taint`).
+
 ### The character creator
 
 A new character opens in a wizard (`web/ui/wizard.js`, at `#/create/<id>/<step>`)

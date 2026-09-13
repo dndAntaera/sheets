@@ -30,6 +30,7 @@ export * from './campaign.js';
 export * from './preferences.js';
 export * from './magic.js';
 export * from './trackers.js';
+export * from './variants.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 
@@ -43,7 +44,7 @@ export const RULESET_IDS = ['srd', 'antaera'];
  * `ruleset` is the one in force. Use `withRuleset` to get the context for a
  * different one - it shares everything else.
  */
-export function makeRules({ core, rulesets, classes, skills, races, backgrounds = {}, progression = {} }, rulesetId = 'srd') {
+export function makeRules({ core, rulesets, classes, skills, races, backgrounds = {}, progression = {}, variants = null }, rulesetId = 'srd') {
   const base = {
     core,
     rulesets,
@@ -52,6 +53,7 @@ export function makeRules({ core, rulesets, classes, skills, races, backgrounds 
     races,
     backgrounds,
     progression,
+    variants,
     classByName: new Map(classes.classes.map((c) => [c.name, c])),
     skillsByName: new Map(skills.skills.map((s) => [s.name, s])),
     raceByName: new Map((races?.races || []).map((r) => [r.name, r])),
@@ -73,12 +75,13 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     return res.json();
   };
 
-  const [core, classes, skills, races, progression, ...rulesetFiles] = await Promise.all([
+  const [core, classes, skills, races, progression, variants, ...rulesetFiles] = await Promise.all([
     get('core.json'),
     get('classes.json'),
     get('skills.json'),
     get('races.json'),
     get('srd/progression.json'),
+    get('variants.json'),
     ...RULESET_IDS.map((id) => get(`rulesets/${id}.json`)),
   ]);
 
@@ -92,5 +95,5 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     }
   }
 
-  return makeRules({ core, rulesets, classes, skills, races, backgrounds, progression }, rulesetId);
+  return makeRules({ core, rulesets, classes, skills, races, backgrounds, progression, variants }, rulesetId);
 }
