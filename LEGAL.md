@@ -47,7 +47,12 @@ to.
 Removing an account and all its data on request does: an admin does it from the
 Accounts page, and the account's sign-ins, characters and homebrew go with it.
 
-The **Privacy Policy** and **Terms of Service** are pages on the wiki
-(`docs/privacy-policy.md` and `docs/terms-of-service.md` there), linked from this
-site's footer and given to Google and Discord as the app's policy links. If what
+The **Privacy Policy** and **Terms of Service** are two cards on this site's own
+Legal page, `web/legal/index.html`, linked from the footer and given to Google
+and Discord as the app's policy links:
+
+- <https://dndantaera.github.io/sheets/legal/#privacy-policy>
+- <https://dndantaera.github.io/sheets/legal/#terms-of-service>
+
+Keep those two ids if the page is rewritten; the providers hold the links. If what
 the server stores changes, update the privacy policy in the same change.

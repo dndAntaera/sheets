@@ -237,9 +237,9 @@ function footer() {
       h('a', { href: config.legalUrl, target: '_blank', rel: 'noopener', text: 'License and legal information' }),
       '.'),
     h('p',
-      h('a', { href: config.privacyUrl, target: '_blank', rel: 'noopener', text: 'Privacy Policy' }),
+      h('a', { href: config.privacyUrl, text: 'Privacy Policy' }),
       ' · ',
-      h('a', { href: config.termsUrl, target: '_blank', rel: 'noopener', text: 'Terms of Service' })));
+      h('a', { href: config.termsUrl, text: 'Terms of Service' })));
 }
 
 function themeSwitch() {

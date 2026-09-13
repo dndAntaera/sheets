@@ -21,8 +21,10 @@ export const config = {
   // all live there, and the footer of every page here links to it.
   wikiUrl: 'https://dndantaera.github.io/antaera-wiki/',
   legalUrl: 'https://dndantaera.github.io/antaera-wiki/disclaimer-legal/',
-  privacyUrl: 'https://dndantaera.github.io/antaera-wiki/privacy-policy/',
-  termsUrl: 'https://dndantaera.github.io/antaera-wiki/terms-of-service/',
+
+  // This site's own policies: one Legal page, a card for each (web/legal/).
+  privacyUrl: 'legal/#privacy-policy',
+  termsUrl: 'legal/#terms-of-service',
 
   // The ruleset a new character is built under when nobody has chosen.
   defaultRuleset: 'srd',
