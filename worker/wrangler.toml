@@ -15,7 +15,7 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "antaera-sheets"
-database_id = "PASTE-THE-DATABASE-ID-HERE"
+database_id = "055593db-12d1-4789-86d0-b44e203cb5c0"
 migrations_dir = "migrations"
 
 [vars]
@@ -34,7 +34,7 @@ SITE_PATH = "/sheets/"
 # account named here becomes at least that role when it signs in, and cannot be
 # lowered below it from the app. Name at least one admin, or nobody can manage
 # accounts. Taking someone off a list does not demote them; an admin does that.
-ADMIN_DISCORD_IDS = ""     # Discord user ids, comma separated
+ADMIN_DISCORD_IDS = "176820142347517952"     # Discord user ids, comma separated
 ADMIN_GOOGLE_EMAILS = ""   # Google account emails, comma separated (verified only)
 GM_DISCORD_IDS = ""
 GM_GOOGLE_EMAILS = ""
