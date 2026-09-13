@@ -502,6 +502,36 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .badge.here-only { border-style: dashed; }
 
 /* ---------------------------------------------------------------------------
+   Accounts - the admin page
+   --------------------------------------------------------------------------- */
+
+.admin-page { max-width: 60rem; }
+.role-powers {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  margin: var(--sp-3) 0;
+  font-size: var(--text-small);
+}
+.role-powers dt { font-weight: 600; }
+.role-powers dd { margin: 0; color: var(--ink-soft); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: var(--text-small); margin-top: var(--sp-3); }
+.admin-table caption { text-align: left; padding-bottom: var(--sp-2); }
+.admin-table th, .admin-table td {
+  text-align: left;
+  padding: var(--sp-2);
+  border-bottom: var(--hair) solid var(--rule);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.admin-table thead th { font-size: var(--text-tiny); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-weight: 400; }
+.admin-table tbody th { font-weight: 600; display: flex; gap: var(--sp-2); align-items: center; }
+.admin-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.admin-table tr.is-me { background: var(--surface-sunk); }
+.admin-table .floor { display: block; font-size: var(--text-tiny); }
+.account-role { margin: 0; display: flex; align-items: baseline; gap: var(--sp-1); flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------------------
    The legal footer - printed straight on the sky, quietly
    --------------------------------------------------------------------------- */
 

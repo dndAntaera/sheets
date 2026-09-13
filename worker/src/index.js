@@ -6,7 +6,19 @@
 //   1. signs players in with Google or Discord, onto one account either way;
 //   2. stores each account's characters;
 //   3. stores each account's homebrew library, entry by entry;
-//   4. holds the Antaera campaign's gestalt switch, which only its DM can move.
+//   4. holds the Antaera campaign's gestalt switch, which only a GM can move.
+//
+// ROLES. Every account is a player, a gm or an admin, and each has everything
+// the one below it has:
+//
+//   player  their own characters and homebrew
+//   gm      also every Antaera character, and the gestalt switch
+//   admin   also the accounts: which role each holds, and removing one
+//
+// Admins set roles from the app. The server's settings set a floor instead:
+// an account named in ADMIN_* or GM_* is raised to at least that role when it
+// signs in, and cannot be lowered below it from the app - so the site can never
+// lose its last way back in.
 //
 // It does no arithmetic. The engine in web/engine is the only thing that computes
 // a sheet, and it runs in the browser, so a sheet works with the server switched
@@ -34,7 +46,8 @@
 //
 // Secrets and settings - see wrangler.toml:
 //   DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
-//   GM_DISCORD_IDS, GM_GOOGLE_EMAILS, SITE_ORIGIN, SITE_PATH
+//   ADMIN_DISCORD_IDS, ADMIN_GOOGLE_EMAILS, GM_DISCORD_IDS, GM_GOOGLE_EMAILS
+//   SITE_ORIGIN, SITE_PATH
 
 const SESSION_DAYS = 30;
 const CODE_TTL_SECONDS = { state: 600, code: 120, link: 300 };
@@ -43,6 +56,11 @@ const MAX_ENTRY_BYTES = 128 * 1024;
 const MAX_ENTRIES_PER_ACCOUNT = 2000;
 const CONTENT_KINDS = new Set(['race', 'class', 'feat', 'skill', 'item', 'template', 'feature']);
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+const ROLES = ['player', 'gm', 'admin'];
+const rank = (role) => Math.max(0, ROLES.indexOf(role));
+const atLeast = (user, role) => Boolean(user) && rank(user.role) >= rank(role);
+const higher = (a, b) => (rank(a) >= rank(b) ? a : b);
 
 export default {
   async fetch(request, env) {
@@ -82,6 +100,13 @@ async function route(request, env, url) {
     if (method === 'GET') return apiLoad(request, env, sheet[1]);
     if (method === 'PUT') return apiSave(request, env, sheet[1]);
     if (method === 'DELETE') return apiDelete(request, env, sheet[1]);
+  }
+
+  if (pathname === '/api/admin/users' && method === 'GET') return adminUsers(request, env);
+  const account = pathname.match(/^\/api\/admin\/users\/([A-Za-z0-9_-]{1,64})$/);
+  if (account) {
+    if (method === 'PUT') return adminSetRole(request, env, account[1]);
+    if (method === 'DELETE') return adminDeleteUser(request, env, account[1]);
   }
 
   if (pathname === '/api/content' && method === 'GET') return apiContentList(request, env);
@@ -222,7 +247,7 @@ async function currentUser(request, env) {
   if (!token) return null;
   const hash = await sha256(token);
   const row = await env.DB.prepare(
-    `SELECT s.expires, u.id, u.name, u.avatar, u.gm
+    `SELECT s.expires, u.id, u.name, u.avatar, u.role
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token = ?`
   ).bind(hash).first();
@@ -231,7 +256,20 @@ async function currentUser(request, env) {
     await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(hash).run();
     return null;
   }
-  return { id: row.id, name: row.name, avatar: row.avatar, gm: Boolean(row.gm) };
+  return describe(row);
+}
+
+/** The account as the app sees it. `gm` and `admin` are kept for plain checks. */
+function describe(row) {
+  const role = ROLES.includes(row.role) ? row.role : 'player';
+  return {
+    id: row.id,
+    name: row.name,
+    avatar: row.avatar,
+    role,
+    gm: rank(role) >= rank('gm'),
+    admin: role === 'admin',
+  };
 }
 
 async function requireUser(request, env) {
@@ -246,8 +284,9 @@ async function requireUser(request, env) {
 
 /**
  * Each provider is three URLs and a way to read a profile into the same shape:
- * { subject, name, avatar, gm }. `gm` is decided here, from the provider's own
- * answer, so an email address is looked at and never stored.
+ * { subject, name, avatar, floor }. `floor` - the lowest role the server's
+ * settings grant this sign-in - is decided here, from the provider's own answer,
+ * so an email address is looked at and never stored.
  */
 const PROVIDERS = {
   discord: {
@@ -266,7 +305,7 @@ const PROVIDERS = {
         subject: String(me.id),
         name: me.global_name || me.username || 'Adventurer',
         avatar: me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png` : null,
-        gm: list(env.GM_DISCORD_IDS).includes(String(me.id)),
+        floor: floorFor(env, 'DISCORD_IDS', String(me.id)),
       };
     },
   },
@@ -288,12 +327,20 @@ const PROVIDERS = {
         subject: String(me.sub),
         name: me.given_name || me.name || 'Adventurer',
         avatar: me.picture || null,
-        // Only a verified address can make someone the DM.
-        gm: Boolean(me.email_verified) && list(env.GM_GOOGLE_EMAILS).map((e) => e.toLowerCase()).includes(email),
+        // Only a verified address can raise anyone above a player.
+        floor: me.email_verified ? floorFor(env, 'GOOGLE_EMAILS', email) : null,
       };
     },
   },
 };
+
+/** The role the server's settings guarantee a sign-in: 'admin', 'gm', or null. */
+function floorFor(env, setting, value) {
+  const named = (key) => list(env[key]).map((v) => v.toLowerCase()).includes(String(value).toLowerCase());
+  if (named(`ADMIN_${setting}`)) return 'admin';
+  if (named(`GM_${setting}`)) return 'gm';
+  return null;
+}
 
 function configuredProviders(env) {
   return Object.fromEntries(Object.entries(PROVIDERS).map(([name, p]) => [name, p.ready(env)]));
@@ -407,28 +454,36 @@ async function attachIdentity(env, provider, profile, linkUserId) {
   } else {
     userId = randomToken(16);
     await env.DB.prepare(
-      'INSERT INTO users (id, name, avatar, gm, created, last_seen) VALUES (?, ?, ?, 0, ?, ?)'
+      "INSERT INTO users (id, name, avatar, role, created, last_seen) VALUES (?, ?, ?, 'player', ?, ?)"
     ).bind(userId, profile.name, profile.avatar, now(), now()).run();
   }
 
   await env.DB.prepare(
-    `INSERT INTO identities (provider, subject, user_id, gm, created, last_seen)
+    `INSERT INTO identities (provider, subject, user_id, floor, created, last_seen)
      VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(provider, subject) DO UPDATE SET gm = excluded.gm, last_seen = excluded.last_seen`
-  ).bind(provider, profile.subject, userId, profile.gm ? 1 : 0, now(), now()).run();
+     ON CONFLICT(provider, subject) DO UPDATE SET floor = excluded.floor, last_seen = excluded.last_seen`
+  ).bind(provider, profile.subject, userId, profile.floor, now(), now()).run();
 
-  // An account is the DM if any of its sign-ins says so. The name and picture
-  // follow whichever provider was used most recently, unless linking - adding
-  // Discord to a Google account should not rename it.
-  const anyGm = await env.DB.prepare('SELECT MAX(gm) AS gm FROM identities WHERE user_id = ?').bind(userId).first();
+  // The account's role is raised to the highest floor among its sign-ins, and
+  // never lowered here: a role an admin gave stays until an admin takes it away,
+  // and someone taken off the server's lists keeps their role until then too.
+  // The name and picture follow whichever provider was used most recently,
+  // unless linking - adding Discord to a Google account should not rename it.
+  const role = higher((await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first())?.role || 'player',
+    await accountFloor(env, userId) || 'player');
   if (linkUserId) {
-    await env.DB.prepare('UPDATE users SET gm = ?, last_seen = ? WHERE id = ?')
-      .bind(anyGm?.gm ? 1 : 0, now(), userId).run();
+    await env.DB.prepare('UPDATE users SET role = ?, last_seen = ? WHERE id = ?').bind(role, now(), userId).run();
   } else {
-    await env.DB.prepare('UPDATE users SET name = ?, avatar = ?, gm = ?, last_seen = ? WHERE id = ?')
-      .bind(profile.name, profile.avatar, anyGm?.gm ? 1 : 0, now(), userId).run();
+    await env.DB.prepare('UPDATE users SET name = ?, avatar = ?, role = ?, last_seen = ? WHERE id = ?')
+      .bind(profile.name, profile.avatar, role, now(), userId).run();
   }
   return userId;
+}
+
+/** The highest floor any of an account's sign-ins carries, or null. */
+async function accountFloor(env, userId) {
+  const rows = await env.DB.prepare('SELECT floor FROM identities WHERE user_id = ? AND floor IS NOT NULL').bind(userId).all();
+  return (rows.results || []).map((r) => r.floor).reduce((best, f) => (best ? higher(best, f) : f), null);
 }
 
 /** Trade the one-time code, with the nonce of the browser that asked, for a token. */
@@ -481,7 +536,7 @@ async function apiCampaignGet(env) {
 
 async function apiCampaignPut(request, env) {
   const user = await requireUser(request, env);
-  if (!user.gm) throw fail(403, 'only the DM can change the campaign settings');
+  if (!atLeast(user, 'gm')) throw fail(403, 'only a GM can change the campaign settings');
   const body = await readJson(request, 4096);
   const statements = [];
   for (const key of ['gestalt']) {
@@ -498,12 +553,12 @@ async function apiCampaignPut(request, env) {
 /* =========================================================================
    Characters
 
-   A player sees their own. The Antaera DM also sees every ANTAERA character -
-   and nothing else, because anyone can sign in now, and a stranger's SRD
+   A player sees their own. A GM - and so an admin - also sees every ANTAERA
+   character, and nothing else: anyone can sign in, and a stranger's SRD
    character built for some other table is none of the campaign's business.
    ========================================================================= */
 
-const canSee = (user, row) => row.owner === user.id || (user.gm && row.ruleset === 'antaera');
+const canSee = (user, row) => row.owner === user.id || (atLeast(user, 'gm') && row.ruleset === 'antaera');
 
 async function apiList(request, env) {
   const user = await requireUser(request, env);
@@ -512,7 +567,7 @@ async function apiList(request, env) {
        FROM characters c JOIN users u ON u.id = c.owner
       WHERE c.owner = ? OR (? = 1 AND c.ruleset = 'antaera')
       ORDER BY c.name`
-  ).bind(user.id, user.gm ? 1 : 0).all();
+  ).bind(user.id, atLeast(user, 'gm') ? 1 : 0).all();
   return json(rows.results || []);
 }
 
@@ -572,8 +627,8 @@ async function apiDelete(request, env, id) {
 /* =========================================================================
    Homebrew
 
-   Strictly the account's own: nobody, the DM included, reads another player's
-   library. Content a DM needs to see arrives inside the sheet that uses it.
+   Strictly the account's own: nobody, GMs and admins included, reads another
+   player's library. Content a GM needs to see arrives inside the sheet using it.
    ========================================================================= */
 
 async function apiContentList(request, env) {
@@ -619,5 +674,102 @@ async function apiContentPut(request, env, id) {
 async function apiContentDelete(request, env, id) {
   const user = await requireUser(request, env);
   await env.DB.prepare('DELETE FROM content WHERE owner = ? AND id = ?').bind(user.id, id).run();
+  return new Response(null, { status: 204 });
+}
+
+/* =========================================================================
+   Accounts - admins only
+
+   Admins can see who has an account, change roles, and remove an account with
+   everything in it. They cannot read anyone's SRD characters or homebrew from
+   here: this lists how much an account holds, not what. Three things are
+   refused, whoever asks:
+
+     - lowering an account below the floor the server's settings give it
+     - leaving the site with no admin at all
+     - an admin removing their own account from this page
+   ========================================================================= */
+
+async function requireAdmin(request, env) {
+  const user = await requireUser(request, env);
+  if (!atLeast(user, 'admin')) throw fail(403, 'only an admin can manage accounts');
+  return user;
+}
+
+async function adminCount(env) {
+  return (await env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").first())?.n || 0;
+}
+
+async function adminUsers(request, env) {
+  await requireAdmin(request, env);
+  const users = await env.DB.prepare(
+    `SELECT u.id, u.name, u.avatar, u.role, u.created, u.last_seen,
+            (SELECT COUNT(*) FROM characters c WHERE c.owner = u.id) AS characters,
+            (SELECT COUNT(*) FROM content k WHERE k.owner = u.id) AS content
+       FROM users u
+      ORDER BY CASE u.role WHEN 'admin' THEN 0 WHEN 'gm' THEN 1 ELSE 2 END, u.name COLLATE NOCASE`
+  ).all();
+  const identities = await env.DB.prepare('SELECT user_id, provider, floor FROM identities').all();
+
+  const byUser = new Map();
+  for (const row of identities.results || []) {
+    if (!byUser.has(row.user_id)) byUser.set(row.user_id, { providers: [], floor: null });
+    const entry = byUser.get(row.user_id);
+    entry.providers.push(row.provider);
+    if (row.floor) entry.floor = entry.floor ? higher(entry.floor, row.floor) : row.floor;
+  }
+
+  return json((users.results || []).map((u) => ({
+    ...describe(u),
+    created: u.created,
+    lastSeen: u.last_seen,
+    characters: u.characters,
+    content: u.content,
+    providers: (byUser.get(u.id)?.providers || []).sort(),
+    floor: byUser.get(u.id)?.floor || null,
+  })));
+}
+
+async function adminSetRole(request, env, id) {
+  const actor = await requireAdmin(request, env);
+  const { role } = await readJson(request, 1024);
+  if (!ROLES.includes(role)) throw fail(400, 'a role is player, gm or admin');
+
+  const target = await env.DB.prepare('SELECT id, role FROM users WHERE id = ?').bind(id).first();
+  if (!target) throw fail(404, 'no such account');
+
+  const floor = await accountFloor(env, id);
+  if (floor && rank(role) < rank(floor)) {
+    throw fail(409, `the server's settings make this account at least ${floor}; change them there`);
+  }
+  if (target.role === 'admin' && role !== 'admin' && await adminCount(env) <= 1) {
+    throw fail(409, 'this is the only admin; make someone else an admin first');
+  }
+
+  await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(role, id).run();
+  const updated = await env.DB.prepare('SELECT id, name, avatar, role FROM users WHERE id = ?').bind(id).first();
+  return json({ ...describe(updated), changedBy: actor.id });
+}
+
+/**
+ * Remove an account: its sign-ins, sessions, characters and homebrew all go with
+ * it, by the database's own cascades. This is how a request to delete someone's
+ * data is carried out.
+ */
+async function adminDeleteUser(request, env, id) {
+  const actor = await requireAdmin(request, env);
+  if (id === actor.id) throw fail(409, 'an admin cannot remove their own account from here');
+
+  const target = await env.DB.prepare('SELECT id, role FROM users WHERE id = ?').bind(id).first();
+  if (!target) return new Response(null, { status: 204 });
+
+  if (await accountFloor(env, id)) {
+    throw fail(409, "the server's settings name this account; remove it from them first");
+  }
+  if (target.role === 'admin' && await adminCount(env) <= 1) {
+    throw fail(409, 'this is the only admin');
+  }
+
+  await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
   return new Response(null, { status: 204 });
 }

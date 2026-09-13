@@ -33,8 +33,8 @@ Section 15 notice to the wiki's legal page in the same change.
 ## Accounts and what players store
 
 Players may sign in with Google or Discord. The server stores the provider's
-user id, a display name and avatar URL, and each player's characters and
-homebrew. Email addresses are read at sign-in and not stored. There is no
+user id, a display name and avatar URL, a role (player, GM or admin), and each
+player's characters and homebrew. Email addresses are read at sign-in and not stored. There is no
 password.
 
 Homebrew written under Content is saved to the player's own account when they
@@ -43,8 +43,10 @@ to share. The app ships no copyrighted non-SRD material and should not; but a
 player can type anything into a homebrew entry, including text copied from
 non-open books. Now that anyone can sign in and store content, the site should
 have short terms of use saying players must only store content they have the
-right to, and a way to remove an account and its data on request. Neither
-exists yet.
+right to. That does not exist yet.
+
+Removing an account and all its data on request does: an admin does it from the
+Accounts page, and the account's sign-ins, characters and homebrew go with it.
 
 Google's OAuth consent screen asks for a privacy policy link before it can be
 published to all users, which is a natural place for both.

@@ -19,6 +19,7 @@ import {
   effectsPanel, contentPanel, paintEffects, paintConditions, paintContent,
 } from './ui/sheet.js';
 import { showContent } from './ui/content.js';
+import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { config } from './config.js';
 import {
   local, remote, library, preferences, account, syncLibrary, save as saveEverywhere, newId,
@@ -161,6 +162,7 @@ function header() {
     h('nav.top-nav',
       h('a', { href: '#/', text: 'Characters', dataset: { nav: 'roster' } }),
       h('a', { href: '#/content', text: 'Content', dataset: { nav: 'content' } }),
+      app.user?.admin ? h('a', { href: '#/admin', text: 'Accounts', dataset: { nav: 'admin' } }) : null,
       h('a', { href: config.wikiUrl, target: '_blank', rel: 'noopener', text: 'Wiki' })),
     h('div.top-right',
       app.status,
@@ -202,7 +204,10 @@ function accountMenu() {
     h('summary.account-name', { text: app.user.name, title: 'Your account' }),
     h('div.account-pop',
       h('p.hint', { text: `Signed in with ${(app.user.providers || []).map((p) => PROVIDER_LABELS[p]).join(' and ')}.` }),
-      app.user.gm ? h('p.hint', { text: 'You run the Antaera campaign: you see every Antaera character.' }) : null,
+      h('p.account-role', h('span.badge', { text: ROLE_LABELS[app.user.role] || 'Player' }),
+        h('span.hint', { text: app.user.admin
+          ? ' You manage accounts, and see every Antaera character.'
+          : app.user.gm ? ' You see and edit every Antaera character.' : '' })),
       unlinked.map((name) => button(`Also sign in with ${PROVIDER_LABELS[name]}`, () => {
         remote.link(name).catch((err) => alert(`Could not start linking: ${err.message}`));
       }, { subtle: true, title: `Reach this same account by signing in with ${PROVIDER_LABELS[name]} too.` })),
@@ -282,6 +287,11 @@ function route() {
   if (view === 'sheet' && a) {
     markNav('sheet');
     openSheet(a);
+  } else if (view === 'admin') {
+    markNav('admin');
+    app.character = null;
+    showAdmin(document.getElementById('main'), app);
+    document.title = `Accounts - ${config.title}`;
   } else if (view === 'content') {
     markNav('content');
     app.character = null;

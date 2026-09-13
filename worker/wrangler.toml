@@ -24,11 +24,18 @@ migrations_dir = "migrations"
 SITE_ORIGIN = "https://dndantaera.github.io"
 SITE_PATH = "/sheets/"
 
-# Who runs the Antaera campaign. A GM sees and edits every Antaera character
-# (never anyone's SRD characters) and is the only one who can move the gestalt
-# switch. Either list is enough; an account is a GM if any of its sign-ins match.
-GM_DISCORD_IDS = ""        # Discord user ids, comma separated
-GM_GOOGLE_EMAILS = ""      # Google account emails, comma separated
+# Roles: player < gm < admin, each with everything below it.
+#   gm     also sees and edits every Antaera character, and moves the gestalt switch
+#   admin  also manages accounts from the app: roles, and removing an account
+#
+# Roles are normally given by an admin, in the app. These lists set a FLOOR: an
+# account named here becomes at least that role when it signs in, and cannot be
+# lowered below it from the app. Name at least one admin, or nobody can manage
+# accounts. Taking someone off a list does not demote them; an admin does that.
+ADMIN_DISCORD_IDS = ""     # Discord user ids, comma separated
+ADMIN_GOOGLE_EMAILS = ""   # Google account emails, comma separated (verified only)
+GM_DISCORD_IDS = ""
+GM_GOOGLE_EMAILS = ""
 
 # Secrets, not vars. Set whichever providers you use; a provider with no
 # secrets simply does not appear on the sign-in menu.

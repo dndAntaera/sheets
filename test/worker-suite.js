@@ -53,6 +53,8 @@ export const env = {
   GOOGLE_CLIENT_SECRET: 'google-secret',
   GM_DISCORD_IDS: 'dm-on-discord',
   GM_GOOGLE_EMAILS: 'dm@example.com',
+  ADMIN_DISCORD_IDS: 'admin-on-discord',
+  ADMIN_GOOGLE_EMAILS: 'admin@example.com',
 };
 
 /* -------------------------------------------------------------------------
@@ -189,7 +191,7 @@ export function buildWorkerSuite() {
     t.eq(me.data.providers, ['discord']);
   });
 
-  test('the DM is recognised by Discord id, or by a verified Google address only', async (t) => {
+  test('a GM is recognised by Discord id, or by a verified Google address only', async (t) => {
     people.discord = discorder('dm-on-discord', 'The DM');
     const byDiscord = await signIn('discord');
     t.eq((await call('GET', '/api/me', { token: byDiscord.token })).data.gm, true);
@@ -412,6 +414,156 @@ export function buildWorkerSuite() {
     const sessions = await d1('', { sql: "SELECT COUNT(*) AS n FROM sessions WHERE token = 'rawcookie'", mode: 'first' });
     t.eq(sessions.n, 0, 'old cookie sessions are void');
   }, { upTo: '0001' });
+
+  /* --- roles --------------------------------------------------------------- */
+
+  const account = async (profile, provider = 'google') => {
+    people[provider] = profile;
+    const s = await signIn(provider);
+    const me = (await call('GET', '/api/me', { token: s.token })).data;
+    return { token: s.token, id: me.id, me };
+  };
+  const setRole = (admin, id, role) => call('PUT', `/api/admin/users/${id}`, { token: admin.token, body: { role } });
+
+  test('everyone starts as a player; the server settings name the first admin', async (t) => {
+    const ada = await account(googler('g-1', 'Ada', 'ada@example.com'));
+    t.eq([ada.me.role, ada.me.gm, ada.me.admin], ['player', false, false]);
+
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+    t.eq([boss.me.role, boss.me.gm, boss.me.admin], ['admin', true, true], 'an admin is also a GM');
+
+    const bossByGoogle = await account(googler('g-boss', 'Boss', 'Admin@Example.com'));
+    t.eq(bossByGoogle.me.role, 'admin', 'by verified Google address too');
+
+    const fake = await account(googler('g-fake', 'Fake', 'admin@example.com', false));
+    t.eq(fake.me.role, 'player', 'an unverified address is not enough');
+  });
+
+  test('an admin has every GM power', async (t) => {
+    const ada = await account(googler('g-1', 'Ada', 'ada@example.com'));
+    await call('PUT', '/api/characters/rogue', { token: ada.token, body: { name: 'Campaign Rogue', ruleset: 'antaera', levels: [] } });
+    await call('PUT', '/api/characters/paladin', { token: ada.token, body: { name: 'Public Paladin', ruleset: 'srd', levels: [] } });
+
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+    t.eq((await call('GET', '/api/characters', { token: boss.token })).data.map((c) => c.name), ['Campaign Rogue']);
+    t.eq((await call('GET', '/api/characters/paladin', { token: boss.token })).status, 404, 'but still not SRD characters');
+    t.eq((await call('PUT', '/api/campaign', { token: boss.token, body: { gestalt: true } })).status, 200);
+  });
+
+  test('only an admin can see or change accounts', async (t) => {
+    const ada = await account(googler('g-1', 'Ada', 'ada@example.com'));
+    const gm = await account(discorder('dm-on-discord', 'The GM'), 'discord');
+    t.eq((await call('GET', '/api/admin/users', { token: ada.token })).status, 403);
+    t.eq((await call('GET', '/api/admin/users', { token: gm.token })).status, 403, 'a GM is not an admin');
+    t.eq((await setRole(gm, ada.id, 'gm')).status, 403);
+    t.eq((await call('GET', '/api/admin/users')).status, 401);
+  });
+
+  test('an admin lists accounts with their role, sign-ins and how much they hold', async (t) => {
+    const ada = await account(googler('g-1', 'Ada', 'ada@example.com'));
+    await call('PUT', '/api/characters/c1', { token: ada.token, body: { name: 'One', ruleset: 'srd', levels: [] } });
+    await call('PUT', '/api/content/k1', { token: ada.token, body: { kind: 'feat', name: 'Secret', updated: '2026-09-01T00:00:00.000Z' } });
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+
+    const list = (await call('GET', '/api/admin/users', { token: boss.token })).data;
+    t.eq(list.map((u) => [u.name, u.role]), [['Boss', 'admin'], ['Ada', 'player']], 'admins first');
+    const adaRow = list.find((u) => u.name === 'Ada');
+    t.eq([adaRow.characters, adaRow.content, adaRow.providers, adaRow.floor], [1, 1, ['google'], null]);
+    t.eq(list.find((u) => u.name === 'Boss').floor, 'admin');
+    t.ok(!JSON.stringify(list).includes('Secret'), 'how much, never what');
+  });
+
+  test('an admin makes a player a GM, and takes it away again', async (t) => {
+    const owner = await account(googler('g-1', 'Ada', 'ada@example.com'));
+    await call('PUT', '/api/characters/rogue', { token: owner.token, body: { name: 'Campaign Rogue', ruleset: 'antaera', levels: [] } });
+    const cai = await account(googler('g-2', 'Cai', 'cai@example.com'));
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+
+    t.eq((await call('GET', '/api/characters', { token: cai.token })).data, []);
+    const promoted = await setRole(boss, cai.id, 'gm');
+    t.eq(promoted.data.role, 'gm');
+    t.eq((await call('GET', '/api/characters', { token: cai.token })).data.map((c) => c.name), ['Campaign Rogue'], 'at once, on the session already open');
+    t.eq((await call('PUT', '/api/campaign', { token: cai.token, body: { gestalt: true } })).status, 200);
+
+    await setRole(boss, cai.id, 'player');
+    t.eq((await call('GET', '/api/characters', { token: cai.token })).data, []);
+    t.eq((await call('PUT', '/api/campaign', { token: cai.token, body: { gestalt: false } })).status, 403);
+  });
+
+  test('a role an admin gave survives signing in again', async (t) => {
+    const cai = await account(googler('g-2', 'Cai', 'cai@example.com'));
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+    await setRole(boss, cai.id, 'admin');
+    const again = await account(googler('g-2', 'Cai', 'cai@example.com'));
+    t.eq(again.me.role, 'admin', 'not being on the server lists does not demote');
+  });
+
+  test('the server settings are a floor the app cannot lower', async (t) => {
+    const gm = await account(discorder('dm-on-discord', 'The GM'), 'discord');
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+
+    const up = await setRole(boss, gm.id, 'admin');
+    t.eq(up.data.role, 'admin', 'raising above the floor is fine');
+    t.eq((await setRole(boss, gm.id, 'gm')).status, 200, 'and back down to it');
+    const below = await setRole(boss, gm.id, 'player');
+    t.eq(below.status, 409);
+    t.ok(/server's settings/.test(below.data.error));
+  });
+
+  test('the site can never be left without an admin', async (t) => {
+    const cai = await account(googler('g-2', 'Cai', 'cai@example.com'));
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+    await setRole(boss, cai.id, 'admin');
+    await setRole(cai, cai.id, 'player');   // Cai steps down; Boss remains
+    t.eq((await call('GET', '/api/me', { token: cai.token })).data.role, 'player');
+
+    // Now make an admin with no floor the only admin, and try to demote them.
+    await setRole(boss, cai.id, 'admin');
+    await d1('', { sql: "UPDATE identities SET floor = NULL" });
+    await d1('', { sql: `UPDATE users SET role = 'player' WHERE id = '${boss.id}'` });
+    const alone = await setRole(cai, cai.id, 'player');
+    t.eq(alone.status, 409);
+    t.ok(/only admin/.test(alone.data.error));
+  });
+
+  test('an admin removes an account and everything in it', async (t) => {
+    const ada = await account(googler('g-1', 'Ada', 'ada@example.com'));
+    await call('PUT', '/api/characters/c1', { token: ada.token, body: { name: 'One', ruleset: 'antaera', levels: [] } });
+    await call('PUT', '/api/content/k1', { token: ada.token, body: { kind: 'feat', name: 'Secret', updated: '2026-09-01T00:00:00.000Z' } });
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+
+    t.eq((await call('DELETE', `/api/admin/users/${ada.id}`, { token: boss.token })).status, 204);
+    t.eq((await call('GET', '/api/me', { token: ada.token })).status, 401, 'their session ends');
+    for (const table of ['users', 'identities', 'sessions', 'characters', 'content']) {
+      const column = { users: 'id', identities: 'user_id', sessions: 'user_id', characters: 'owner', content: 'owner' }[table];
+      const left = await d1('', { sql: `SELECT COUNT(*) AS n FROM ${table} WHERE ${column} = ?`, params: [ada.id], mode: 'first' });
+      t.eq(left.n, 0, `nothing left in ${table}`);
+    }
+
+    const again = await account(googler('g-1', 'Ada', 'ada@example.com'));
+    t.ok(again.id !== ada.id, 'signing in afterwards starts a new, empty account');
+  });
+
+  test('removals that would lock the site or an admin out are refused', async (t) => {
+    const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+    t.eq((await call('DELETE', `/api/admin/users/${boss.id}`, { token: boss.token })).status, 409, 'not yourself');
+    const cai = await account(googler('g-2', 'Cai', 'cai@example.com'));
+    await setRole(boss, cai.id, 'admin');
+    t.eq((await call('DELETE', `/api/admin/users/${boss.id}`, { token: cai.token })).status, 409, 'not an account the server settings name');
+    t.eq((await setRole(boss, cai.id, 'wizard')).status, 400, 'and roles are only the three');
+  });
+
+  test('a GM from before roles existed is still a GM', async (t) => {
+    // 0002's shape: gm was a flag on users and identities.
+    await d1('', { sql: "INSERT INTO users (id, name, gm, created, last_seen) VALUES ('old-gm', 'Veteran GM', 1, '2026-01-01', '2026-01-01')" });
+    await d1('', { sql: "INSERT INTO users (id, name, gm, created, last_seen) VALUES ('old-player', 'Veteran', 0, '2026-01-01', '2026-01-01')" });
+    await d1('', { sql: "INSERT INTO identities (provider, subject, user_id, gm, created, last_seen) VALUES ('discord', 'old-gm', 'old-gm', 1, '2026-01-01', '2026-01-01')" });
+    await d1('/migrate');
+    const roles = await d1('', { sql: 'SELECT id, role FROM users ORDER BY id', mode: 'all' });
+    t.eq(roles.results.map((r) => [r.id, r.role]), [['old-gm', 'gm'], ['old-player', 'player']]);
+    const floor = await d1('', { sql: "SELECT floor FROM identities WHERE subject = 'old-gm'", mode: 'first' });
+    t.eq(floor.floor, 'gm');
+  }, { upTo: '0002' });
 
   return cases;
 }

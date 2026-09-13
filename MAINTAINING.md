@@ -28,7 +28,7 @@ Three suites, each a page on the dev server:
 | Page | What it tests | Against |
 | --- | --- | --- |
 | `/test/browser.html` | the engine: every calculation, rulesets, effects, library sync | nothing but the data files |
-| `/test/worker.html` | the server: sign-in with both providers, linking, sessions, homebrew and character permissions, the database migration | the real Worker, on a real SQLite database |
+| `/test/worker.html` | the server: sign-in with both providers, linking, sessions, roles, homebrew and character permissions, the database migrations | the real Worker, on a real SQLite database |
 | `/test/client.html` | the app's side of accounts: signing in through `web/store.js`, a library kept in step across two devices | the real Worker and SQLite again |
 
 The engine suite also runs under Node with `npm test`, which is what CI runs.
@@ -43,7 +43,8 @@ storage, swapped in and out. Each server case starts from an empty database;
 the migration case starts from the old Discord-only schema with data in it.
 
 `/test/app.html` is not a test but a way to look: the real app, talking to the
-in-page Worker. `?as=google` signs in as a player, `?as=dm` as the Antæra DM.
+in-page Worker. `?as=google` signs in as a player, `?as=gm` as a GM, and
+`?as=admin` as an admin with two other accounts to manage.
 
 `test/load-data.js` names the data files once for the engine runners.
 
@@ -74,7 +75,7 @@ adjustment cap apply, and — under `modules` — which optional systems exist:
 
 | Module | SRD | Antæra |
 | --- | --- | --- |
-| gestalt | available, player's choice, off | on, the DM's switch |
+| gestalt | available, player's choice, off | on, a GM's switch |
 | actionPoints | available, player's choice, off | on |
 | traitsFlaws | available, player's choice, off | on |
 | taint | not available | on |
@@ -161,7 +162,7 @@ Content lives in three places, on purpose:
 - **The character**, under `content`: a copy of each entry the sheet uses. When
   a field names something on the library shelf, `app.js` copies it in
   (`NAMES_CONTENT`). The engine reads only this copy, which is why an exported
-  sheet adds up anywhere, and why a DM can read a player's homebrew in their
+  sheet adds up anywhere, and why a GM can read a player's homebrew in their
   sheet without ever reading their library.
 
 The "Homebrew on this sheet" panel shows those copies and offers to update one
@@ -224,23 +225,39 @@ nonce it kept in `sessionStorage` when sign-in began - so a finished sign-in
 cannot be completed by any browser but the one that started it.
 
 **What is stored about a player:** the provider's user id, a display name, an
-avatar URL, and whether they are the DM. Email addresses are read at sign-in to
-check `GM_GOOGLE_EMAILS` and are not stored.
+avatar URL, and their role. Email addresses are read at sign-in to check the
+`*_GOOGLE_EMAILS` settings and are not stored.
 
-### Who sees what
+### Roles
 
-| | Their own | Other players' Antæra characters | Other players' SRD characters | Other players' homebrew |
+Three levels, each with everything the one below has:
+
+| Role | Their own characters and homebrew | Every Antæra character | The gestalt switch | Accounts and roles |
 | --- | --- | --- | --- | --- |
-| A player | read, edit | no | no | no |
-| The Antæra DM | read, edit | read, edit | no | no |
+| Player | read, edit | - | - | - |
+| GM | read, edit | read, edit | move | - |
+| Admin | read, edit | read, edit | move | give and take roles, remove accounts |
 
-The DM is whoever matches `GM_DISCORD_IDS` or a verified address in
-`GM_GOOGLE_EMAILS`. Now that anyone can sign in, the DM's roster is limited to
-Antæra characters; a stranger's SRD character is not the campaign's business. A
-player's homebrew reaches the DM only inside the sheets that use it.
+Nobody - admins included - reads another player's SRD characters or homebrew
+library. An SRD character is built for some other table; homebrew reaches a GM
+only inside the sheets that use it. The Accounts page shows an admin how many
+characters and homebrew entries an account holds, never what they are.
 
-The Antæra gestalt switch is still the DM's, and still affects Antæra sheets
-only.
+**Where roles come from.** Everyone starts as a player. Admins change roles on
+the Accounts page, which appears in the header only for them. The server's
+settings add a floor underneath: an account named in `ADMIN_DISCORD_IDS` or
+`ADMIN_GOOGLE_EMAILS` becomes at least an admin when it signs in, and `GM_*`
+likewise for GM. The app cannot lower or remove an account below its floor, so
+the site can never lose its last way back in. Taking someone off a list does not
+demote them - their floor goes at their next sign-in, and then an admin can.
+
+**What the server refuses, whoever asks:** a role below an account's floor;
+demoting or removing the only admin; an admin removing their own account from
+the Accounts page. Removing an account deletes its sign-ins, sessions,
+characters and homebrew with it, by the database's cascades - which is how a
+request to delete someone's data is carried out.
+
+A role change applies at once, to sessions already open.
 
 ### One-time setup
 
@@ -266,8 +283,10 @@ only.
    ```
 
    A provider without its secrets simply does not appear on the sign-in menu.
-   Put the DM's Discord id in `GM_DISCORD_IDS`, or their Google address in
-   `GM_GOOGLE_EMAILS`, in `worker/wrangler.toml`.
+   In `worker/wrangler.toml`, name at least one admin - your own Discord id in
+   `ADMIN_DISCORD_IDS`, or your Google address in `ADMIN_GOOGLE_EMAILS`.
+   Everyone else can then be given a role from the Accounts page; the `GM_*`
+   lists are there if you would rather set GMs in configuration.
 5. **Deploy.** Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to the
    repository's Actions secrets, and every push to `main` applies any new
    migrations and deploys the Worker. By hand instead:
@@ -287,7 +306,8 @@ Add a new numbered file to `worker/migrations/` - never edit one that has been
 applied - and add a case to `test/worker-suite.js` that starts from the schema
 before it (`{ upTo: '000N' }`) with data in place, as the Discord-only upgrade
 case does. `0002_accounts_and_content.sql` voids existing sessions, since they
-were cookies; everyone signs in once more after it.
+were cookies; everyone signs in once more after it. `0003_roles.sql` turns every
+existing DM into a GM, and everyone else into a player.
 
 ## The shape of the code
 

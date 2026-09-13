@@ -10,7 +10,7 @@
 // snapshot in. Run with scripts/serve.py and open test/client.html.
 
 import worker from '../worker/src/index.js';
-import { env, people, googler, d1 } from './worker-suite.js';
+import { env, people, googler, discorder, d1 } from './worker-suite.js';
 import { config } from '../web/config.js';
 import { remote, account, library, syncLibrary, flushLibrarySync } from '../web/store.js';
 
@@ -201,6 +201,24 @@ export function buildClientSuite() {
     try { await remote.me(); } catch (err) { error = err; }
     t.eq(error?.code, 401);
     t.ok(!account.signedIn());
+  });
+
+  test('an admin manages roles through the store', async (t) => {
+    await signInAs(googler('g-1', 'Ada', 'ada@example.com'));
+    const ada = await remote.me();
+    await remote.signOut();
+
+    await signInAs(discorder('admin-on-discord', 'Boss'), 'discord');
+    const me = await remote.me();
+    t.eq(me.role, 'admin');
+    const users = await remote.admin.users();
+    t.eq(users.map((u) => u.name).sort(), ['Ada', 'Boss']);
+    t.eq((await remote.admin.setRole(ada.id, 'gm')).role, 'gm');
+
+    let refused = null;
+    try { await remote.admin.setRole(me.id, 'player'); } catch (err) { refused = err; }
+    t.eq(refused?.code, 409, 'the server floor comes back as a readable refusal');
+    t.ok(/server's settings/.test(refused?.message || ''));
   });
 
   return cases;

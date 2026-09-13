@@ -301,6 +301,13 @@ export const remote = {
   campaign: () => api('/api/campaign'),
   setCampaign: (settings) => api('/api/campaign', { method: 'PUT', body: JSON.stringify(settings) }),
 
+  /** Accounts and roles. The server refuses all of these to anyone but an admin. */
+  admin: {
+    users: () => api('/api/admin/users'),
+    setRole: (id, role) => api(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify({ role }) }),
+    removeUser: (id) => api(`/api/admin/users/${id}`, { method: 'DELETE' }),
+  },
+
   content: {
     list: () => api('/api/content'),
     put: (entry) => api(`/api/content/${entry.id}`, { method: 'PUT', body: JSON.stringify(entry) }),

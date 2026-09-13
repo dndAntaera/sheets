@@ -12,7 +12,8 @@
 
     /test/app.html              signed out
     /test/app.html?as=google    signed in as a player, with Google
-    /test/app.html?as=dm        signed in as the Antaera DM, with Discord
+    /test/app.html?as=gm        signed in as a GM, with Discord
+    /test/app.html?as=admin     signed in as an admin, with a few other accounts to manage
 
   It starts from an empty database each time. It shares storage with the app on
   this dev server, so expect to sign out, or clear site data, afterwards.
@@ -25,7 +26,17 @@
   await fetch('/__test/d1/reset', { method: 'POST', body: '{}' });
   const as = new URLSearchParams(location.search).get('as');
   if (as === 'google') await signInAs(googler('g-demo', 'Ada', 'ada@example.com'), 'google');
-  if (as === 'dm') await signInAs(discorder('dm-on-discord', 'The DM'), 'discord');
+  if (as === 'gm' || as === 'dm') await signInAs(discorder('dm-on-discord', 'The GM'), 'discord');
+  if (as === 'admin') {
+    // A few accounts to manage, each signed in once and then signed out.
+    const { remote } = await import('/web/store.js');
+    for (const [sub, name] of [['g-ada', 'Ada'], ['g-cai', 'Cai']]) {
+      await signInAs(googler(sub, name, `${name.toLowerCase()}@example.com`), 'google');
+      await remote.save({ id: `${sub}-sheet`, name: `${name}'s rogue`, ruleset: 'antaera', levels: [{}, {}, {}] });
+      await remote.signOut();
+    }
+    await signInAs(discorder('admin-on-discord', 'The Admin'), 'discord');
+  }
 
   await import('/web/app.js');
 </script>
