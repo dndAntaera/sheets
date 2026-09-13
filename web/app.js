@@ -235,7 +235,11 @@ function footer() {
     h('p',
       'Class, skill and race rules are Open Game Content from the System Reference Document, used under the Open Game License v1.0a. ',
       h('a', { href: config.legalUrl, target: '_blank', rel: 'noopener', text: 'License and legal information' }),
-      '.'));
+      '.'),
+    h('p',
+      h('a', { href: config.privacyUrl, target: '_blank', rel: 'noopener', text: 'Privacy Policy' }),
+      ' · ',
+      h('a', { href: config.termsUrl, target: '_blank', rel: 'noopener', text: 'Terms of Service' })));
 }
 
 function themeSwitch() {

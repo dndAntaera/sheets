@@ -41,12 +41,13 @@ Homebrew written under Content is saved to the player's own account when they
 are signed in, and is visible to nobody else except inside a sheet they choose
 to share. The app ships no copyrighted non-SRD material and should not; but a
 player can type anything into a homebrew entry, including text copied from
-non-open books. Now that anyone can sign in and store content, the site should
-have short terms of use saying players must only store content they have the
-right to. That does not exist yet.
+non-open books. The terms of service say players must only store content they have the right
+to.
 
 Removing an account and all its data on request does: an admin does it from the
 Accounts page, and the account's sign-ins, characters and homebrew go with it.
 
-Google's OAuth consent screen asks for a privacy policy link before it can be
-published to all users, which is a natural place for both.
+The **Privacy Policy** and **Terms of Service** are pages on the wiki
+(`docs/privacy-policy.md` and `docs/terms-of-service.md` there), linked from this
+site's footer and given to Google and Discord as the app's policy links. If what
+the server stores changes, update the privacy policy in the same change.
