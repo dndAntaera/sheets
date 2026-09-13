@@ -298,8 +298,28 @@ export const remote = {
   save: (character) => api(`/api/characters/${character.id}`, { method: 'PUT', body: JSON.stringify(character) }),
   remove: (id) => api(`/api/characters/${id}`, { method: 'DELETE' }),
 
-  campaign: () => api('/api/campaign'),
-  setCampaign: (settings) => api('/api/campaign', { method: 'PUT', body: JSON.stringify(settings) }),
+  /**
+   * Campaigns. The server decides who may do each of these, by the rules in
+   * worker/src/policy.js; a refusal arrives as an error with a readable message.
+   */
+  campaigns: {
+    list: () => api('/api/campaigns'),
+    create: (campaign) => api('/api/campaigns', { method: 'POST', body: JSON.stringify(campaign) }),
+    get: (id) => api(`/api/campaigns/${id}`),
+    update: (id, changes) => api(`/api/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(changes) }),
+    remove: (id) => api(`/api/campaigns/${id}`, { method: 'DELETE' }),
+
+    invite: (id, options = {}) => api(`/api/campaigns/${id}/invites`, { method: 'POST', body: JSON.stringify(options) }),
+    withdrawInvite: (id, code) => api(`/api/campaigns/${id}/invites/${code}`, { method: 'DELETE' }),
+    previewInvite: (code) => api(`/api/invites/${encodeURIComponent(code)}`),
+    acceptInvite: (code) => api(`/api/invites/${encodeURIComponent(code)}/accept`, { method: 'POST' }),
+
+    setMemberRole: (id, userId, role) => api(`/api/campaigns/${id}/members/${userId}`, { method: 'PUT', body: JSON.stringify({ role }) }),
+    removeMember: (id, userId) => api(`/api/campaigns/${id}/members/${userId}`, { method: 'DELETE' }),
+
+    addCharacter: (id, characterId) => api(`/api/campaigns/${id}/characters`, { method: 'POST', body: JSON.stringify({ characterId }) }),
+    removeCharacter: (id, characterId) => api(`/api/campaigns/${id}/characters/${characterId}`, { method: 'DELETE' }),
+  },
 
   /** Accounts and roles. The server refuses all of these to anyone but an admin. */
   admin: {

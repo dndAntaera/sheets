@@ -16,7 +16,7 @@ and switchable on the sheet at any time:
   and flaws — are there for tables that use them, off until a player ticks them.
 - **Antæra** — the campaign documented in the
   [Antæra Wiki](https://dndantaera.github.io/antaera-wiki/). 3rd-level start,
-  30-point buy, gestalt under a GM's control, action points, taint,
+  30-point buy, gestalt set by the campaign's GM, action points, taint,
   backgrounds, training time, and the campaign's limits on wealth and level
   adjustment.
 
@@ -79,10 +79,19 @@ and either sign-in can be added to the same account. Without signing in, the
 app is still complete: everything stays in the browser and travels as exported
 files.
 
-The server is a Cloudflare Worker with a D1 database. Accounts have three
-levels — **Player**, **GM** and **Admin** — each with everything below it: a GM
-also sees and edits every Antæra character, and an admin also manages accounts
-and roles. Nobody reads another player's SRD characters or homebrew.
+The server is a Cloudflare Worker with a D1 database.
+
+**Campaigns.** A GM starts a campaign, picks its ruleset and the choices the
+table plays by - gestalt or not, starting level, house rules - and invites
+players with a link or a short code. Players bring their characters in; while
+there, a character plays by the campaign's rules, and the campaign's GMs can see
+and edit it. A campaign can have co-GMs, and can let players see each other's
+sheets.
+
+Accounts have three levels — **Player**, **GM** and **Admin** — each with
+everything below it: a GM can also start and run campaigns, and an admin also
+manages accounts and roles. A site role on its own shows nobody else's
+characters; that comes only from running a campaign they are in.
 
 Sheets print to something that can be carried to a table with no power.
 

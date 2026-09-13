@@ -12,8 +12,8 @@ import { remote } from '../store.js';
 export const ROLE_LABELS = { player: 'Player', gm: 'GM', admin: 'Admin' };
 
 const ROLE_POWERS = [
-  ['Player', 'Their own characters and homebrew.'],
-  ['GM', 'Also sees and edits every Antaera character, and moves the campaign gestalt switch.'],
+  ['Player', 'Their own characters and homebrew, and joins campaigns they are invited to.'],
+  ['GM', 'Also starts campaigns, invites players to them, and runs them.'],
   ['Admin', 'Also manages accounts: gives and takes roles, and removes an account with everything in it.'],
 ];
 

@@ -9,8 +9,12 @@
 //   SRD      the player. These are printed variants, and a public creator has
 //            no business deciding for a stranger's table whether it uses them.
 //
-//   Antaera  the campaign. A player does not get to switch taint off, and
-//            gestalt is the DM's switch for everyone, set on the server.
+//   Antaera  the ruleset. A player does not get to switch taint off. Gestalt
+//            is handed to the GM: a character's campaign sets it, and a
+//            character in no campaign is its own player's call.
+//
+// And a campaign overrides both: whatever its GM has set for the table, passed
+// in as `overrides`, is what every character in it plays by.
 //
 // Everything in the engine that belongs to a module asks here first, and
 // everything the interface shows for a module asks the same question, so the
@@ -42,7 +46,10 @@ export function moduleState(rules, character, name, overrides = {}) {
     return { on: Boolean(overrides[name]), available: true, choosable: false, lockedBy: def.lockedBy || 'campaign' };
   }
 
-  const playerChooses = rules.ruleset.variantsChosenBy === 'player';
+  // A module the ruleset hands to the GM - Antaera's gestalt - is set by the
+  // campaign a character is in, which arrives above as an override. A character
+  // in no campaign has no GM but its player, so the player chooses.
+  const playerChooses = rules.ruleset.variantsChosenBy === 'player' || def.lockedBy === 'gm';
   if (!playerChooses) {
     return { on: Boolean(def.enabled), available: true, choosable: false, lockedBy: def.lockedBy || 'ruleset' };
   }

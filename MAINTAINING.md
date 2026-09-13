@@ -28,7 +28,7 @@ Three suites, each a page on the dev server:
 | Page | What it tests | Against |
 | --- | --- | --- |
 | `/test/browser.html` | the engine: every calculation, rulesets, effects, library sync | nothing but the data files |
-| `/test/worker.html` | the server: sign-in with both providers, linking, sessions, roles, homebrew and character permissions, the database migrations | the real Worker, on a real SQLite database |
+| `/test/worker.html` | the server: sign-in, linking, sessions, roles, homebrew, characters, campaigns and invitations, the permission rules, the database migrations | the real Worker, on a real SQLite database |
 | `/test/client.html` | the app's side of accounts: signing in through `web/store.js`, a library kept in step across two devices | the real Worker and SQLite again |
 
 The engine suite also runs under Node with `npm test`, which is what CI runs.
@@ -44,7 +44,10 @@ the migration case starts from the old Discord-only schema with data in it.
 
 `/test/app.html` is not a test but a way to look: the real app, talking to the
 in-page Worker. `?as=google` signs in as a player, `?as=gm` as a GM, and
-`?as=admin` as an admin with two other accounts to manage.
+`?as=admin` as an admin with two other accounts to manage, `?as=table` as a GM
+running a campaign two players have joined, and `?as=player` as one of those
+players. `/test/worker.html?only=Campaigns` runs one suite, or any test whose
+name contains the text.
 
 `test/load-data.js` names the data files once for the engine runners.
 
@@ -230,18 +233,18 @@ avatar URL, and their role. Email addresses are read at sign-in to check the
 
 ### Roles
 
-Three levels, each with everything the one below has:
+Three site-wide levels, each with everything the one below has:
 
-| Role | Their own characters and homebrew | Every Antæra character | The gestalt switch | Accounts and roles |
-| --- | --- | --- | --- | --- |
-| Player | read, edit | - | - | - |
-| GM | read, edit | read, edit | move | - |
-| Admin | read, edit | read, edit | move | give and take roles, remove accounts |
+| Role | Can |
+| --- | --- |
+| Player | keep their own characters and homebrew; join campaigns they are invited to |
+| GM | also start campaigns, and run them |
+| Admin | also manage accounts: give and take roles, remove an account |
 
-Nobody - admins included - reads another player's SRD characters or homebrew
-library. An SRD character is built for some other table; homebrew reaches a GM
-only inside the sheets that use it. The Accounts page shows an admin how many
-characters and homebrew entries an account holds, never what they are.
+A site role does not, on its own, show anyone else's characters. Access to a
+character comes from a campaign it is in - see below. Nobody, admins included,
+reads another player's homebrew library; the Accounts page shows how much an
+account holds, never what.
 
 **Where roles come from.** Everyone starts as a player. Admins change roles on
 the Accounts page, which appears in the header only for them. The server's
@@ -254,10 +257,54 @@ demote them - their floor goes at their next sign-in, and then an admin can.
 **What the server refuses, whoever asks:** a role below an account's floor;
 demoting or removing the only admin; an admin removing their own account from
 the Accounts page. Removing an account deletes its sign-ins, sessions,
-characters and homebrew with it, by the database's cascades - which is how a
-request to delete someone's data is carried out.
+characters, homebrew and the campaigns it owns, by the database's cascades;
+other players' characters in those campaigns are released, not deleted.
 
 A role change applies at once, to sessions already open.
+
+### Campaigns
+
+A campaign is a table: an owner, the people they invite, one ruleset, and the
+settings its GMs choose for everyone. Any GM or admin can start one.
+
+Within a campaign each member has a role of their own, separate from their site
+role:
+
+| In a campaign | Can |
+| --- | --- |
+| Player | bring their own characters in and take them out; read the house rules; see other players' characters only if the campaign allows |
+| GM | also read and edit every character in it, change its settings, invite players, remove players |
+| Owner | also invite and remove GMs, change the ruleset, delete the campaign |
+
+**Invitations** are short codes, with a link form (`#/join/CODE`). A GM chooses
+how many people each can admit and for how many days; the owner can make one that
+admits GMs. Someone opening a link while signed out signs in and comes straight
+back to it. Accepting twice does nothing; a player accepting a GM invitation is
+promoted.
+
+**Characters** are in at most one campaign. While in one, a character plays by
+the campaign's ruleset and settings - the app locks its ruleset toggle and shows
+the table's variants as set by the campaign - and the campaign's GMs can edit it.
+Only its owner deletes it; a GM takes it out instead. A player removed from a
+campaign, or leaving it, takes their characters with them. Deleting a campaign
+releases every character in it.
+
+**Settings** are described once, in `web/engine/campaign.js`, and both halves use
+that description: the server accepts only settings it lists and coerces their
+values; the app draws the settings form from it and applies the campaign's
+choices to each character's rules. Today there are the ruleset's variants the GM
+decides (all three SRD variants; Antaera's gestalt), a starting level, whether
+players see each other's characters, house rules, and a link.
+
+**Adding a campaign setting** is one entry in `GENERAL_SETTINGS` - it is then
+validated, drawn in the form, and saved. If the engine should act on it, read it
+in `applyCampaign`; if the server should enforce it, ask for it in `policy.js`.
+
+The Antaera campaign that existed implicitly before campaigns - every site GM
+seeing every Antaera character, one gestalt switch - was carried over by
+migration 0004 into a real campaign with the id `antaera`, owned by the
+longest-standing GM, with every site GM as a GM of it, every owner of an Antaera
+character as a player, those characters in it, and gestalt as it was.
 
 ### One-time setup
 
@@ -303,11 +350,55 @@ Until step 6 the app is a complete local-only build.
 ### Changing the database
 
 Add a new numbered file to `worker/migrations/` - never edit one that has been
-applied - and add a case to `test/worker-suite.js` that starts from the schema
-before it (`{ upTo: '000N' }`) with data in place, as the Discord-only upgrade
-case does. `0002_accounts_and_content.sql` voids existing sessions, since they
-were cookies; everyone signs in once more after it. `0003_roles.sql` turns every
-existing DM into a GM, and everyone else into a player.
+applied - and add a case that starts from the schema before it
+(`{ upTo: '000N' }`) with data in place, as the upgrade cases in
+`test/worker-suite.js` and `test/campaign-suite.js` do.
+
+- `0002_accounts_and_content.sql` voids existing sessions, since they were
+  cookies; everyone signs in once more after it.
+- `0003_roles.sql` turns every existing DM into a GM, and everyone else into a
+  player.
+- `0004_campaigns.sql` turns the implicit Antaera arrangement into a campaign.
+
+### The shape of the server
+
+    worker/src/
+      index.js       assembles the features into one router
+      router.js      matches a request to a route; checks sign-in and site role
+      http.js        responses, errors, bodies, tokens, cross-origin headers
+      sessions.js    bearer-token sessions
+      roles.js       site roles: player < gm < admin
+      policy.js      every permission rule, as pure functions
+      rulesets.js    the rulesets, imported from the app's own data files
+      features/
+        auth.js        sign-in with Google or Discord; /api/me
+        accounts.js    the admin's Accounts page
+        characters.js  characters, and who reaches them
+        content.js     homebrew libraries
+        campaigns.js   campaigns, invitations, members, characters in them
+
+A feature is a module exporting `routes`:
+
+```js
+export const routes = [
+  { method: 'GET', path: '/api/things/:id', auth: 'user', handler: getThing },
+];
+```
+
+`auth` is `none`, `user`, `gm` or `admin`, checked before the handler runs. The
+handler receives `{ request, env, url, params, user, body(limit) }` and returns a
+Response. Anything finer than a site role - may this person change this campaign
+- is a function in `policy.js`, which the handler asks with facts it has looked
+up.
+
+**Adding a feature**, then, is: a module in `features/`, its rules in
+`policy.js`, its tables in a migration, one line in `FEATURES` in `index.js`, a
+suite of tests registered in `test/worker.html`, and - if the app needs it - a
+group of calls in `web/store.js`, a view in `web/ui/`, and an entry in `VIEWS`
+and `NAV` in `web/app.js`.
+
+The worker imports JSON with `with { type: 'json' }`, which needs Wrangler 4; the
+deploy workflow pins it.
 
 ## The shape of the code
 
@@ -330,7 +421,13 @@ existing DM into a GM, and everyone else into a player.
       effects-editor  the effects table used everywhere
       content         the library view
 
-    web/app.js     routing, the ruleset toggle and variants, saving, auto-embed
+    web/ui/
+      campaigns       the campaign list, one campaign, joining by invitation
+      admin           the Accounts page
+
+    web/engine/campaign.js  a campaign's settings, and how they apply to a character
+
+    web/app.js     VIEWS and NAV registries, the variants strip, saving, auto-embed
 
 The engine never touches the page, and the interface does no arithmetic. An
 input, once drawn, is never redrawn while someone is typing in it: panels whose

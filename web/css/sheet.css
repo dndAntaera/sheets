@@ -532,6 +532,77 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .account-role { margin: 0; display: flex; align-items: baseline; gap: var(--sp-1); flex-wrap: wrap; }
 
 /* ---------------------------------------------------------------------------
+   Campaigns
+   --------------------------------------------------------------------------- */
+
+.campaign-page, .campaigns-page, .join-page { max-width: 60rem; }
+.campaign-page h2, .campaigns-page h2 {
+  font: 400 var(--text-panel-title)/1.2 var(--font-display);
+  margin: 0 0 var(--sp-2);
+}
+.campaign-page h3 {
+  font: 600 var(--text-small)/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft);
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+.campaign-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); margin-top: var(--sp-2); }
+.campaign-head h1 { font: 400 var(--text-page-title)/1.2 var(--font-display); margin: 0; }
+.campaign-head p { margin: var(--sp-1) 0 0; }
+.campaign-description { white-space: pre-wrap; color: var(--ink-soft); }
+
+.campaign-section {
+  border-top: var(--hair) solid var(--rule);
+  padding-top: var(--sp-4);
+  margin-top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.campaign-new, .campaign-join {
+  padding: var(--sp-3);
+  margin: var(--sp-3) 0;
+  background: var(--surface-sunk);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.campaign-join { flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+
+.table-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  font-size: var(--text-small);
+}
+.table-facts dt { color: var(--ink-faint); }
+.table-facts dd { margin: 0; }
+.house-rules p { white-space: pre-wrap; margin: 0; }
+
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--sp-3); }
+.settings-grid .cell.wide { grid-column: 1 / -1; }
+.settings-grid .cell-check .hint { font-size: var(--text-tiny); }
+
+.plain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.plain-list li { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+.invite-code {
+  font-family: var(--font-mono);
+  letter-spacing: .08em;
+  padding: .05rem .35rem;
+  background: var(--surface-sunk);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--radius);
+}
+.danger-zone { align-items: flex-start; }
+
+.badge.campaign-role-owner, .badge.campaign-role-gm { border-color: var(--accent-dark); color: var(--accent-dark); }
+.badge.campaign-badge { text-decoration: none; }
+
+/* ---------------------------------------------------------------------------
    The legal footer - printed straight on the sky, quietly
    --------------------------------------------------------------------------- */
 

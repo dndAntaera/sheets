@@ -27,7 +27,14 @@
   // The runner for test/worker-suite.js. Cases run one after another, each on a
   // fresh database, because they share the one stand-in.
   import { buildWorkerSuite, resetFor } from './worker-suite.js';
+  import { buildCampaignSuite } from './campaign-suite.js';
   import { checker } from './assert.js';
+
+  // Every server suite, in order. A new feature's tests are one more entry.
+  const SUITES = [
+    ['Accounts, sign-in, homebrew, roles', buildWorkerSuite],
+    ['Campaigns', buildCampaignSuite],
+  ];
 
   const tally = document.getElementById('tally');
   const list = document.getElementById('results');
@@ -35,7 +42,9 @@
   const failed = [];
 
   try {
-    for (const testCase of buildWorkerSuite()) {
+    const only = new URLSearchParams(location.search).get('only');
+    for (const testCase of SUITES.flatMap(([suite, build]) => build().map((c) => ({ ...c, suite })))) {
+      if (only && !testCase.name.includes(only) && !testCase.suite.includes(only)) continue;
       const t = checker();
       let thrown = null;
       try {
@@ -49,7 +58,7 @@
       li.className = problems.length ? 'fail' : 'pass';
       li.innerHTML = `<span class="mark">${problems.length ? '✗' : '✓'}</span>`;
       const name = document.createElement('span');
-      name.textContent = testCase.name;
+      name.textContent = `${testCase.suite}: ${testCase.name}`;
       li.append(name);
       if (problems.length) {
         const why = document.createElement('div');

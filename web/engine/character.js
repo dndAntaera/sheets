@@ -152,6 +152,32 @@ export function migrate(character) {
   return c;
 }
 
+/**
+ * A character with every part a sheet expects, filled from a blank one where it
+ * is missing.
+ *
+ * A sheet made in the app is always whole. One that arrives another way - an
+ * old export, a file written by hand, a character saved through the API by some
+ * other tool - may have a name and a level and nothing else, and a sheet that
+ * crashes on a missing skill list is worse than one that shows an empty one.
+ * What the character has is kept; only what it lacks is added.
+ */
+export function fillMissing(character, rules) {
+  const blank = blankCharacter(rules);
+  const filled = { ...blank, ...character };
+  for (const [key, value] of Object.entries(blank)) {
+    const have = character[key];
+    if (have === undefined || have === null) continue;
+    if (Array.isArray(value)) {
+      if (!Array.isArray(have)) filled[key] = value;
+    } else if (value && typeof value === 'object') {
+      filled[key] = have && typeof have === 'object' && !Array.isArray(have) ? { ...value, ...have } : value;
+    }
+  }
+  if (!Array.isArray(filled.levels) || filled.levels.length === 0) filled.levels = blank.levels;
+  return filled;
+}
+
 /** Levels in, levels out - keeps `level` honest after an insert or delete. */
 export function renumberLevels(levels) {
   return levels.map((row, i) => ({ ...row, level: i + 1 }));

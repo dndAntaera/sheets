@@ -14,7 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
-  mergeLibraries,
+  mergeLibraries, fillMissing,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -609,6 +609,18 @@ export function buildSuite(data) {
     const all = collectEffects({ race: { name: 'Elf', effects: [{ target: 'skill.Spot', type: 'racial', value: 2 }] }, feats: [], items: [] });
     t.eq(all[0].source, 'Elf');
     t.eq(all[0].type, 'racial');
+  });
+
+  test('a sparse character is filled out rather than breaking the sheet', (t) => {
+    const sparse = { id: 'x', name: 'Only a name', ruleset: 'srd', levels: [{ level: 1, a: 'Rogue' }], abilities: { base: { str: 16 } } };
+    const c = fillMissing(sparse, srd);
+    t.eq(c.name, 'Only a name', 'what it had is kept');
+    t.eq(c.levels.length, 1);
+    t.ok(Array.isArray(c.skills) && c.skills.length > 30, 'what it lacked is added');
+    t.eq(c.abilities.base.str, 16);
+    t.eq(c.abilities.method, 'pointBuy', 'nested parts are filled too');
+    const d = derive(c, srd);
+    t.eq(d.summary.label, 'Rogue 1');
   });
 
   /* === syncing a library between devices =============================== */

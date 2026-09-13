@@ -79,7 +79,7 @@ globalThis.fetch = async (input, init = {}) => {
    Talking to the Worker
    ------------------------------------------------------------------------- */
 
-async function call(method, path, { token, body } = {}) {
+export async function call(method, path, { token, body } = {}) {
   const headers = {};
   if (token) headers.authorization = `Bearer ${token}`;
   if (body !== undefined) headers['content-type'] = 'application/json';
@@ -101,7 +101,7 @@ const nonce = () => [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b
  * Walk the whole sign-in: start, the provider's redirect back, and the
  * exchange. Returns what each step produced, so a test can stop anywhere.
  */
-async function signIn(provider, { link, useNonce, tamperState } = {}) {
+export async function signIn(provider, { link, useNonce, tamperState } = {}) {
   const mine = nonce();
   const start = await call('GET', `/auth/start?provider=${provider}&nonce=${mine}${link ? `&link=${link}` : ''}`);
   if (start.status !== 302 || !start.location.startsWith('https://')) return { start };
@@ -360,21 +360,17 @@ export function buildWorkerSuite() {
 
   /* --- characters and the DM's view ------------------------------------ */
 
-  test('the DM sees other players’ Antaera characters, and not their SRD ones', async (t) => {
+  test('a site role alone shows nobody else’s characters', async (t) => {
     people.google = googler('g-100', 'Ada', 'ada@example.com');
     const ada = await signIn('google');
     await call('PUT', '/api/characters/ada-srd', { token: ada.token, body: { name: 'Public Paladin', ruleset: 'srd', levels: [{}] } });
     await call('PUT', '/api/characters/ada-ant', { token: ada.token, body: { name: 'Campaign Rogue', ruleset: 'antaera', levels: [{}, {}, {}] } });
 
-    people.discord = discorder('dm-on-discord', 'The DM');
-    const dm = await signIn('discord');
-    const roster = await call('GET', '/api/characters', { token: dm.token });
-    t.eq(roster.data.map((c) => c.name), ['Campaign Rogue']);
-    t.eq(roster.data[0].ruleset, 'antaera');
-
-    t.eq((await call('GET', '/api/characters/ada-ant', { token: dm.token })).status, 200);
-    t.eq((await call('GET', '/api/characters/ada-srd', { token: dm.token })).status, 404, 'an SRD sheet is not even acknowledged');
-    t.eq((await call('PUT', '/api/characters/ada-srd', { token: dm.token, body: { name: 'Hijack', ruleset: 'antaera' } })).status, 404);
+    people.discord = discorder('dm-on-discord', 'The GM');
+    const gm = await signIn('discord');
+    t.eq((await call('GET', '/api/characters', { token: gm.token })).data, [], 'being a GM is not being this player’s GM');
+    t.eq((await call('GET', '/api/characters/ada-ant', { token: gm.token })).status, 404);
+    t.eq((await call('PUT', '/api/characters/ada-ant', { token: gm.token, body: { name: 'Hijack' } })).status, 404);
   });
 
   test('a player sees only their own characters', async (t) => {
@@ -385,15 +381,6 @@ export function buildWorkerSuite() {
     const cai = await signIn('google');
     t.eq((await call('GET', '/api/characters', { token: cai.token })).data, []);
     t.eq((await call('GET', '/api/characters/ada-ant', { token: cai.token })).status, 404);
-  });
-
-  test('only the DM moves the campaign gestalt switch', async (t) => {
-    people.google = googler('g-100', 'Ada', 'ada@example.com');
-    const ada = await signIn('google');
-    t.eq((await call('PUT', '/api/campaign', { token: ada.token, body: { gestalt: true } })).status, 403);
-    people.discord = discorder('dm-on-discord', 'The DM');
-    const dm = await signIn('discord');
-    t.eq((await call('PUT', '/api/campaign', { token: dm.token, body: { gestalt: true } })).data.gestalt, true);
   });
 
   /* --- the migration ----------------------------------------------------- */
@@ -439,15 +426,11 @@ export function buildWorkerSuite() {
     t.eq(fake.me.role, 'player', 'an unverified address is not enough');
   });
 
-  test('an admin has every GM power', async (t) => {
+  test('an admin has every GM power: starting campaigns', async (t) => {
     const ada = await account(googler('g-1', 'Ada', 'ada@example.com'));
-    await call('PUT', '/api/characters/rogue', { token: ada.token, body: { name: 'Campaign Rogue', ruleset: 'antaera', levels: [] } });
-    await call('PUT', '/api/characters/paladin', { token: ada.token, body: { name: 'Public Paladin', ruleset: 'srd', levels: [] } });
-
     const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
-    t.eq((await call('GET', '/api/characters', { token: boss.token })).data.map((c) => c.name), ['Campaign Rogue']);
-    t.eq((await call('GET', '/api/characters/paladin', { token: boss.token })).status, 404, 'but still not SRD characters');
-    t.eq((await call('PUT', '/api/campaign', { token: boss.token, body: { gestalt: true } })).status, 200);
+    t.eq((await call('POST', '/api/campaigns', { token: ada.token, body: { name: 'Mine' } })).status, 403, 'a player cannot');
+    t.eq((await call('POST', '/api/campaigns', { token: boss.token, body: { name: 'Mine' } })).status, 201, 'an admin can');
   });
 
   test('only an admin can see or change accounts', async (t) => {
@@ -474,20 +457,17 @@ export function buildWorkerSuite() {
   });
 
   test('an admin makes a player a GM, and takes it away again', async (t) => {
-    const owner = await account(googler('g-1', 'Ada', 'ada@example.com'));
-    await call('PUT', '/api/characters/rogue', { token: owner.token, body: { name: 'Campaign Rogue', ruleset: 'antaera', levels: [] } });
     const cai = await account(googler('g-2', 'Cai', 'cai@example.com'));
     const boss = await account(discorder('admin-on-discord', 'Boss'), 'discord');
+    const start = () => call('POST', '/api/campaigns', { token: cai.token, body: { name: 'Cai’s table' } });
 
-    t.eq((await call('GET', '/api/characters', { token: cai.token })).data, []);
+    t.eq((await start()).status, 403);
     const promoted = await setRole(boss, cai.id, 'gm');
     t.eq(promoted.data.role, 'gm');
-    t.eq((await call('GET', '/api/characters', { token: cai.token })).data.map((c) => c.name), ['Campaign Rogue'], 'at once, on the session already open');
-    t.eq((await call('PUT', '/api/campaign', { token: cai.token, body: { gestalt: true } })).status, 200);
+    t.eq((await start()).status, 201, 'at once, on the session already open');
 
     await setRole(boss, cai.id, 'player');
-    t.eq((await call('GET', '/api/characters', { token: cai.token })).data, []);
-    t.eq((await call('PUT', '/api/campaign', { token: cai.token, body: { gestalt: false } })).status, 403);
+    t.eq((await start()).status, 403);
   });
 
   test('a role an admin gave survives signing in again', async (t) => {

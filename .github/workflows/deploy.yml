@@ -69,6 +69,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Wrangler 4: the Worker imports the rulesets' JSON with import attributes.
+          wranglerVersion: '4'
           # Migrations first: the Worker expects the tables they create.
           command: |
             d1 migrations apply antaera-sheets --remote --config worker/wrangler.toml

@@ -221,6 +221,25 @@ export function buildClientSuite() {
     t.ok(/server's settings/.test(refused?.message || ''));
   });
 
+  test('a GM runs a campaign through the store, and a player joins it', async (t) => {
+    await signInAs(discorder('dm-on-discord', 'The GM'), 'discord');
+    const made = await remote.campaigns.create({ name: 'The Sunless Road', ruleset: 'srd' });
+    t.eq(made.role, 'owner');
+    const { code } = await remote.campaigns.invite(made.id, { maxUses: 5 });
+    await remote.signOut();
+
+    await signInAs(googler('g-1', 'Ada', 'ada@example.com'));
+    t.eq((await remote.campaigns.previewInvite(code)).campaign.name, 'The Sunless Road');
+    t.eq((await remote.campaigns.acceptInvite(code)).joined, true);
+    await remote.save({ id: 'vashti', name: 'Vashti', ruleset: 'antaera', levels: [{}] });
+    t.eq((await remote.campaigns.addCharacter(made.id, 'vashti')).ruleset, 'srd');
+    t.eq((await remote.load('vashti')).campaignId, made.id);
+
+    let refused = null;
+    try { await remote.campaigns.update(made.id, { settings: { partyVisible: true } }); } catch (err) { refused = err; }
+    t.eq(refused?.code, 403, 'a player does not change settings');
+  });
+
   return cases;
 }
 

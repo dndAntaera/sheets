@@ -293,7 +293,8 @@ function notices(character, d, rules) {
     add('info', 'A level has no class chosen yet.', 'levels');
   }
   if (rs.startingLevel > 1 && d.summary.classLevels && d.summary.ecl < rs.startingLevel) {
-    add('info', `Characters under ${rs.name} start at level ${rs.startingLevel}; this one is ECL ${d.summary.ecl}.`, 'levels');
+    const where = rules.campaign?.name ? `in ${rules.campaign.name}` : `under ${rs.name}`;
+    add('info', `Characters ${where} start at level ${rs.startingLevel}; this one is ECL ${d.summary.ecl}.`, 'levels');
   }
   for (const side of d.summary.sides) {
     for (const c of side.classes) {

@@ -14,6 +14,9 @@
     /test/app.html?as=google    signed in as a player, with Google
     /test/app.html?as=gm        signed in as a GM, with Discord
     /test/app.html?as=admin     signed in as an admin, with a few other accounts to manage
+    /test/app.html?as=table     signed in as a GM running a campaign two players have joined
+    /test/app.html?as=player    signed in as one of those players
+    /test/app.html?as=invitee   signed in as someone new, arriving on that campaign's invitation
 
   It starts from an empty database each time. It shares storage with the app on
   this dev server, so expect to sign out, or clear site data, afterwards.
@@ -36,6 +39,28 @@
       await remote.signOut();
     }
     await signInAs(discorder('admin-on-discord', 'The Admin'), 'discord');
+  }
+
+  if (as === 'table' || as === 'player' || as === 'invitee') {
+    const { remote } = await import('/web/store.js');
+    await signInAs(discorder('dm-on-discord', 'The GM'), 'discord');
+    const campaign = await remote.campaigns.create({ name: 'The Sunless Road', ruleset: 'srd', description: 'Below the ice, where the old roads run.', settings: { modules: { gestalt: true }, startingLevel: 3, houseRules: 'Maximum hit points at every level.' } });
+    const { code } = await remote.campaigns.invite(campaign.id, {});
+    await remote.signOut();
+    for (const [sub, name] of [['g-ada', 'Ada'], ['g-cai', 'Cai']]) {
+      await signInAs(googler(sub, name, `${name.toLowerCase()}@example.com`), 'google');
+      await remote.campaigns.acceptInvite(code);
+      await remote.save({ id: `${sub}-sheet`, name: `${name}'s rogue`, ruleset: 'srd', levels: [{ level: 1, a: 'Rogue', b: 'Fighter' }] });
+      await remote.campaigns.addCharacter(campaign.id, `${sub}-sheet`);
+      if (!(as === 'player' && name === 'Ada')) await remote.signOut();
+    }
+    if (as === 'table') await signInAs(discorder('dm-on-discord', 'The GM'), 'discord');
+    else if (as === 'player') await signInAs(googler('g-ada', 'Ada', 'ada@example.com'), 'google');
+    else {
+      await signInAs(googler('g-bo', 'Bo', 'bo@example.com'), 'google');
+      await remote.save({ id: 'g-bo-sheet', name: 'Bo the Bard', ruleset: 'antaera', levels: [{ level: 1, a: 'Bard' }] });
+      location.hash = `#/join/${code}`;
+    }
   }
 
   await import('/web/app.js');

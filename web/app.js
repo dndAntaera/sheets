@@ -10,7 +10,7 @@
 
 import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
-  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed,
+  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm } from './ui/dom.js';
 import {
@@ -20,6 +20,7 @@ import {
 } from './ui/sheet.js';
 import { showContent } from './ui/content.js';
 import { showAdmin, ROLE_LABELS } from './ui/admin.js';
+import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
 import { config } from './config.js';
 import {
   local, remote, library, preferences, account, syncLibrary, save as saveEverywhere, newId,
@@ -48,7 +49,8 @@ const app = {
   rules: null,
   character: null,
   derived: null,
-  campaign: { gestalt: null },
+  campaigns: [],     // the campaigns the signed-in account is in, with settings
+  overrides: {},     // what the open sheet's campaign decides for it
   panels: {},
   status: null,
   user: null,
@@ -63,21 +65,21 @@ async function start() {
   app.baseRules = await loadRules('./data/');
   app.rules = app.baseRules;
 
-  // The Antaera campaign's own switches: the server's if there is one,
-  // otherwise whatever this browser was last told.
-  app.campaign = { gestalt: null, ...(local.campaign() || {}) };
-
   // Back from Google or Discord: finish signing in before drawing anything, so
   // the header is right the first time.
   const returning = location.hash.match(/^#\/signed-in\/([a-f0-9]+)$/);
   if (returning && remote.enabled()) {
+    let next = '#/';
     try {
       await remote.completeSignIn(returning[1]);
       app.notice = { level: 'pass', text: 'Signed in. Your characters and homebrew are kept with your account.' };
+      // Signed in to accept an invitation: go back to it.
+      const invite = takePendingInvite();
+      if (invite) next = `#/join/${invite}`;
     } catch (err) {
       app.notice = { level: 'fail', text: `Sign-in did not complete: ${err.message}` };
     }
-    history.replaceState(null, '', `${location.pathname}${location.search}#/`);
+    history.replaceState(null, '', `${location.pathname}${location.search}${next}`);
   }
   const failed = location.hash.match(/^#\/sign-in-failed\/([\w-]+)$/);
   if (failed) {
@@ -134,19 +136,24 @@ async function connect() {
     }
   }
 
-  try {
-    const server = await remote.campaign();
-    app.campaign = { ...app.campaign, ...server };
-    local.setCampaign(app.campaign);
-  } catch { /* the stored settings stand */ }
+  if (app.user) {
+    app.campaigns = await remote.campaigns.list().catch(() => []);
+  }
 }
 
-/** The settings imposed on a sheet from outside it, under its ruleset. */
-function overridesFor(character) {
-  if (character?.ruleset === 'antaera' && app.campaign.gestalt !== null && app.campaign.gestalt !== undefined) {
-    return { gestalt: app.campaign.gestalt };
-  }
-  return {};
+/** The campaign a character is in, if this account can see it. */
+function campaignOf(character) {
+  return character?.campaignId ? app.campaigns.find((c) => c.id === character.campaignId) || null : null;
+}
+
+/**
+ * The rules a character plays by: its campaign's ruleset and settings if it is
+ * in one, its own ruleset and choices if not.
+ */
+function rulesFor(character) {
+  const campaign = campaignOf(character);
+  const base = withRuleset(app.baseRules, campaign ? campaign.ruleset : character.ruleset);
+  return { campaign, ...applyCampaign(base, campaign) };
 }
 
 /* =========================================================================
@@ -160,9 +167,7 @@ function header() {
     h('a.brand', { href: '#/', title: config.tagline },
       h('span.brand-name', { text: config.title })),
     h('nav.top-nav',
-      h('a', { href: '#/', text: 'Characters', dataset: { nav: 'roster' } }),
-      h('a', { href: '#/content', text: 'Content', dataset: { nav: 'content' } }),
-      app.user?.admin ? h('a', { href: '#/admin', text: 'Accounts', dataset: { nav: 'admin' } }) : null,
+      NAV.filter((item) => item.visible()).map((item) => h('a', { href: item.href, text: item.label, dataset: { nav: item.key } })),
       h('a', { href: config.wikiUrl, target: '_blank', rel: 'noopener', text: 'Wiki' })),
     h('div.top-right',
       app.status,
@@ -206,8 +211,8 @@ function accountMenu() {
       h('p.hint', { text: `Signed in with ${(app.user.providers || []).map((p) => PROVIDER_LABELS[p]).join(' and ')}.` }),
       h('p.account-role', h('span.badge', { text: ROLE_LABELS[app.user.role] || 'Player' }),
         h('span.hint', { text: app.user.admin
-          ? ' You manage accounts, and see every Antaera character.'
-          : app.user.gm ? ' You see and edit every Antaera character.' : '' })),
+          ? ' You manage accounts, and can start campaigns.'
+          : app.user.gm ? ' You can start campaigns and invite players to them.' : '' })),
       unlinked.map((name) => button(`Also sign in with ${PROVIDER_LABELS[name]}`, () => {
         remote.link(name).catch((err) => alert(`Could not start linking: ${err.message}`));
       }, { subtle: true, title: `Reach this same account by signing in with ${PROVIDER_LABELS[name]} too.` })),
@@ -277,31 +282,51 @@ function refreshDatalists() {
 }
 
 /* =========================================================================
-   Routing: the roster, one sheet, or the content library
+   Views and navigation
+
+   Every page is an entry in VIEWS: a pattern for the address after "#/", and a
+   function to show it. Every header link is an entry in NAV, with a test for
+   whether this person sees it. A new page is one entry in each - nothing else
+   in the app needs to know about it.
    ========================================================================= */
 
+const main = () => document.getElementById('main');
+
+const VIEWS = [
+  { match: /^sheet\/([^/]+)$/, nav: 'roster', show: ([id]) => openSheet(id) },
+  { match: /^campaigns$/, nav: 'campaigns', title: 'Campaigns', show: () => showCampaigns(main(), app) },
+  { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: ([id]) => showCampaign(main(), app, id) },
+  { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
+  { match: /^admin$/, nav: 'admin', title: 'Accounts', show: () => showAdmin(main(), app) },
+  {
+    match: /^content(?:\/([^/]+))?(?:\/([^/]+))?$/,
+    nav: 'content',
+    title: 'Content',
+    show: ([kind, index]) => {
+      app.rules = app.baseRules;
+      showContent(main(), app, kind || 'race', index ?? null);
+    },
+  },
+  { match: /^$/, nav: 'roster', show: () => showRoster() },
+];
+
+const NAV = [
+  { key: 'roster', label: 'Characters', href: '#/', visible: () => true },
+  { key: 'campaigns', label: 'Campaigns', href: '#/campaigns', visible: () => Boolean(app.user) },
+  { key: 'content', label: 'Content', href: '#/content', visible: () => true },
+  { key: 'admin', label: 'Accounts', href: '#/admin', visible: () => Boolean(app.user?.admin) },
+];
+
 function route() {
-  const [view, a, b] = location.hash.replace(/^#\/?/, '').split('/');
+  const address = location.hash.replace(/^#\/?/, '');
   app.unbind?.();
   app.unbind = null;
-  if (view === 'sheet' && a) {
-    markNav('sheet');
-    openSheet(a);
-  } else if (view === 'admin') {
-    markNav('admin');
-    app.character = null;
-    showAdmin(document.getElementById('main'), app);
-    document.title = `Accounts - ${config.title}`;
-  } else if (view === 'content') {
-    markNav('content');
-    app.character = null;
-    app.rules = app.baseRules;
-    showContent(document.getElementById('main'), app, a || 'race', b ?? null);
-    document.title = `Content - ${config.title}`;
-  } else {
-    markNav('roster');
-    showRoster();
-  }
+  const view = VIEWS.find((v) => v.match.test(address)) || VIEWS[VIEWS.length - 1];
+  const params = address.match(view.match)?.slice(1) || [];
+  markNav(view.nav);
+  if (view.nav !== 'roster' || !address.startsWith('sheet/')) app.character = null;
+  if (view.title) document.title = `${view.title} - ${config.title}`;
+  view.show(params);
 }
 
 /* =========================================================================
@@ -324,7 +349,7 @@ async function showRoster() {
       const onServer = new Set(server.map((r) => r.id));
       const hereOnly = local.list().filter((r) => !onServer.has(r.id)).map((r) => ({ ...r, hereOnly: true }));
       rows = [...server, ...hereOnly];
-      source = app.user.gm ? 'Your characters, and every Antaera character in the campaign.' : 'Your characters, kept with your account.';
+      source = 'Your characters, and the characters in campaigns you run.';
     } catch { /* the local list stands */ }
   }
 
@@ -381,7 +406,8 @@ function rosterRow(row) {
       h('span.roster-name', { text: row.name || 'Unnamed' }),
       h('span.roster-meta', { text: [row.player, row.build || `level ${row.level || '?'}`].filter(Boolean).join(' - ') })),
     row.hereOnly ? h('span.badge.here-only', { text: 'this browser', title: 'Not on your account yet. Open it and it is saved there.' }) : null,
-    row.ownerName && app.user && row.owner !== app.user.id ? h('span.badge', { text: row.ownerName, title: 'Another player’s Antaera character.' }) : null,
+    row.ownerName && app.user && row.owner !== app.user.id ? h('span.badge', { text: row.ownerName, title: 'Another player\u2019s character, in a campaign you run.' }) : null,
+    row.campaignName ? h('a.badge.campaign-badge', { href: `#/campaign/${row.campaignId}`, text: row.campaignName, title: 'The campaign this character is in.' }) : null,
     h(`span.badge.ruleset-${rs?.id || 'srd'}`, { text: rs?.shortName || 'SRD' }),
     h('span.roster-updated', { text: row.updated ? new Date(row.updated).toLocaleDateString() : '' }),
     button('Delete', async () => {
@@ -432,11 +458,19 @@ async function openSheet(id, opts = {}) {
   app.unbind?.();
   app.unbind = null;
 
-  let character = local.load(id);
-  if (!character && remote.enabled() && app.user) {
-    character = await remote.load(id).catch(() => null);
-    if (character) local.save(character);
+  // This browser's copy, and the account's. The server is the authority on which
+  // campaign a character is in and so which ruleset it plays by - that can change
+  // from the campaign page, or a GM's hand, without this copy knowing. The words
+  // on the sheet come from whichever copy was edited last, so work done offline
+  // is not thrown away.
+  const here = local.load(id);
+  const there = remote.enabled() && app.user ? await remote.load(id).catch(() => null) : null;
+  let character = here || there;
+  if (here && there) {
+    const newer = String(here.meta?.updated || '') > String(there.meta?.updated || '') ? here : there;
+    character = { ...newer, campaignId: there.campaignId ?? null, ruleset: there.ruleset, access: there.access };
   }
+  if (there) local.save(character);
   const main = document.getElementById('main');
   if (!character) {
     refill(main, h('p.empty', { text: 'No character with that address.' }));
@@ -445,10 +479,15 @@ async function openSheet(id, opts = {}) {
 
   app.character = migrate(character);
   app.character.id = app.character.id || id;
-  app.rules = withRuleset(app.baseRules, app.character.ruleset);
+  const { rules, overrides, campaign } = rulesFor(app.character);
+  app.rules = rules;
+  app.overrides = overrides;
+  app.character = fillMissing(app.character, rules);
+  // In a campaign, the campaign's ruleset is the character's, whatever it said.
+  if (campaign) app.character.ruleset = campaign.ruleset;
 
   // Panels are drawn from a derived sheet, so it is computed before any of them.
-  app.derived = derive(app.character, app.rules, { overrides: overridesFor(app.character) });
+  app.derived = derive(app.character, app.rules, { overrides });
   refreshDatalists();
 
   app.panels = {};
@@ -491,13 +530,14 @@ function sheetToolbar() {
 /**
  * The rules this sheet is built under, and the optional systems within them.
  *
- * Under the SRD each variant is a checkbox the player may tick. Under Antaera
- * they are listed, not offered: the campaign decides, and gestalt is the DM's.
+ * In a campaign, the campaign decides both, and the strip says so and links to
+ * it. Out of one, the ruleset decides: under the SRD each variant is the
+ * player's to tick, and under Antaera only gestalt is.
  */
 function variantsStrip() {
   const c = app.character;
   const rs = app.rules.ruleset;
-  const overrides = overridesFor(c);
+  const campaign = campaignOf(c);
 
   const switchRuleset = (id) => {
     const target = app.baseRules.rulesets[id];
@@ -511,7 +551,7 @@ function variantsStrip() {
   };
 
   const modules = MODULES.map((name) => {
-    const state = moduleState(app.rules, c, name, overrides);
+    const state = moduleState(app.rules, c, name, app.overrides);
     if (!state.available) return null;
     if (state.choosable) {
       return h('label.check.variant', { title: rs.variantNotes?.[name] || '' },
@@ -526,35 +566,21 @@ function variantsStrip() {
         }),
         h('span', { text: MODULE_LABELS[name] }));
     }
-    // Locked. Gestalt under Antaera is the DM's; everywhere else the ruleset's.
-    const gmCanMove = name === 'gestalt' && state.lockedBy === 'gm' && (!remote.enabled() || app.user?.gm);
-    if (gmCanMove) {
-      return h('label.check.variant.is-gm', { title: 'The DM’s switch for the whole campaign.' },
-        h('input', {
-          type: 'checkbox',
-          checked: state.on,
-          onchange: async (ev) => {
-            app.campaign.gestalt = ev.target.checked;
-            local.setCampaign(app.campaign);
-            if (remote.enabled()) await remote.setCampaign({ gestalt: app.campaign.gestalt }).catch(() => {});
-            openSheet(c.id, { keepScroll: true });
-          },
-        }),
-        h('span', { text: `${MODULE_LABELS[name]} (DM)` }));
-    }
     return h(`span.variant-locked${state.on ? '.is-on' : ''}`, {
-      title: state.lockedBy === 'gm' ? 'Set by the DM.' : `Set by the ${rs.name} rules.`,
+      title: campaign && name in app.overrides ? `Set by ${campaign.name}.` : `Set by the ${rs.name} rules.`,
     }, `${MODULE_LABELS[name]}: ${state.on ? 'on' : 'off'}`);
   }).filter(Boolean);
 
   return h('div.variants',
     h('div.variants-rules',
       h('span.label', { text: 'Rules' }),
-      rulesetToggle(c.ruleset, switchRuleset),
-      h('span.hint', { text: rs.tagline })),
+      rulesetToggle(c.ruleset, switchRuleset, { disabled: Boolean(campaign) }),
+      campaign
+        ? h('span.hint', {}, 'Set by ', h('a', { href: `#/campaign/${campaign.id}`, text: campaign.name }), '.')
+        : h('span.hint', { text: rs.tagline })),
     modules.length
       ? h('div.variants-modules',
-        h('span.label', { text: rs.variantsChosenBy === 'player' ? 'Variants' : 'In play' }),
+        h('span.label', { text: campaign ? 'At this table' : rs.variantsChosenBy === 'player' ? 'Variants' : 'In play' }),
         modules)
       : null);
 }
@@ -632,7 +658,7 @@ function onEdit(path, value, el, ev) {
 }
 
 function recompute() {
-  app.derived = derive(app.character, app.rules, { overrides: overridesFor(app.character) });
+  app.derived = derive(app.character, app.rules, { overrides: app.overrides });
   const root = document.getElementById('main');
   paint(root, app.derived);
   paintNotices();
