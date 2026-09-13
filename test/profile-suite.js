@@ -67,6 +67,27 @@ export function buildProfileSuite() {
     t.ok(p.created, 'with the day the account was made');
   });
 
+  test('signing in never changes an account’s name or picture, with either provider', async (t) => {
+    people.google = withPicture(googler('g-1', 'Ada', 'ada@example.com'), 'https://pics.test/first.png');
+    const first = await signIn('google');
+    const made = (await call('GET', '/api/profile', { token: first.token })).data;
+    t.eq([made.name, made.avatar], ['Ada', 'https://pics.test/first.png'], 'the account starts from the sign-in that made it');
+
+    people.google = withPicture(googler('g-1', 'Ada Renamed', 'ada@example.com'), 'https://pics.test/changed.png');
+    const again = await signIn('google');
+    const after = (await call('GET', '/api/profile', { token: again.token })).data;
+    t.eq([after.name, after.avatar], ['Ada', 'https://pics.test/first.png'], 'a later Google sign-in changes neither');
+    t.eq([after.signIns[0].name, after.signIns[0].avatar], ['Ada Renamed', 'https://pics.test/changed.png'], 'though the sign-in keeps what Google now says, for Settings to offer');
+
+    const { link } = (await call('POST', '/auth/link', { token: again.token })).data;
+    people.discord = { ...discorder('d-9', 'AdaOnDiscord'), avatar: 'abc' };
+    await signIn('discord', { link });
+    people.discord = { ...discorder('d-9', 'AdaOnDiscord'), avatar: 'abc' };
+    const viaDiscord = await signIn('discord');
+    const linked = (await call('GET', '/api/profile', { token: viaDiscord.token })).data;
+    t.eq([linked.id, linked.name, linked.avatar], [made.id, 'Ada', 'https://pics.test/first.png'], 'nor does linking Discord, or signing in with it');
+  });
+
   test('a chosen username is kept through sign-in, and shows wherever the name does', async (t) => {
     const ada = await account(googler('g-1', 'Ada', 'ada@example.com'));
     const changed = await call('PUT', '/api/profile', { token: ada.token, body: { name: '  Ada   Lovelace ' } });
@@ -94,7 +115,7 @@ export function buildProfileSuite() {
     t.eq((await call('PUT', '/api/profile', { token: ada.token, body: { name: 'ADA' } })).status, 200, 'your own name, recapitalised, is yours');
   });
 
-  test('a picture: uploaded, a sign-in’s, or none - and sign-in respects the choice', async (t) => {
+  test('a picture: uploaded, a sign-in’s, or none - and sign-in changes none of them', async (t) => {
     const ada = await account(withPicture(googler('g-1', 'Ada', 'ada@example.com'), 'https://pics.test/google.png'));
     const signBackIn = async (picture) => {
       people.google = withPicture(googler('g-1', 'Ada', 'ada@example.com'), picture);
@@ -115,7 +136,9 @@ export function buildProfileSuite() {
 
     const theirs = await call('PUT', '/api/profile', { token: ada.token, body: { picture: 'provider', provider: 'google' } });
     t.eq([theirs.data.avatar, theirs.data.picture], ['https://pics.test/google-3.png', 'provider:google']);
-    t.eq((await signBackIn('https://pics.test/google-4.png')).avatar, 'https://pics.test/google-4.png', 'a sign-in’s picture follows that sign-in');
+    t.eq((await signBackIn('https://pics.test/google-4.png')).avatar, 'https://pics.test/google-3.png', 'a sign-in’s picture is copied when chosen, and not changed by signing in again');
+    const again = await call('PUT', '/api/profile', { token: ada.token, body: { picture: 'provider', provider: 'google' } });
+    t.eq(again.data.avatar, 'https://pics.test/google-4.png', 'choosing it again takes the newest');
   });
 
   test('preferences are kept with the account, and arrive with /api/me', async (t) => {

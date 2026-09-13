@@ -170,7 +170,7 @@ function profileSection(p, ways, redraw) {
     },
   });
   const pictureChoices = [
-    button('Upload a picture', () => file.click(), { title: 'A square is cut from the middle, and made small.' }),
+    button('Upload a picture', () => file.click(), { title: 'A square is cut from the middle, and made small. Signing in never changes it.' }),
     ...p.signIns.filter((s) => s.avatar).map((s) => button(`Use my ${PROVIDER_LABELS[s.provider]} picture`,
       () => save({ picture: 'provider', provider: s.provider }, `Using your ${PROVIDER_LABELS[s.provider]} picture.`), { subtle: true })),
     p.avatar ? button('Remove picture', () => save({ picture: 'none' }, 'Picture removed. Your initials show instead.'), { subtle: true }) : null,

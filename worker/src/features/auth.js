@@ -201,23 +201,12 @@ async function attachIdentity(env, provider, profile, linkUserId) {
   // until an admin takes it away. Linking does not rename the account.
   const current = (await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first())?.role || 'player';
   const role = higher(current, await accountFloor(env, userId) || 'player');
-  // A name the player chose is theirs, and sign-in leaves it be. The picture
-  // follows their choice: the last sign-in's (unset), or this provider's if they
-  // picked it; an upload or no picture stays as it is.
-  if (linkUserId) {
-    await env.DB.prepare(
-      `UPDATE users SET role = ?, last_seen = ?,
-         avatar = CASE WHEN picture = 'provider:' || ? THEN ? ELSE avatar END
-       WHERE id = ?`
-    ).bind(role, now(), provider, profile.avatar, userId).run();
-  } else {
-    await env.DB.prepare(
-      `UPDATE users SET role = ?, last_seen = ?,
-         name = CASE WHEN name_custom = 1 THEN name ELSE ? END,
-         avatar = CASE WHEN picture IS NULL OR picture = 'provider:' || ? THEN ? ELSE avatar END
-       WHERE id = ?`
-    ).bind(role, now(), profile.name, provider, profile.avatar, userId).run();
-  }
+  // An account's name and picture are set once, from the sign-in that made it.
+  // Signing in again - with that provider or another linked to the account -
+  // never changes them; only the player does, from Settings. The provider's
+  // current name and picture are kept on the identity above, so Settings can
+  // offer them.
+  await env.DB.prepare('UPDATE users SET role = ?, last_seen = ? WHERE id = ?').bind(role, now(), userId).run();
   return userId;
 }
 

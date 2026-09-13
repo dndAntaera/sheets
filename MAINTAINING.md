@@ -317,12 +317,16 @@ A role change applies at once, to sessions already open.
 Every account has a profile (`#/profile`) and a Settings page (`#/settings`),
 both reached from the account menu.
 
-- **Username.** Starts as the provider's name. A player may choose their own
-  (`checkUsername` in `web/engine/preferences.js`: 2-32 letters and numbers,
-  with a little punctuation between); it must not match another account's name,
-  whatever the capitals. Once chosen, sign-in no longer changes it.
-- **Picture.** The last sign-in's by default; or one sign-in's, which then
-  follows that sign-in; or one uploaded - the app cuts a 256-pixel square and
+- **Set once.** An account's name and picture come from the sign-in that made
+  it, and signing in again - with either provider - never changes them. Each
+  sign-in's current name and picture are kept on its identity, for Settings to
+  offer.
+- **Username.** A player may choose their own (`checkUsername` in
+  `web/engine/preferences.js`: 2-32 letters and numbers, with a little
+  punctuation between); it must not match another account's name, whatever the
+  capitals.
+- **Picture.** The one the account was made with; or a sign-in's current one,
+  copied when chosen; or one uploaded - the app cuts a 256-pixel square and
   sends it as a small WebP or JPEG data URL, and the server keeps only PNG, JPEG
   or WebP data of at most 200,000 characters; or none, when initials show.
 - **Appearance.** Theme, accent colour, text size and motion, described in
