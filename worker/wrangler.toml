@@ -24,6 +24,10 @@ migrations_dir = "migrations"
 SITE_ORIGIN = "https://dndantaera.github.io"
 SITE_PATH = "/sheets/"
 
+# Which sign-in providers to offer, comma separated: "google", "discord", or
+# "google,discord". A provider also needs its secrets (below) to appear.
+SIGN_IN_WITH = "google"
+
 # Roles: player < gm < admin, each with everything below it.
 #   player  their own characters and homebrew; joins campaigns by invitation
 #   gm      also starts campaigns and runs them - the characters in them, the
@@ -34,14 +38,21 @@ SITE_PATH = "/sheets/"
 # account named here becomes at least that role when it signs in, and cannot be
 # lowered below it from the app. Name at least one admin, or nobody can manage
 # accounts. Taking someone off a list does not demote them; an admin does that.
+#
+# Discord ids are harmless to publish, so they live here. Email addresses do not
+# belong in a public repository: ADMIN_GOOGLE_EMAILS and GM_GOOGLE_EMAILS are
+# SECRETS, set in Cloudflare (Worker -> Settings -> Variables and Secrets, type
+# Secret) or with `wrangler secret put`, and must not also appear in this file.
+# The Discord lists only count while Discord is in SIGN_IN_WITH.
 ADMIN_DISCORD_IDS = "176820142347517952"     # Discord user ids, comma separated
-ADMIN_GOOGLE_EMAILS = ""   # Google account emails, comma separated (verified only)
 GM_DISCORD_IDS = ""
-GM_GOOGLE_EMAILS = ""
 
 # Secrets, not vars. Set whichever providers you use; a provider with no
 # secrets simply does not appear on the sign-in menu.
-#   wrangler secret put DISCORD_CLIENT_ID --config worker/wrangler.toml
-#   wrangler secret put DISCORD_CLIENT_SECRET --config worker/wrangler.toml
 #   wrangler secret put GOOGLE_CLIENT_ID --config worker/wrangler.toml
 #   wrangler secret put GOOGLE_CLIENT_SECRET --config worker/wrangler.toml
+#   wrangler secret put ADMIN_GOOGLE_EMAILS --config worker/wrangler.toml
+#   wrangler secret put GM_GOOGLE_EMAILS --config worker/wrangler.toml   (optional)
+# Only if Discord is switched on in SIGN_IN_WITH:
+#   wrangler secret put DISCORD_CLIENT_ID --config worker/wrangler.toml
+#   wrangler secret put DISCORD_CLIENT_SECRET --config worker/wrangler.toml

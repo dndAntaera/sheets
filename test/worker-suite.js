@@ -144,6 +144,24 @@ export function buildWorkerSuite() {
     }
   });
 
+  test('a provider switched off by SIGN_IN_WITH is not offered, started or finished', async (t) => {
+    const begun = await call('GET', `/auth/start?provider=discord&nonce=${nonce()}`);
+    const state = new URL(begun.location).searchParams.get('state');
+    env.SIGN_IN_WITH = 'google';
+    try {
+      t.eq((await call('GET', '/auth/providers')).data, { discord: false, google: true });
+      const start = await call('GET', `/auth/start?provider=discord&nonce=${nonce()}`);
+      t.ok(start.location.endsWith('#/sign-in-failed/provider-unavailable'), 'cannot be started');
+      people.discord = discorder('d-off', 'Switched Off');
+      const finish = await call('GET', `/auth/callback/discord?code=abc&state=${state}`);
+      t.ok(finish.location.endsWith('#/sign-in-failed/provider-unavailable'), 'a sign-in under way cannot finish');
+      const google = await call('GET', `/auth/start?provider=google&nonce=${nonce()}`);
+      t.eq(new URL(google.location).origin, 'https://accounts.google.com', 'Google still starts');
+    } finally {
+      delete env.SIGN_IN_WITH;
+    }
+  });
+
   test('signing in with Google sends the player to Google with the right request', async (t) => {
     const start = await call('GET', `/auth/start?provider=google&nonce=${nonce()}`);
     t.eq(start.status, 302);

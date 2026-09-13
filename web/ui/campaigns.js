@@ -336,7 +336,7 @@ function invitesBlock(campaign, attempt, say) {
 
   return h('section.campaign-section',
     h('h2', { text: 'Invitations' }),
-    h('p.hint', { text: 'Send the link, or the code. Whoever opens it signs in with Google or Discord and joins.' }),
+    h('p.hint', { text: 'Send the link, or the code. Whoever opens it signs in and joins.' }),
     create,
     active.length
       ? h('ul.plain-list.invites', active.map((i) => h('li',

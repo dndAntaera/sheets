@@ -206,7 +206,8 @@ link; if Open Game Content from a new source is added, add its notice there. See
 ## The server
 
 Optional. Without it the app is complete and everything lives in the browser.
-With it, players sign in with **Google or Discord**, and their characters and
+With it, players sign in with **Google** (Discord is supported, and switched off
+for now - see `SIGN_IN_WITH` below), and their characters and
 homebrew library are kept under their account.
 
 ### Accounts
@@ -315,7 +316,12 @@ character as a player, those characters in it, and gestalt as it was.
    `https://<your-worker>.workers.dev/auth/callback/google`. The scopes used are
    `openid`, `email` and `profile`. Set the consent screen to *External* and
    publish it, or only test users can sign in.
-3. **Discord**, if wanted: an application at
+   Which providers are offered is `SIGN_IN_WITH` in `worker/wrangler.toml`,
+   currently `"google"`. A provider needs to be listed there **and** have its
+   secrets. Switching one off also stops any sign-in with it already under way;
+   accounts that signed in with it keep their data, and reach it through any
+   other provider they linked.
+3. **Discord**, if switched on: an application at
    <https://discord.com/developers/applications>, with OAuth2 redirects of
    `https://<your-worker>.workers.dev/auth/callback/discord` and - for an
    application registered before Google was added - the old
@@ -330,8 +336,11 @@ character as a player, those characters in it, and gestalt as it was.
    ```
 
    A provider without its secrets simply does not appear on the sign-in menu.
-   In `worker/wrangler.toml`, name at least one admin - your own Discord id in
-   `ADMIN_DISCORD_IDS`, or your Google address in `ADMIN_GOOGLE_EMAILS`.
+   Name at least one admin. With Google, that is your address in the
+   `ADMIN_GOOGLE_EMAILS` **secret** (`GM_GOOGLE_EMAILS` likewise) - a secret, so
+   addresses stay out of this public repository, and never also a var in
+   `wrangler.toml`, or Cloudflare refuses the duplicate name. Discord ids go in
+   `ADMIN_DISCORD_IDS` in `wrangler.toml`, and count only while Discord is on.
    Everyone else can then be given a role from the Accounts page; the `GM_*`
    lists are there if you would rather set GMs in configuration.
 5. **Deploy.** Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to the

@@ -73,7 +73,7 @@ files, for sharing a table's homebrew in one go.
 
 ## Using it
 
-Characters are saved as you type. **Sign in with Google or Discord** and your
+Characters are saved as you type. **Sign in with Google** and your
 characters and homebrew are kept with your account, on every device you use —
 and either sign-in can be added to the same account. Without signing in, the
 app is still complete: everything stays in the browser and travels as exported

@@ -109,8 +109,22 @@ function floorFor(env, setting, value) {
   return null;
 }
 
+/**
+ * Whether a provider is switched on in the server's settings. SIGN_IN_WITH
+ * lists the providers to offer ("google", or "google,discord"); left unset,
+ * every provider with secrets is offered. A provider switched off cannot be
+ * started, and a sign-in already under way with it cannot be finished.
+ */
+const switchedOn = (env, name) => env.SIGN_IN_WITH === undefined || list(env.SIGN_IN_WITH).includes(name);
+
+/** A provider that is switched on and has its secrets, or null. */
+const offered = (env, name) => {
+  const provider = Object.hasOwn(PROVIDERS, name) ? PROVIDERS[name] : null;
+  return provider && switchedOn(env, name) && provider.ready(env) ? provider : null;
+};
+
 export function configuredProviders(env) {
-  return Object.fromEntries(Object.entries(PROVIDERS).map(([name, p]) => [name, p.ready(env)]));
+  return Object.fromEntries(Object.keys(PROVIDERS).map((name) => [name, Boolean(offered(env, name))]));
 }
 
 const callbackUrl = (url, provider) => new URL(`/auth/callback/${provider}`, url.origin).toString();
@@ -179,8 +193,8 @@ async function attachIdentity(env, provider, profile, linkUserId) {
 
 async function start({ env, url }) {
   const providerName = url.searchParams.get('provider') || 'discord';
-  const provider = PROVIDERS[providerName];
-  if (!provider || !provider.ready(env)) return failBack(env, 'provider-unavailable');
+  const provider = offered(env, providerName);
+  if (!provider) return failBack(env, 'provider-unavailable');
 
   const nonce = url.searchParams.get('nonce') || '';
   if (!/^[a-f0-9]{32,128}$/.test(nonce)) return failBack(env, 'bad-request');
@@ -208,8 +222,8 @@ async function start({ env, url }) {
 
 async function callback({ env, url, params }) {
   const providerName = params.provider || 'discord';
-  const provider = PROVIDERS[providerName];
-  if (!provider?.ready(env)) return failBack(env, 'provider-unavailable');
+  const provider = offered(env, providerName);
+  if (!provider) return failBack(env, 'provider-unavailable');
   if (url.searchParams.get('error')) return failBack(env, 'cancelled');
 
   const request = await takeCode(env, 'state', url.searchParams.get('state'));

@@ -32,7 +32,8 @@ Section 15 notice to the wiki's legal page in the same change.
 
 ## Accounts and what players store
 
-Players may sign in with Google or Discord. The server stores the provider's
+Players sign in with Google. (The server also supports Discord, switched off
+with `SIGN_IN_WITH`; if it is switched back on, the privacy policy must say so.) The server stores the provider's
 user id, a display name and avatar URL, a role (player, GM or admin), and each
 player's characters and homebrew. Email addresses are read at sign-in and not stored. There is no
 password.
@@ -49,7 +50,7 @@ Accounts page, and the account's sign-ins, characters and homebrew go with it.
 
 The **Privacy Policy** and **Terms of Service** are two cards on this site's own
 Legal page, `web/legal/index.html`, linked from the footer and given to Google
-and Discord as the app's policy links:
+as the app's policy links:
 
 - <https://dndantaera.github.io/sheets/legal/#privacy-policy>
 - <https://dndantaera.github.io/sheets/legal/#terms-of-service>
