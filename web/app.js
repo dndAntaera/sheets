@@ -23,6 +23,7 @@ import { showContent } from './ui/content.js';
 import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
 import { showLanding } from './ui/landing.js';
+import { showReference } from './ui/reference.js';
 import { showProfile, showSettings, avatarFor } from './ui/profile.js';
 import { applyAppearance, adoptAccountAppearance, setAppearance, isDark } from './ui/appearance.js';
 import { config } from './config.js';
@@ -334,7 +335,7 @@ function footer() {
   return h('footer.legal',
     h('p', { text: 'Unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.' }),
     h('p',
-      'Class, skill and race rules are Open Game Content from the System Reference Document, used under the Open Game License v1.0a. ',
+      'Rules, classes, races, skills, spells, powers, feats and equipment are Open Game Content from the System Reference Document, used under the Open Game License v1.0a. ',
       h('a', { href: config.legalUrl, target: '_blank', rel: 'noopener', text: 'License and legal information' }),
       '.'),
     h('p',
@@ -409,6 +410,12 @@ const VIEWS = [
   { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
   { match: /^admin$/, nav: 'admin', title: 'Accounts', show: () => showAdmin(main(), app) },
   {
+    match: /^reference(?:\/([a-z]+))?(?:\/(.+))?$/,
+    nav: 'reference',
+    title: 'Reference',
+    show: ([kind, name]) => (signedIn() ? showReference(main(), app, kind, name ? decodeURIComponent(name) : null) : signInPage('Reference', 'Sign in to browse the SRD reference: spells, powers, feats, classes, domains and equipment.')),
+  },
+  {
     match: /^profile(?:\/([^/]+))?$/,
     nav: 'profile',
     title: 'Profile',
@@ -430,6 +437,7 @@ const NAV = [
   { key: 'roster', label: 'Characters', href: '#/characters', visible: () => signedIn() },
   { key: 'campaigns', label: 'Campaigns', href: '#/campaigns', visible: () => Boolean(app.user) },
   { key: 'content', label: 'Content', href: '#/content', visible: () => signedIn() },
+  { key: 'reference', label: 'Reference', href: '#/reference', visible: () => signedIn() },
   { key: 'admin', label: 'Accounts', href: '#/admin', visible: () => Boolean(app.user?.admin) },
 ];
 

@@ -780,6 +780,33 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 @media print { .landing { display: none; } }
 
 /* ---------------------------------------------------------------------------
+   Reference - the SRD's entries, and the card that shows one (ui/reference.js)
+   --------------------------------------------------------------------------- */
+
+.reference-filters { display: flex; flex-direction: column; gap: var(--sp-2); }
+.reference-filter { display: flex; flex-direction: column; gap: .15rem; }
+.reference-count { margin: 0; }
+.reference-list { max-height: 70vh; overflow-y: auto; }
+.reference-detail { min-width: 0; }
+.reference-card { display: flex; flex-direction: column; gap: var(--sp-3); line-height: var(--leading); min-width: 0; }
+.reference-head h2 { margin: 0; font: 600 1.35rem/1.2 var(--font-display); }
+.reference-subtitle { margin: .2rem 0 0; color: var(--ink-soft); font-style: italic; }
+.reference-block { display: grid; gap: .15rem; padding: var(--sp-2) var(--sp-3); background: var(--surface-sunk); border: var(--hair) solid var(--rule); border-radius: var(--radius); }
+.reference-line { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: var(--sp-2); font-size: var(--text-small); }
+.reference-label { font-weight: 600; color: var(--ink-soft); }
+.reference-text p, .reference-augment p { margin: 0 0 var(--sp-2); }
+.reference-text table, .reference-full table { border-collapse: collapse; font-size: var(--text-small); margin: var(--sp-2) 0; display: block; overflow-x: auto; }
+.reference-text td, .reference-text th, .reference-full td, .reference-full th { border: var(--hair) solid var(--rule); padding: .15rem .4rem; }
+.reference-augment { padding: var(--sp-2) var(--sp-3); border-left: 2px solid var(--accent); background: var(--surface-sunk); }
+.reference-note { margin: 0; font-size: var(--text-small); }
+.reference-table { border-collapse: collapse; font-size: var(--text-small); width: 100%; }
+.reference-table th, .reference-table td { border-bottom: var(--hair) solid var(--rule); padding: .2rem .4rem; text-align: left; white-space: nowrap; }
+.reference-table td:nth-child(6) { white-space: normal; min-width: 12rem; }
+.reference-domain-spells { margin: 0; padding-left: 1.5rem; }
+.reference-full summary { cursor: pointer; color: var(--link); }
+@media (max-width: 34rem) { .reference-line { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+
+/* ---------------------------------------------------------------------------
    The character creator - a wizard over the sheet's own panels (ui/wizard.js)
    --------------------------------------------------------------------------- */
 

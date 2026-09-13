@@ -23,6 +23,11 @@ game mechanics taken from the 3.5 System Reference Document:
 - `web/data/races.json` — the core races
 - `web/data/core.json` — sizes, the point-buy table, the standard array, bonus
   types and wealth by level
+- `web/data/srd/` — every spell, psionic power, feat, class and class table,
+  domain and piece of equipment in the SRD, built by `scripts/build-srd.py` from
+  Andargor's SRD 3.5 database (SQLite conversion by highmage), whose Section 15
+  lines are on the Antæra Wiki's legal page with the SRD's, the Expanded
+  Psionics Handbook's and Unearthed Arcana's
 
 The app's code, the Antæra ruleset (`web/data/rulesets/antaera.json`) and the
 campaign's backgrounds are not Open Game Content; they are the owner's own.
