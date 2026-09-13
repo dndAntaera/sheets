@@ -24,6 +24,7 @@ import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
 import { showLanding } from './ui/landing.js';
 import { showReference } from './ui/reference.js';
+import { SHEET_PAGES, pageFor, pageForNotice, sheetTabs } from './ui/sheet-pages.js';
 import { showProfile, showSettings, avatarFor } from './ui/profile.js';
 import { applyAppearance, adoptAccountAppearance, setAppearance, isDark } from './ui/appearance.js';
 import { config } from './config.js';
@@ -32,6 +33,9 @@ import {
 } from './store.js';
 
 const PANELS = {
+  variants: () => h('section.panel', { id: 'panel-variants', dataset: { panel: 'variants' } },
+    h('h2.panel-title', h('span', { text: 'Rules for this character' })),
+    h('div.panel-body', variantsStrip())),
   identity: identityPanel,
   levels: levelsPanel,
   abilities: abilitiesPanel,
@@ -398,7 +402,7 @@ function refreshDatalists() {
 const main = () => document.getElementById('main');
 
 const VIEWS = [
-  { match: /^sheet\/([^/]+)$/, nav: 'roster', show: ([id]) => (signedIn() ? openSheet(id) : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)) },
+  { match: /^sheet\/([^/]+)(?:\/([a-z]+))?$/, nav: 'roster', show: ([id, page]) => (signedIn() ? openSheet(id, { page }) : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)) },
   {
     match: /^create\/([^/]+)(?:\/([^/]+))?$/,
     nav: 'roster',
@@ -443,9 +447,12 @@ const NAV = [
 
 function route() {
   const address = location.hash.replace(/^#\/?/, '');
+  // An edit still waiting to be saved is saved before the next page reads the character.
+  if (app.character && saveTimer) flush();
   app.unbind?.();
   app.unbind = null;
   app.wizard = null;
+  app.page = null;
   const view = VIEWS.find((v) => v.match.test(address)) || VIEWS[VIEWS.length - 1];
   const params = address.match(view.match)?.slice(1) || [];
   markNav(view.nav);
@@ -749,18 +756,23 @@ async function openSheet(id, opts = {}) {
   }
   app.wizard = null;
 
+  // One page of the sheet: its panels, and the tabs to the others.
+  const page = pageFor(opts.page);
+  app.page = page;
+  const keys = page.panels || Object.keys(PANELS);
   app.panels = {};
   const sheet = h('div.sheet');
-  for (const [key, build] of Object.entries(PANELS)) {
-    const panelEl = build(app);
+  for (const key of keys) {
+    const panelEl = PANELS[key]?.(app);
     if (!panelEl) continue;
     app.panels[key] = panelEl;
     sheet.append(panelEl);
   }
+  if (!sheet.children.length) sheet.append(h('p.empty', { text: 'Nothing on this page for this character yet.' }));
 
   refill(main,
     h('div.sheet-layout',
-      h('div.sheet-main', sheetToolbar(), variantsStrip(), sheet),
+      h('div.sheet-main', sheetToolbar(), sheetTabs(app.character.id, page.key, app.derived), sheet),
       h('aside#notices.notices')));
 
   app.unbind = bindForm(main, () => app.character, onEdit);
@@ -772,7 +784,7 @@ async function openSheet(id, opts = {}) {
 async function reopen() {
   if (!app.character) return;
   await flush();
-  openSheet(app.character.id, { keepScroll: true, wizard: app.wizard?.step });
+  openSheet(app.character.id, { keepScroll: true, wizard: app.wizard?.step, page: app.page?.key });
 }
 
 /** What the wizard needs from the app. See ui/wizard.js. */
@@ -825,7 +837,11 @@ function sheetToolbar() {
       local.save(copy);
       location.hash = `#/sheet/${copy.id}`;
     }, { subtle: true, title: 'A copy of your own, outside any campaign.' }) : null,
-    button('Print', () => window.print(), { subtle: true }));
+    button('Print', () => {
+      if (app.page?.key === 'all') { window.print(); return; }
+      location.hash = `#/sheet/${app.character.id}/all`;
+      setTimeout(() => window.print(), 600);
+    }, { subtle: true, title: 'Opens the full sheet and prints it.' }));
 }
 
 /**
@@ -990,13 +1006,15 @@ function paintNotices() {
   const order = { error: 0, warn: 1, info: 2 };
   const all = [...app.derived.notices].sort((a, b) => order[a.level] - order[b.level]);
   // In the wizard, the rail speaks for the step on screen; the review, for every step.
-  const stepFields = app.wizard ? WIZARD_STEPS.find((s) => s.key === app.wizard.step)?.notices : null;
+  const stepFields = app.wizard ? WIZARD_STEPS.find((s) => s.key === app.wizard.step)?.notices : app.page?.notices || null;
   const notices = stepFields ? all.filter((n) => stepFields.includes(n.field)) : all;
+  // A notice about something drawn on this page belongs here, whatever page lists it first.
+  if (stepFields && !app.wizard) for (const n of all) if (!notices.includes(n) && app.panels[NOTICE_PANEL[n.field] || n.field]) notices.push(n);
   const elsewhere = stepFields ? all.length - notices.length : 0;
   const counts = notices.reduce((acc, n) => ({ ...acc, [n.level]: (acc[n.level] || 0) + 1 }), {});
 
   refill(rail,
-    h('h2.notices-title', { text: app.wizard ? (stepFields ? 'This step' : 'Still to do') : 'The sheet says' }),
+    h('h2.notices-title', { text: app.wizard ? (stepFields ? 'This step' : 'Still to do') : stepFields ? 'On this page' : 'The sheet says' }),
     h('p.notices-tally', { text: notices.length
       ? [
         counts.error ? `${counts.error} to fix` : null,
@@ -1004,7 +1022,11 @@ function paintNotices() {
         counts.info ? `${counts.info} to finish` : null,
       ].filter(Boolean).join(', ')
       : 'Nothing outstanding.' }),
-    elsewhere ? h('p.hint', { text: `${elsewhere} more for other steps; the review lists them all.` }) : null,
+    elsewhere
+      ? h('p.hint', app.wizard
+        ? { text: `${elsewhere} more for other steps; the review lists them all.` }
+        : {}, app.wizard ? null : [`${elsewhere} more on other pages. `, h('a', { href: `#/sheet/${app.character.id}/all`, text: 'See them all' }), '.'])
+      : null,
     h('ul.notice-list', notices.map((n) => h(`li.notice.${n.level}`,
       h('a', {
         href: `#panel-${n.field}`,
@@ -1014,6 +1036,10 @@ function paintNotices() {
           const target = app.panels[NOTICE_PANEL[n.field] || n.field];
           if (!target && app.wizard) {
             location.hash = `#/create/${app.character.id}/${stepForNotice(n.field)}`;
+            return;
+          }
+          if (!target && app.page) {
+            location.hash = `#/sheet/${app.character.id}/${pageForNotice(n.field)}`;
             return;
           }
           if (!target) return;

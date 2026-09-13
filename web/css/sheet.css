@@ -779,6 +779,22 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 }
 @media print { .landing { display: none; } }
 
+/* The sheet's pages: a row of tabs under the toolbar (ui/sheet-pages.js). */
+.sheet-tabs { display: flex; gap: var(--sp-1); overflow-x: auto; margin: 0 0 var(--gap); padding-bottom: var(--sp-1); border-bottom: var(--hair) solid rgba(215, 220, 237, .14); }
+.sheet-tab {
+  flex: none;
+  padding: .45rem .8rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--sky-ink-dim);
+  text-decoration: none;
+  font-size: var(--text-small);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.sheet-tab:hover { color: var(--sky-ink); }
+.sheet-tab.is-active { color: var(--sky-ink); border-bottom-color: var(--accent); font-weight: 600; }
+@media print { .sheet-tabs { display: none; } }
+
 /* ---------------------------------------------------------------------------
    Reference - the SRD's entries, and the card that shows one (ui/reference.js)
    --------------------------------------------------------------------------- */
