@@ -5,22 +5,24 @@ character, and the sheet keeps the arithmetic.
 
 **Open it at [dndantaera.github.io/sheets](https://dndantaera.github.io/sheets)**
 
-## Two rulesets, SRD first
+## Two rulesets, SRD for everyone
 
-Every character is built under a ruleset, chosen with a toggle on the roster
-and switchable on the sheet at any time:
+Every character is built under a ruleset. Anyone signed in can build under the
+SRD; Antæra is played only in a campaign, which a player joins by invitation.
+No one picks a campaign from a list.
 
-- **SRD** — the default. The 3.5 SRD as published: every SRD class, skill and
+- **SRD** — public, and the default. The 3.5 SRD as published: every SRD class, skill and
   core race, 1st-level start, point buy at the budget you pick, and no campaign
   restrictions. The Unearthed Arcana variants — gestalt, action points, traits
   and flaws — are there for tables that use them, off until a player ticks them.
-- **Antæra** — the campaign documented in the
+- **Antæra** — campaigns only. The campaign documented in the
   [Antæra Wiki](https://dndantaera.github.io/antaera-wiki/). 3rd-level start,
   30-point buy, gestalt set by the campaign's GM, action points, taint,
   backgrounds, training time, and the campaign's limits on wealth and level
   adjustment.
 
-Switching never loses anything typed; it changes which rules read it.
+A character brought into an Antæra campaign plays by Antæra's rules while it is
+there. Changing rules never loses anything typed; it changes which rules read it.
 
 ## What it works out
 
@@ -73,11 +75,10 @@ files, for sharing a table's homebrew in one go.
 
 ## Using it
 
-Characters are saved as you type. **Sign in with Google** and your
-characters and homebrew are kept with your account, on every device you use —
-and either sign-in can be added to the same account. Without signing in, the
-app is still complete: everything stays in the browser and travels as exported
-files.
+**Sign in with Google to create a character.** Characters are saved as you
+type and kept with your account, on every device you use, along with your
+homebrew. Characters made in a browser before signing in was required still
+open there.
 
 The server is a Cloudflare Worker with a D1 database.
 

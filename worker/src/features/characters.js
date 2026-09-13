@@ -7,7 +7,7 @@
 
 import { fail, json, noContent, now } from '../http.js';
 import { campaignRole, characterAccess, characterCan } from '../policy.js';
-import { isRuleset } from '../rulesets.js';
+import { DEFAULT_PUBLIC_RULESET, isPublicRuleset } from '../rulesets.js';
 
 const MAX_SHEET_BYTES = 512 * 1024;
 
@@ -59,12 +59,14 @@ async function loadCharacter({ env, user, params }) {
  * Store a sheet. The server does not judge whether a character is legal - a
  * half-built one must be savable - only who may write it. A sheet cannot move
  * itself into or out of a campaign by saving; that is the campaign routes' job.
- * In a campaign, it keeps the campaign's ruleset.
+ * In a campaign, it keeps the campaign's ruleset. Out of one, it may use a
+ * public ruleset, or keep the one it already has; it cannot move itself onto a
+ * ruleset that is only for campaigns.
  */
 async function saveCharacter({ env, user, params, body }) {
   const character = await body(MAX_SHEET_BYTES);
   const existing = await env.DB.prepare(
-    `SELECT c.owner, c.campaign_id, c.created, k.ruleset AS campaignRuleset
+    `SELECT c.owner, c.campaign_id, c.created, c.ruleset, k.ruleset AS campaignRuleset
        FROM characters c LEFT JOIN campaigns k ON k.id = c.campaign_id WHERE c.id = ?`
   ).bind(params.id).first();
 
@@ -77,7 +79,8 @@ async function saveCharacter({ env, user, params, body }) {
 
   const owner = existing ? existing.owner : user.id;
   const campaignId = existing?.campaign_id || null;
-  const ruleset = existing?.campaignRuleset || (isRuleset(character.ruleset) ? character.ruleset : 'srd');
+  const keeps = isPublicRuleset(character.ruleset) || (existing && character.ruleset === existing.ruleset);
+  const ruleset = existing?.campaignRuleset || (keeps ? character.ruleset : DEFAULT_PUBLIC_RULESET);
   const stamp = now();
 
   character.id = params.id;

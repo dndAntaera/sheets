@@ -10,6 +10,7 @@
     "bonus types, the buy table and everything else common to the edition."
   ],
   "id": "antaera",
+  "public": false,
   "name": "Antaera",
   "shortName": "Antaera",
   "tagline": "The world of Antaera, as the DM runs it.",

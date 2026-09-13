@@ -104,7 +104,20 @@ migrated to `antaera`, since that was the only ruleset then — see
    `engine/derive.js` (as `null` when off), and a panel section in
    `ui/sheet.js` that is drawn only when the module is on.
 
-The toggle picks new rulesets up by itself.
+The switches pick new rulesets up by themselves.
+
+**Public or campaign-only.** `"public": true` in a ruleset's file lets anyone
+build under it, from the roster. `"public": false` keeps it out of every
+switch: a character reaches it only by being brought into a campaign that uses
+it, and a player reaches such a campaign only by invitation. The server holds to
+the same flag - outside a campaign, a save cannot move a character onto a
+ruleset that is not public (one that already has it keeps it). Today the SRD is
+public and Antæra is not. With more than one public ruleset, the roster shows a
+switch between them; with one, it shows none.
+
+**Making a character takes signing in** when the app has a server (`apiBase`
+set): creating, importing and duplicating are offered only to a signed-in
+visitor. A build without a server has nobody to sign in to, and stays open.
 
 ### Keeping Antæra in step with the wiki
 
@@ -353,6 +366,10 @@ character as a player, those characters in it, and gestalt as it was.
    ```
 
 6. **Point the app at it:** set `apiBase` in `web/config.js` to the Worker's URL.
+7. **Check it:** open `https://<your-worker>.workers.dev/health`. Under
+   `signIn`, each provider says whether it is `offered`, whether it is
+   `switchedOn` in `SIGN_IN_WITH`, and which of its secrets are `missing`, by
+   name; `adminNamed` says whether any admin is listed. Values are never shown.
 
 Until step 6 the app is a complete local-only build.
 

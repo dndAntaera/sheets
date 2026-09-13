@@ -10,6 +10,7 @@
     "a campaign's imposition."
   ],
   "id": "srd",
+  "public": true,
   "name": "3.5 SRD",
   "shortName": "SRD",
   "tagline": "Third edition, revised. No house rules.",

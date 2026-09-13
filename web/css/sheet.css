@@ -617,6 +617,9 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 }
 .legal p { margin: 0 0 var(--sp-1); }
 
+/* The ruleset, named rather than switched, when there is nothing to switch to. */
+.ruleset-name { font-weight: 600; }
+
 /* The Legal page (web/legal/): one card per policy, read as prose. */
 .policy-page {
   max-width: 50rem;

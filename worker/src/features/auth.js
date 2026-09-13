@@ -57,7 +57,7 @@ async function sweepCodes(env) {
  */
 const PROVIDERS = {
   discord: {
-    ready: (env) => Boolean(env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET),
+    secrets: ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET'],
     clientId: (env) => env.DISCORD_CLIENT_ID,
     clientSecret: (env) => env.DISCORD_CLIENT_SECRET,
     authorize: 'https://discord.com/oauth2/authorize',
@@ -78,7 +78,7 @@ const PROVIDERS = {
   },
 
   google: {
-    ready: (env) => Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
+    secrets: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
     clientId: (env) => env.GOOGLE_CLIENT_ID,
     clientSecret: (env) => env.GOOGLE_CLIENT_SECRET,
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -117,14 +117,32 @@ function floorFor(env, setting, value) {
  */
 const switchedOn = (env, name) => env.SIGN_IN_WITH === undefined || list(env.SIGN_IN_WITH).includes(name);
 
+/** The names of a provider's secrets that are not set. Names only, never values. */
+const missingSecrets = (env, provider) => provider.secrets.filter((key) => !String(env[key] ?? '').trim());
+
 /** A provider that is switched on and has its secrets, or null. */
 const offered = (env, name) => {
   const provider = Object.hasOwn(PROVIDERS, name) ? PROVIDERS[name] : null;
-  return provider && switchedOn(env, name) && provider.ready(env) ? provider : null;
+  return provider && switchedOn(env, name) && !missingSecrets(env, provider).length ? provider : null;
 };
 
 export function configuredProviders(env) {
   return Object.fromEntries(Object.keys(PROVIDERS).map((name) => [name, Boolean(offered(env, name))]));
+}
+
+/**
+ * Why each provider is or is not offered, for /health: whether it is switched
+ * on, and which of its settings are missing, by name. Nothing here is secret -
+ * it says a setting is absent, never what a present one holds.
+ */
+export function signInSetup(env) {
+  const report = Object.fromEntries(Object.entries(PROVIDERS).map(([name, provider]) => [name, {
+    offered: Boolean(offered(env, name)),
+    switchedOn: switchedOn(env, name),
+    missing: missingSecrets(env, provider),
+  }]));
+  const named = ['ADMIN_GOOGLE_EMAILS', 'ADMIN_DISCORD_IDS'].some((key) => list(env[key]).length);
+  return { ...report, adminNamed: named };
 }
 
 const callbackUrl = (url, provider) => new URL(`/auth/callback/${provider}`, url.origin).toString();

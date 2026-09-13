@@ -141,6 +141,33 @@ async function connect() {
   }
 }
 
+/**
+ * Rulesets anyone may build under, outside a campaign (`"public": true` in the
+ * ruleset's file). The others are reached only by being invited to a campaign
+ * that uses them.
+ */
+const publicRulesets = () => RULESET_IDS.filter((id) => app.baseRules.rulesets[id]?.public);
+
+/**
+ * Whether this visitor may make a character. With a server, that takes signing
+ * in; a build with no server (apiBase empty) has no one to sign in to, and
+ * stays open.
+ */
+const canCreate = () => !remote.enabled() || Boolean(app.user);
+
+/**
+ * A character about to be saved as new - imported, or a copy - made this
+ * visitor's: out of any campaign, and on a public ruleset.
+ */
+function claimAsNew(character) {
+  character.id = newId();
+  delete character.campaignId;
+  delete character.access;
+  if (!publicRulesets().includes(character.ruleset)) character.ruleset = publicRulesets()[0];
+  character.meta = { ...character.meta, created: new Date().toISOString(), updated: null, owner: app.user?.id || null };
+  return character;
+}
+
 /** The campaign a character is in, if this account can see it. */
 function campaignOf(character) {
   return character?.campaignId ? app.campaigns.find((c) => c.id === character.campaignId) || null : null;
@@ -178,6 +205,17 @@ function header() {
 
 const PROVIDER_LABELS = { google: 'Google', discord: 'Discord' };
 
+/** A button for each sign-in the server offers, or word that there are none. */
+function signInButtons() {
+  const ORDER = ['google', 'discord'];
+  const offered = Object.entries(app.providers || {}).filter(([, ready]) => ready).map(([name]) => name)
+    .sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+  if (!offered.length) return h('p.hint', { text: 'Sign-in is not available right now. Please try again later.' });
+  return offered.map((name) => button(`Continue with ${PROVIDER_LABELS[name]}`, () => remote.signIn(name), {
+    className: `provider provider-${name}`,
+  }));
+}
+
 /**
  * Sign in, or who is signed in.
  *
@@ -194,14 +232,11 @@ function accountMenu() {
     .sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
 
   if (!app.user) {
-    if (!offered.length) return null;
     return h('details.account-menu',
       h('summary.btn', 'Sign in'),
       h('div.account-pop',
-        h('p.hint', { text: 'Keep your characters and homebrew with your account, on any device.' }),
-        offered.map((name) => button(`Continue with ${PROVIDER_LABELS[name]}`, () => remote.signIn(name), {
-          className: `provider provider-${name}`,
-        }))));
+        h('p.hint', { text: 'Sign in to create characters, and keep them and your homebrew on any device.' }),
+        signInButtons()));
   }
 
   const unlinked = offered.filter((name) => !(app.user.providers || []).includes(name));
@@ -357,25 +392,11 @@ async function showRoster() {
     } catch { /* the local list stands */ }
   }
 
-  const chosen = preferences.get('newRuleset', config.defaultRuleset);
-  const rulesetPicker = rulesetToggle(chosen, (id) => {
-    preferences.set('newRuleset', id);
-    showRoster();
-  });
-  const rs = app.baseRules.rulesets[chosen] || app.baseRules.rulesets.srd;
-
   refill(main, h('div.roster',
     h('div.roster-intro',
       h('h1', { text: 'Characters' }),
       h('p.hint', { text: config.tagline })),
-    h('div.roster-new',
-      h('div.roster-new-rules',
-        h('span.label', { text: 'Build under' }),
-        rulesetPicker,
-        h('p.ruleset-blurb', { text: rs.description })),
-      h('div.roster-actions',
-        button(`New ${rs.shortName} character`, () => createCharacter(chosen)),
-        importButton())),
+    canCreate() ? newCharacterPanel() : signInToCreate(),
     h('p.hint', { text: source }),
     rows.length
       ? h('ul.roster-list', rows.map(rosterRow))
@@ -383,13 +404,49 @@ async function showRoster() {
 }
 
 /**
- * The ruleset switch: SRD first, and the default. It is a pair of buttons
- * rather than a dropdown because there are two choices and both should be
- * visible at once.
+ * Making a character: under a public ruleset, chosen with a switch only when
+ * there is more than one. Campaign-only rulesets are not offered here - a
+ * character reaches one by being brought into a campaign its player was
+ * invited to.
+ */
+function newCharacterPanel() {
+  const offered = publicRulesets();
+  const stored = preferences.get('newRuleset', config.defaultRuleset);
+  const chosen = offered.includes(stored) ? stored : offered[0];
+  const rs = app.baseRules.rulesets[chosen];
+
+  return h('div.roster-new',
+    h('div.roster-new-rules',
+      offered.length > 1
+        ? [h('span.label', { text: 'Build under' }),
+          rulesetToggle(chosen, (id) => { preferences.set('newRuleset', id); showRoster(); }, { ids: offered })]
+        : null,
+      h('p.ruleset-blurb', { text: rs.description })),
+    h('div.roster-actions',
+      button(`New ${rs.shortName} character`, () => createCharacter(chosen)),
+      importButton()));
+}
+
+/** In place of making a character, for a visitor who has not signed in. */
+function signInToCreate() {
+  if (app.serverDown) {
+    return h('div.roster-new',
+      h('p.ruleset-blurb', { text: 'The server cannot be reached, so new characters cannot be made right now. Characters already in this browser still open.' }));
+  }
+  return h('div.roster-new',
+    h('div.roster-new-rules',
+      h('p.ruleset-blurb', { text: 'Sign in to create a character. It is kept with your account, on any device.' })),
+    h('div.roster-actions', signInButtons()));
+}
+
+/**
+ * The ruleset switch: SRD first, and the default. It is a row of buttons
+ * rather than a dropdown so every choice is visible at once. `opts.ids` limits
+ * it to some rulesets.
  */
 function rulesetToggle(current, onPick, opts = {}) {
   return h('div.segmented', { role: 'radiogroup', 'aria-label': 'Ruleset' },
-    RULESET_IDS.map((id) => {
+    (opts.ids || RULESET_IDS).map((id) => {
       const rs = app.baseRules.rulesets[id];
       return h('button.segment', {
         type: 'button',
@@ -423,6 +480,7 @@ function rosterRow(row) {
 }
 
 function createCharacter(rulesetId) {
+  if (!canCreate() || !publicRulesets().includes(rulesetId)) return;
   const rules = withRuleset(app.baseRules, rulesetId);
   const character = blankCharacter(rules);
   character.id = newId();
@@ -438,9 +496,14 @@ function importButton() {
       const file = ev.target.files?.[0];
       if (!file) return;
       try {
+        if (!canCreate()) return;
         const parsed = migrate(JSON.parse(await file.text()));
         if (!Array.isArray(parsed.levels)) throw new Error('it has no levels, so it is not a character');
-        parsed.id = newId();
+        const from = parsed.ruleset;
+        claimAsNew(parsed);
+        if (parsed.ruleset !== from) {
+          alert(`That character was built under ${app.baseRules.rulesets[from]?.name || 'another ruleset'}, which is only available in campaigns. It has been imported under ${app.baseRules.rulesets[parsed.ruleset].name}.`);
+        }
         local.save(parsed);
         location.hash = `#/sheet/${parsed.id}`;
       } catch (err) {
@@ -520,14 +583,12 @@ function sheetToolbar() {
     rs.wiki ? h('a.back', { href: rs.wiki, target: '_blank', rel: 'noopener', text: `${rs.shortName} wiki` }) : null,
     h('span.grow'),
     button('Export', exportCharacter, { subtle: true, title: 'Download this sheet as a file. Any homebrew it uses goes with it.' }),
-    button('Duplicate', () => {
-      const copy = structuredClone(app.character);
-      copy.id = newId();
+    canCreate() ? button('Duplicate', () => {
+      const copy = claimAsNew(structuredClone(app.character));
       copy.name = `${copy.name || 'Unnamed'} (copy)`;
-      copy.meta = { ...copy.meta, created: new Date().toISOString(), updated: null };
       local.save(copy);
       location.hash = `#/sheet/${copy.id}`;
-    }, { subtle: true }),
+    }, { subtle: true, title: 'A copy of your own, outside any campaign.' }) : null,
     button('Print', () => window.print(), { subtle: true }));
 }
 
@@ -575,10 +636,16 @@ function variantsStrip() {
     }, `${MODULE_LABELS[name]}: ${state.on ? 'on' : 'off'}`);
   }).filter(Boolean);
 
+  // Out of a campaign, the choices are the public rulesets, and the one this
+  // character already has if it is not among them. One choice is no choice.
+  const choices = campaign ? [c.ruleset] : [...new Set([...publicRulesets(), c.ruleset])];
+
   return h('div.variants',
     h('div.variants-rules',
       h('span.label', { text: 'Rules' }),
-      rulesetToggle(c.ruleset, switchRuleset, { disabled: Boolean(campaign) }),
+      choices.length > 1 && !campaign
+        ? rulesetToggle(c.ruleset, switchRuleset, { ids: RULESET_IDS.filter((id) => choices.includes(id)) })
+        : h('span.ruleset-name', { text: rs.name }),
       campaign
         ? h('span.hint', {}, 'Set by ', h('a', { href: `#/campaign/${campaign.id}`, text: campaign.name }), '.')
         : h('span.hint', { text: rs.tagline })),

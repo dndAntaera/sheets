@@ -162,6 +162,23 @@ export function buildWorkerSuite() {
     }
   });
 
+  test('/health names what sign-in is missing, and never a secret', async (t) => {
+    const saved = env.GOOGLE_CLIENT_SECRET;
+    env.GOOGLE_CLIENT_SECRET = '  ';
+    try {
+      const r = await call('GET', '/health');
+      t.eq(r.data.signIn.google, { offered: false, switchedOn: true, missing: ['GOOGLE_CLIENT_SECRET'] });
+      t.eq(r.data.signIn.discord, { offered: true, switchedOn: true, missing: [] });
+      t.eq(r.data.signIn.adminNamed, true);
+      const text = JSON.stringify(r.data);
+      for (const value of ['google-app', 'discord-app', 'discord-secret', 'admin@example.com', 'admin-on-discord']) {
+        t.ok(!text.includes(value), `${value} is not shown`);
+      }
+    } finally {
+      env.GOOGLE_CLIENT_SECRET = saved;
+    }
+  });
+
   test('signing in with Google sends the player to Google with the right request', async (t) => {
     const start = await call('GET', `/auth/start?provider=google&nonce=${nonce()}`);
     t.eq(start.status, 302);
@@ -389,6 +406,25 @@ export function buildWorkerSuite() {
     t.eq((await call('GET', '/api/characters', { token: gm.token })).data, [], 'being a GM is not being this player’s GM');
     t.eq((await call('GET', '/api/characters/ada-ant', { token: gm.token })).status, 404);
     t.eq((await call('PUT', '/api/characters/ada-ant', { token: gm.token, body: { name: 'Hijack' } })).status, 404);
+  });
+
+  test('outside a campaign, a character is built under a public ruleset', async (t) => {
+    people.google = googler('g-100', 'Ada', 'ada@example.com');
+    const ada = await signIn('google');
+    const made = await call('PUT', '/api/characters/new-ant', { token: ada.token, body: { name: 'Sneaky', ruleset: 'antaera', levels: [{}] } });
+    t.eq(made.data.ruleset, 'srd', 'a new character cannot choose a campaign-only ruleset');
+    await call('PUT', '/api/characters/moving', { token: ada.token, body: { name: 'Mover', ruleset: 'srd', levels: [{}] } });
+    const moved = await call('PUT', '/api/characters/moving', { token: ada.token, body: { name: 'Mover', ruleset: 'antaera', levels: [{}] } });
+    t.eq(moved.data.ruleset, 'srd', 'nor can a saved one move onto it');
+    t.eq((await call('PUT', '/api/characters/moving', { token: ada.token, body: { ruleset: 'nonsense' } })).data.ruleset, 'srd');
+
+    // One that already has it - made before, or released from a campaign - keeps it.
+    const at = new Date().toISOString();
+    const adaId = (await call('GET', '/api/me', { token: ada.token })).data.id;
+    await d1('', { sql: "INSERT INTO characters (id, owner, name, ruleset, data, created, updated) VALUES ('old-ant', ?, 'Vashti', 'antaera', '{}', ?, ?)", params: [adaId, at, at] });
+    const kept = await call('PUT', '/api/characters/old-ant', { token: ada.token, body: { name: 'Vashti', ruleset: 'antaera', levels: [{}] } });
+    t.eq(kept.data.ruleset, 'antaera');
+    t.eq((await call('PUT', '/api/characters/old-ant', { token: ada.token, body: { name: 'Vashti', ruleset: 'srd', levels: [{}] } })).data.ruleset, 'srd', 'and may leave it for a public one');
   });
 
   test('a player sees only their own characters', async (t) => {

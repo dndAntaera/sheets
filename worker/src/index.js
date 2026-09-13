@@ -22,6 +22,7 @@
 import { createRouter } from './router.js';
 import { json, now, preflight, withCors } from './http.js';
 import * as auth from './features/auth.js';
+import { signInSetup } from './features/auth.js';
 import * as accounts from './features/accounts.js';
 import * as characters from './features/characters.js';
 import * as content from './features/content.js';
@@ -30,7 +31,8 @@ import * as campaigns from './features/campaigns.js';
 const health = {
   routes: [
     { method: 'GET', path: '/', auth: 'none', handler: () => json({ ok: true, service: 'sheets', now: now() }) },
-    { method: 'GET', path: '/health', auth: 'none', handler: () => json({ ok: true, service: 'sheets', now: now() }) },
+    // With what sign-in is missing, by setting name, so a deploy can be checked from a browser.
+    { method: 'GET', path: '/health', auth: 'none', handler: ({ env }) => json({ ok: true, service: 'sheets', now: now(), signIn: signInSetup(env) }) },
   ],
 };
 
