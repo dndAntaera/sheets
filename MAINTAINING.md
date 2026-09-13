@@ -219,8 +219,8 @@ link; if Open Game Content from a new source is added, add its notice there. See
 ## The server
 
 Optional. Without it the app is complete and everything lives in the browser.
-With it, players sign in with **Google** (Discord is supported, and switched off
-for now - see `SIGN_IN_WITH` below), and their characters and
+With it, players sign in with **Google or Discord** (see `SIGN_IN_WITH` below),
+and their characters and
 homebrew library are kept under their account.
 
 ### Accounts
@@ -330,7 +330,7 @@ character as a player, those characters in it, and gestalt as it was.
    `openid`, `email` and `profile`. Set the consent screen to *External* and
    publish it, or only test users can sign in.
    Which providers are offered is `SIGN_IN_WITH` in `worker/wrangler.toml`,
-   currently `"google"`. A provider needs to be listed there **and** have its
+   currently `"google,discord"`. A provider needs to be listed there **and** have its
    secrets. Switching one off also stops any sign-in with it already under way;
    accounts that signed in with it keep their data, and reach it through any
    other provider they linked.

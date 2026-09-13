@@ -32,8 +32,8 @@ Section 15 notice to the wiki's legal page in the same change.
 
 ## Accounts and what players store
 
-Players sign in with Google. (The server also supports Discord, switched off
-with `SIGN_IN_WITH`; if it is switched back on, the privacy policy must say so.) The server stores the provider's
+Players sign in with Google or Discord. Which are offered is `SIGN_IN_WITH` in
+`worker/wrangler.toml`; if that changes, the privacy policy must say so. The server stores the provider's
 user id, a display name and avatar URL, a role (player, GM or admin), and each
 player's characters and homebrew. Email addresses are read at sign-in and not stored. There is no
 password.

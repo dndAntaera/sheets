@@ -75,7 +75,7 @@ files, for sharing a table's homebrew in one go.
 
 ## Using it
 
-**Sign in with Google to create a character.** Characters are saved as you
+**Sign in with Google or Discord to create a character.** Characters are saved as you
 type and kept with your account, on every device you use, along with your
 homebrew. Characters made in a browser before signing in was required still
 open there.
