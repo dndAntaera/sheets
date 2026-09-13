@@ -20,7 +20,9 @@ import {
 } from './ui/sheet.js';
 import { showContent } from './ui/content.js';
 import { config } from './config.js';
-import { local, remote, library, preferences, save as saveEverywhere, newId } from './store.js';
+import {
+  local, remote, library, preferences, account, syncLibrary, save as saveEverywhere, newId,
+} from './store.js';
 
 const PANELS = {
   identity: identityPanel,
@@ -64,20 +66,78 @@ async function start() {
   // otherwise whatever this browser was last told.
   app.campaign = { gestalt: null, ...(local.campaign() || {}) };
 
-  if (remote.enabled()) {
+  // Back from Google or Discord: finish signing in before drawing anything, so
+  // the header is right the first time.
+  const returning = location.hash.match(/^#\/signed-in\/([a-f0-9]+)$/);
+  if (returning && remote.enabled()) {
     try {
-      app.user = await remote.me();
-      const server = await remote.campaign();
-      app.campaign = { ...app.campaign, ...server };
-      local.setCampaign(app.campaign);
-    } catch {
-      app.user = null;   // signed out, or unreachable: carry on locally
+      await remote.completeSignIn(returning[1]);
+      app.notice = { level: 'pass', text: 'Signed in. Your characters and homebrew are kept with your account.' };
+    } catch (err) {
+      app.notice = { level: 'fail', text: `Sign-in did not complete: ${err.message}` };
     }
+    history.replaceState(null, '', `${location.pathname}${location.search}#/`);
   }
+  const failed = location.hash.match(/^#\/sign-in-failed\/([\w-]+)$/);
+  if (failed) {
+    app.notice = { level: 'fail', text: SIGN_IN_FAILURES[failed[1]] || 'Sign-in did not complete.' };
+    history.replaceState(null, '', `${location.pathname}${location.search}#/`);
+  }
+
+  await connect();
 
   document.body.append(header(), h('main#main'), footer(), h('div#datalists.hidden'));
   window.addEventListener('hashchange', route);
+  window.addEventListener('library-synced', (ev) => {
+    refreshDatalists();
+    // Entries that arrived from another device appear in an open library view.
+    if (ev.detail?.changed && location.hash.startsWith('#/content')) route();
+  });
   route();
+}
+
+const SIGN_IN_FAILURES = {
+  cancelled: 'Sign-in was cancelled.',
+  expired: 'That sign-in took too long. Please try again.',
+  'already-linked': 'That account is already signed in to a different set of characters, so it cannot be added to this one.',
+  'link-expired': 'Linking took too long. Please try again.',
+  'provider-unavailable': 'That way of signing in is not set up on this server.',
+  'provider-refused': 'The sign-in provider would not confirm who you are. Please try again.',
+  'bad-request': 'Sign-in could not start. Please try again.',
+};
+
+/**
+ * Who is signed in, what the server offers, and the Antaera campaign settings.
+ * Nothing here is allowed to stop the app: a server that is down just means a
+ * local session, and the header says so.
+ */
+async function connect() {
+  app.user = null;
+  app.providers = {};
+  app.serverDown = false;
+  if (!remote.enabled()) return;
+
+  try {
+    app.providers = await remote.providers();
+  } catch {
+    app.serverDown = true;
+    return;
+  }
+
+  if (account.signedIn()) {
+    try {
+      app.user = await remote.me();
+      syncLibrary().catch(() => {});
+    } catch {
+      app.user = null;
+    }
+  }
+
+  try {
+    const server = await remote.campaign();
+    app.campaign = { ...app.campaign, ...server };
+    local.setCampaign(app.campaign);
+  } catch { /* the stored settings stand */ }
 }
 
 /** The settings imposed on a sheet from outside it, under its ruleset. */
@@ -95,19 +155,6 @@ function overridesFor(character) {
 function header() {
   app.status = h('span.status', { text: '' });
 
-  const account = () => {
-    if (!remote.enabled()) return null;
-    if (app.user) {
-      return h('span.account',
-        h('span', { text: app.user.name }),
-        button('Sign out', async () => {
-          await remote.signOut().catch(() => {});
-          location.reload();
-        }, { subtle: true }));
-    }
-    return h('a.btn', { href: remote.signInUrl(), text: 'Sign in' });
-  };
-
   return h('header.top',
     h('a.brand', { href: '#/', title: config.tagline },
       h('span.brand-name', { text: config.title })),
@@ -118,7 +165,52 @@ function header() {
     h('div.top-right',
       app.status,
       themeSwitch(),
-      account()));
+      accountMenu()),
+    app.notice ? h(`p.banner.${app.notice.level}`, { text: app.notice.text }) : null);
+}
+
+const PROVIDER_LABELS = { google: 'Google', discord: 'Discord' };
+
+/**
+ * Sign in, or who is signed in.
+ *
+ * Signed out, it offers each provider the server has been set up with. Signed
+ * in, it offers the provider not yet linked, so a player who began with Google
+ * can add Discord and reach the same account from either.
+ */
+function accountMenu() {
+  if (!remote.enabled()) return null;
+  if (app.serverDown) return h('span.hint.account', { text: 'server unreachable - saving here' });
+
+  const ORDER = ['google', 'discord'];
+  const offered = Object.entries(app.providers || {}).filter(([, ready]) => ready).map(([name]) => name)
+    .sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+
+  if (!app.user) {
+    if (!offered.length) return null;
+    return h('details.account-menu',
+      h('summary.btn', 'Sign in'),
+      h('div.account-pop',
+        h('p.hint', { text: 'Keep your characters and homebrew with your account, on any device.' }),
+        offered.map((name) => button(`Continue with ${PROVIDER_LABELS[name]}`, () => remote.signIn(name), {
+          className: `provider provider-${name}`,
+        }))));
+  }
+
+  const unlinked = offered.filter((name) => !(app.user.providers || []).includes(name));
+  return h('details.account-menu',
+    h('summary.account-name', { text: app.user.name, title: 'Your account' }),
+    h('div.account-pop',
+      h('p.hint', { text: `Signed in with ${(app.user.providers || []).map((p) => PROVIDER_LABELS[p]).join(' and ')}.` }),
+      app.user.gm ? h('p.hint', { text: 'You run the Antaera campaign: you see every Antaera character.' }) : null,
+      unlinked.map((name) => button(`Also sign in with ${PROVIDER_LABELS[name]}`, () => {
+        remote.link(name).catch((err) => alert(`Could not start linking: ${err.message}`));
+      }, { subtle: true, title: `Reach this same account by signing in with ${PROVIDER_LABELS[name]} too.` })),
+      button('Sign out', async () => {
+        await remote.signOut();
+        location.hash = '#/';
+        location.reload();
+      }, { subtle: true, title: 'Your homebrew stays with your account and leaves this browser.' })));
 }
 
 /**
@@ -212,11 +304,17 @@ async function showRoster() {
   const main = document.getElementById('main');
 
   let rows = local.list();
-  let source = 'Kept in this browser.';
+  let source = remote.enabled() && !app.serverDown ? 'Kept in this browser. Sign in to keep them with your account.' : 'Kept in this browser.';
   if (remote.enabled() && app.user) {
     try {
-      rows = await remote.list();
-      source = app.user.gm ? 'Every character on the campaign server.' : 'Your characters, from the server.';
+      const server = await remote.list();
+      // A character made here before signing in is not on the account until it
+      // is next saved. It is listed anyway, marked, rather than vanishing from
+      // the roster the moment its player signs in.
+      const onServer = new Set(server.map((r) => r.id));
+      const hereOnly = local.list().filter((r) => !onServer.has(r.id)).map((r) => ({ ...r, hereOnly: true }));
+      rows = [...server, ...hereOnly];
+      source = app.user.gm ? 'Your characters, and every Antaera character in the campaign.' : 'Your characters, kept with your account.';
     } catch { /* the local list stands */ }
   }
 
@@ -272,6 +370,8 @@ function rosterRow(row) {
     h('a.roster-link', { href: `#/sheet/${row.id}` },
       h('span.roster-name', { text: row.name || 'Unnamed' }),
       h('span.roster-meta', { text: [row.player, row.build || `level ${row.level || '?'}`].filter(Boolean).join(' - ') })),
+    row.hereOnly ? h('span.badge.here-only', { text: 'this browser', title: 'Not on your account yet. Open it and it is saved there.' }) : null,
+    row.ownerName && app.user && row.owner !== app.user.id ? h('span.badge', { text: row.ownerName, title: 'Another player’s Antaera character.' }) : null,
     h(`span.badge.ruleset-${rs?.id || 'srd'}`, { text: rs?.shortName || 'SRD' }),
     h('span.roster-updated', { text: row.updated ? new Date(row.updated).toLocaleDateString() : '' }),
     button('Delete', async () => {
@@ -630,8 +730,11 @@ async function flush() {
   app.character.meta = { ...app.character.meta, build: app.derived?.summary.label || '' };
   const result = await saveEverywhere(app.character);
   if (!app.status) return;
-  app.status.textContent = result.synced ? 'saved' : (remote.enabled() ? `saved here (${result.reason})` : 'saved');
-  app.status.dataset.state = result.synced || !remote.enabled() ? 'saved' : 'local';
+  // Signed out is a normal way to use the app, not a failure: "saved" either
+  // way, and the warning colour only for a signed-in save that did not arrive.
+  const trouble = !result.synced && remote.enabled() && app.user;
+  app.status.textContent = trouble ? `saved here (${result.reason})` : 'saved';
+  app.status.dataset.state = trouble ? 'local' : 'saved';
 }
 
 // A sheet being edited when the tab closes should still be on disk.

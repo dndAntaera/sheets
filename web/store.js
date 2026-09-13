@@ -1,41 +1,51 @@
-// Storing sheets.
+// Storing sheets and homebrew.
 //
-// Two backends behind one interface. The browser one always works and is what
-// a player gets before anyone has deployed anything; the API one takes over
-// when config.apiBase is set and the player has signed in. The local copy is
-// kept either way, so a sheet is never lost to a failed request - and a sheet
-// edited offline is still there when the connection comes back.
+// Two backends behind one interface. The browser always works, and is what a
+// player gets before anyone has deployed anything or signed in. The server takes
+// over the moment a player signs in with Google or Discord: their characters and
+// their homebrew library are then kept under their account and follow them to
+// any device. The browser keeps a working copy either way, so nothing is lost to
+// a failed request, and work done offline is sent up when the connection returns.
 
 import { config } from './config.js';
 import { blankLibrary, CONTENT_TYPES, CONTENT_KINDS } from './engine/library.js';
+import { mergeLibraries, flattenLibrary, groupLibrary } from './engine/sync.js';
 
 const KEY = 'antaera-sheets/v1';
 const indexKey = `${KEY}/index`;
 const sheetKey = (id) => `${KEY}/sheet/${id}`;
+const libraryKey = `${KEY}/library`;
+const syncedKey = `${KEY}/library-synced`;
+const tokenKey = `${KEY}/session`;
+const nonceKey = `${KEY}/sign-in-nonce`;
 
-const read = (key, fallback) => {
+const read = (key, fallback, store = localStorage) => {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = store.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
   } catch {
     return fallback;
   }
 };
 
-const write = (key, value) => {
+const write = (key, value, store = localStorage) => {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    store.setItem(key, JSON.stringify(value));
     return true;
   } catch {
     return false;   // a private window, or a full quota
   }
 };
 
+const forget = (key, store = localStorage) => {
+  try { store.removeItem(key); } catch { /* nothing to do */ }
+};
+
 export const newId = () =>
-  `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 
 /* -------------------------------------------------------------------------
-   The browser
+   Characters, in this browser
    ------------------------------------------------------------------------- */
 
 export const local = {
@@ -60,9 +70,7 @@ export const local = {
   },
 
   remove(id) {
-    try {
-      localStorage.removeItem(sheetKey(id));
-    } catch { /* nothing to do */ }
+    forget(sheetKey(id));
     write(indexKey, this.list().filter((row) => row.id !== id));
   },
 
@@ -79,24 +87,41 @@ export const local = {
 /* -------------------------------------------------------------------------
    The content library
 
-   A player's shelf of homebrew, kept in this browser and shared by every
-   character made here. Sheets carry their own copies of what they use (see
-   engine/library.js), so clearing the library never breaks a character - it
-   only means the next character has to be given the Warblade again.
+   A player's shelf of homebrew, shared by every character made here - and, once
+   they sign in, kept under their account. Every entry has an id, so the same
+   entry can be recognised on another device even after it has been renamed.
+   Sheets carry their own copies of what they use (see engine/library.js), so an
+   empty library never breaks a character.
    ------------------------------------------------------------------------- */
-
-const libraryKey = `${KEY}/library`;
 
 export const library = {
   load() {
     const stored = read(libraryKey, null);
     const shelf = blankLibrary();
-    if (stored) for (const plural of Object.keys(shelf)) shelf[plural] = stored[plural] || [];
+    let repaired = false;
+    const seen = new Set();
+    for (const kind of CONTENT_KINDS) {
+      const plural = CONTENT_TYPES[kind].plural;
+      shelf[plural] = (stored?.[plural] || []).map((entry) => {
+        const e = { ...entry };
+        // An entry with no id, or one a duplicate copied from another, gets its
+        // own - otherwise two entries would overwrite each other on the server.
+        if (!e.id || seen.has(e.id)) { e.id = newId(); repaired = true; }
+        if (e.kind !== kind) { e.kind = kind; repaired = true; }
+        if (!e.updated) { e.updated = e.created || new Date().toISOString(); repaired = true; }
+        seen.add(e.id);
+        return e;
+      });
+    }
+    if (repaired) write(libraryKey, shelf);
     return shelf;
   },
 
+  /** Save the shelf here, and send any changes to the account if signed in. */
   save(shelf) {
-    return write(libraryKey, shelf);
+    const ok = write(libraryKey, shelf);
+    scheduleLibrarySync();
+    return ok;
   },
 
   /** One kind's list, by its singular name: library.list('race'). */
@@ -110,18 +135,18 @@ export const library = {
 
   /** Everything, as a file a player can hand to somebody else. */
   exportFile() {
-    return {
-      format: 'antaera-sheets-content',
-      version: 1,
-      exported: new Date().toISOString(),
-      ...this.load(),
-    };
+    const shelf = this.load();
+    // Ids and timestamps belong to this account; a recipient's copies are theirs.
+    for (const list of Object.values(shelf)) {
+      for (const entry of list) { delete entry.id; delete entry.updated; }
+    }
+    return { format: 'antaera-sheets-content', version: 1, exported: new Date().toISOString(), ...shelf };
   },
 
   /**
-   * Merge a shared file into the shelf. An entry with a name already on the
-   * shelf replaces it - importing a newer copy of your group's homebrew should
-   * update it, not sit beside it as a duplicate.
+   * Merge a shared file into the shelf. An entry whose name is already on the
+   * shelf replaces it, keeping the shelf's id - importing a newer copy of a
+   * table's homebrew should update it, not sit beside it as a duplicate.
    *
    * Accepts a library export, a single entry, or an exported character, whose
    * embedded content is exactly the homebrew it was built with.
@@ -129,13 +154,14 @@ export const library = {
   importFile(data) {
     const shelf = this.load();
     let added = 0;
+    const stamp = new Date().toISOString();
     const take = (kind, entry) => {
       if (!entry?.name || !CONTENT_TYPES[kind]) return;
       const list = shelf[CONTENT_TYPES[kind].plural];
       const at = list.findIndex((e) => e.name === entry.name);
-      const copy = { ...entry, kind, updated: new Date().toISOString() };
+      const copy = { ...entry, kind, id: at >= 0 ? list[at].id : newId(), updated: stamp };
       if (at >= 0) list[at] = copy;
-      else list.push(copy);
+      else list.push({ ...copy, created: stamp });
       added++;
     };
 
@@ -149,6 +175,12 @@ export const library = {
     }
     this.save(shelf);
     return added;
+  },
+
+  /** Remove the account's copy from this browser, on signing out. */
+  clear() {
+    forget(libraryKey);
+    forget(syncedKey);
   },
 };
 
@@ -182,57 +214,189 @@ export function summarise(character) {
 }
 
 /* -------------------------------------------------------------------------
-   The server
+   The account
+
+   A session is a token the server issued, held here and sent as a bearer
+   header. See worker/src/index.js for why it is not a cookie.
    ------------------------------------------------------------------------- */
 
+export const account = {
+  token: () => read(tokenKey, null),
+  signedIn: () => Boolean(read(tokenKey, null)),
+  setToken: (token) => write(tokenKey, token),
+  clear: () => forget(tokenKey),
+};
+
 async function api(path, options = {}) {
-  const res = await fetch(`${config.apiBase}${path}`, {
-    credentials: 'include',
-    headers: { 'content-type': 'application/json', ...(options.headers || {}) },
-    ...options,
-  });
-  if (res.status === 401) throw Object.assign(new Error('not signed in'), { code: 401 });
-  if (!res.ok) throw new Error(`${path} returned ${res.status}`);
+  const token = account.token();
+  const headers = { ...(options.headers || {}) };
+  if (options.body !== undefined) headers['content-type'] = 'application/json';
+  if (token) headers.authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${config.apiBase}${path}`, { ...options, headers });
+  if (res.status === 401) {
+    // The session has ended - expired, or signed out elsewhere. Forget it, so
+    // the header offers sign-in again instead of failing quietly on every save.
+    if (token) account.clear();
+    throw Object.assign(new Error('not signed in'), { code: 401 });
+  }
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw Object.assign(new Error(detail.error || `${path} returned ${res.status}`), { code: res.status });
+  }
   return res.status === 204 ? null : res.json();
 }
 
+const hex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
+
 export const remote = {
-  name: 'the campaign server',
+  name: 'your account',
   enabled: () => Boolean(config.apiBase),
 
+  /** Which sign-in providers the server has been set up with. */
+  providers: () => api('/auth/providers'),
+
   me: () => api('/api/me'),
-  signInUrl: () => `${config.apiBase}/auth/start`,
-  signOut: () => api('/auth/signout', { method: 'POST' }),
+
+  /**
+   * Leave for Google or Discord. The nonce stays behind in this tab's
+   * sessionStorage, and only this tab can complete the sign-in with it.
+   */
+  signIn(provider, { link, navigate = (url) => location.assign(url) } = {}) {
+    const nonce = hex(24);
+    write(nonceKey, nonce, sessionStorage);
+    const params = new URLSearchParams({ provider, nonce });
+    if (link) params.set('link', link);
+    navigate(`${config.apiBase}/auth/start?${params}`);
+  },
+
+  /** Back from the provider with a one-time code: trade it for a session. */
+  async completeSignIn(code) {
+    const nonce = read(nonceKey, null, sessionStorage);
+    forget(nonceKey, sessionStorage);
+    if (!nonce) throw new Error('this sign-in was not started in this tab');
+    const result = await api('/auth/exchange', { method: 'POST', body: JSON.stringify({ code, nonce }) });
+    account.setToken(result.token);
+    return result;
+  },
+
+  /** Add the other provider to the signed-in account. */
+  async link(provider, opts = {}) {
+    const { link } = await api('/auth/link', { method: 'POST' });
+    this.signIn(provider, { ...opts, link });
+  },
+
+  async signOut() {
+    await flushLibrarySync().catch(() => {});
+    await api('/auth/signout', { method: 'POST' }).catch(() => {});
+    account.clear();
+    library.clear();
+  },
 
   list: () => api('/api/characters'),
   load: (id) => api(`/api/characters/${id}`),
-  save: (character) => api(`/api/characters/${character.id}`, {
-    method: 'PUT',
-    body: JSON.stringify(character),
-  }),
+  save: (character) => api(`/api/characters/${character.id}`, { method: 'PUT', body: JSON.stringify(character) }),
   remove: (id) => api(`/api/characters/${id}`, { method: 'DELETE' }),
 
   campaign: () => api('/api/campaign'),
-  setCampaign: (settings) => api('/api/campaign', {
-    method: 'PUT',
-    body: JSON.stringify(settings),
-  }),
+  setCampaign: (settings) => api('/api/campaign', { method: 'PUT', body: JSON.stringify(settings) }),
+
+  content: {
+    list: () => api('/api/content'),
+    put: (entry) => api(`/api/content/${entry.id}`, { method: 'PUT', body: JSON.stringify(entry) }),
+    remove: (id) => api(`/api/content/${id}`, { method: 'DELETE' }),
+  },
 };
 
 /**
- * Save to the browser first, then to the server if there is one.
+ * Save a character to the browser first, then to the account if signed in.
  *
- * The order matters: the local write cannot fail in a way that loses work, and
- * a server that is down or a session that has expired must not stop a player
- * from carrying on. `synced` says which happened, and the header shows it.
+ * The local write cannot fail in a way that loses work, and a server that is
+ * down or a session that has expired must not stop a player from carrying on.
  */
 export async function save(character) {
   local.save(character);
   if (!remote.enabled()) return { synced: false, reason: 'local build' };
+  if (!account.signedIn()) return { synced: false, reason: 'not signed in' };
   try {
     await remote.save(character);
     return { synced: true };
   } catch (err) {
     return { synced: false, reason: err.code === 401 ? 'not signed in' : err.message };
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Keeping the library in step with the account
+   ------------------------------------------------------------------------- */
+
+let syncTimer = null;
+let syncing = null;
+
+/** Edits are gathered for a moment and sent together, not one per keystroke. */
+function scheduleLibrarySync() {
+  if (!remote.enabled() || !account.signedIn()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { syncLibrary().catch(() => {}); }, 1500);
+}
+
+/** Run any pending sync now, instead of when the timer fires - before signing out, say. */
+export function flushLibrarySync() {
+  clearTimeout(syncTimer);
+  syncTimer = null;
+  return syncLibrary();
+}
+
+/**
+ * Reconcile this browser's library with the account's: fetch the account's,
+ * merge by id and timestamp (engine/sync.js decides), send what the server is
+ * missing, delete what was deleted here, and keep what arrived from elsewhere.
+ *
+ * Fires `library-synced` on window with `{ changed }`, so a page showing the
+ * library can redraw when entries have arrived from another device.
+ */
+export async function syncLibrary() {
+  if (!remote.enabled() || !account.signedIn()) return { skipped: true };
+  if (syncing) return syncing;
+
+  syncing = (async () => {
+    const server = await remote.content.list();
+    const localEntries = flattenLibrary(library.load(), CONTENT_TYPES);
+    const plan = mergeLibraries(localEntries, server, read(syncedKey, {}));
+
+    if (plan.changed) write(libraryKey, groupLibrary(plan.entries, CONTENT_TYPES));
+
+    // What the server has confirmed. An entry whose request fails stays out of
+    // this map, so the next sync tries it again.
+    const agreed = { ...plan.synced };
+    const failures = [];
+    for (const entry of plan.upload) {
+      try {
+        const reply = await remote.content.put(entry);
+        if (reply?.stale) delete agreed[entry.id];   // a newer copy is already there; next sync takes it
+      } catch (err) {
+        failures.push(err);
+        delete agreed[entry.id];
+      }
+    }
+    for (const id of plan.remove) {
+      try {
+        await remote.content.remove(id);
+      } catch (err) {
+        failures.push(err);
+        agreed[id] = read(syncedKey, {})[id];
+      }
+    }
+    write(syncedKey, agreed);
+
+    const result = { changed: plan.changed, uploaded: plan.upload.length, removed: plan.remove.length, failed: failures.length };
+    window.dispatchEvent(new CustomEvent('library-synced', { detail: result }));
+    return result;
+  })();
+
+  try {
+    return await syncing;
+  } finally {
+    syncing = null;
   }
 }

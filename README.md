@@ -64,18 +64,24 @@ change, because the sheet cannot know whether you are fighting a giant. A
 **Bonuses in force** panel shows every bonus being counted, where it came from,
 and which ones do not stack.
 
-Content lives in your browser's library and is picked by name on any sheet.
-When a sheet uses a piece of homebrew, it keeps its own copy — so an exported
-character still adds up for your DM, even though their library has never seen
-your Warblade. Libraries export and import as files, for sharing a table's
-homebrew in one go.
+Homebrew is written once and picked by name on any sheet. Signed in, your
+library is saved to your account and follows you to any device; signed out, it
+stays in the browser. When a sheet uses a piece of homebrew, it keeps its own
+copy — so an exported character still adds up for your DM, even though their
+library has never seen your Warblade. Libraries also export and import as
+files, for sharing a table's homebrew in one go.
 
 ## Using it
 
-Characters are saved as you type, in the browser. An optional campaign server
-(Cloudflare Worker, Discord sign-in) puts sheets on every device a player uses
-and gives the Antæra DM the whole roster. Without it the app is complete; sheets
-travel as exported files.
+Characters are saved as you type. **Sign in with Google or Discord** and your
+characters and homebrew are kept with your account, on every device you use —
+and either sign-in can be added to the same account. Without signing in, the
+app is still complete: everything stays in the browser and travels as exported
+files.
+
+The server is a Cloudflare Worker with a D1 database. The Antæra DM's account
+also sees every Antæra character in the campaign, and never anyone's SRD
+characters or homebrew library.
 
 Sheets print to something that can be carried to a table with no power.
 
@@ -86,8 +92,9 @@ Sheets print to something that can be carried to a table with no power.
       ui/         the panels, the content editor, the effects editor
       data/       core 3.5 constants, SRD classes, skills and races
         rulesets/ srd.json, antaera.json, and the campaign's backgrounds
-    worker/       the optional campaign server
-    test/         the engine's tests, runnable under Node or in a browser
+    worker/       the server: accounts, characters, homebrew
+      migrations/ the database, one numbered change at a time
+    test/         engine, server and account tests, run in a browser
     scripts/      the dev server, the JSON formatter, the background sync
 
 Technical documentation is in [MAINTAINING.md](MAINTAINING.md).

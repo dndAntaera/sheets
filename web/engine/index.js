@@ -25,6 +25,7 @@ export * from './houserules.js';
 export * from './effects.js';
 export * from './library.js';
 export * from './modules.js';
+export * from './sync.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 

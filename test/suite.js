@@ -14,6 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
+  mergeLibraries,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -608,6 +609,70 @@ export function buildSuite(data) {
     const all = collectEffects({ race: { name: 'Elf', effects: [{ target: 'skill.Spot', type: 'racial', value: 2 }] }, feats: [], items: [] });
     t.eq(all[0].source, 'Elf');
     t.eq(all[0].type, 'racial');
+  });
+
+  /* === syncing a library between devices =============================== */
+
+  const entry = (id, updated, extra = {}) => ({ id, kind: 'class', name: id, updated, ...extra });
+  const ids = (list) => list.map((e) => e.id).sort();
+
+  test('a new entry here is uploaded, and a new one elsewhere is taken', (t) => {
+    const r = mergeLibraries([entry('mine', '2026-01-01')], [entry('theirs', '2026-01-02')], {});
+    t.eq(ids(r.entries), ['mine', 'theirs']);
+    t.eq(ids(r.upload), ['mine']);
+    t.eq(r.remove, []);
+    t.ok(r.changed, 'the local library gained an entry');
+    t.eq(r.synced, { mine: '2026-01-01', theirs: '2026-01-02' });
+  });
+
+  test('the newer copy of an entry wins, in either direction', (t) => {
+    const newerHere = mergeLibraries([entry('a', '2026-02-01')], [entry('a', '2026-01-01')], { a: '2026-01-01' });
+    t.eq(ids(newerHere.upload), ['a']);
+    t.ok(!newerHere.changed);
+    const newerThere = mergeLibraries([entry('a', '2026-01-01', { name: 'old' })], [entry('a', '2026-03-01', { name: 'new' })], { a: '2026-01-01' });
+    t.eq(newerThere.entries[0].name, 'new');
+    t.eq(newerThere.upload, []);
+    t.ok(newerThere.changed);
+  });
+
+  test('an entry deleted here is deleted from the server', (t) => {
+    const r = mergeLibraries([], [entry('gone', '2026-01-01')], { gone: '2026-01-01' });
+    t.eq(r.remove, ['gone']);
+    t.eq(r.entries, []);
+    t.eq(r.synced, {}, 'and forgotten');
+  });
+
+  test('an entry deleted on another device is removed here', (t) => {
+    const r = mergeLibraries([entry('gone', '2026-01-01')], [], { gone: '2026-01-01' });
+    t.eq(r.entries, []);
+    t.eq(r.upload, []);
+    t.ok(r.changed);
+  });
+
+  test('when an edit and a deletion collide, the edit wins', (t) => {
+    const editedHere = mergeLibraries([entry('a', '2026-05-01')], [], { a: '2026-01-01' });
+    t.eq(ids(editedHere.upload), ['a'], 'deleted elsewhere, edited here: it comes back');
+    const editedThere = mergeLibraries([], [entry('a', '2026-05-01')], { a: '2026-01-01' });
+    t.eq(ids(editedThere.entries), ['a'], 'deleted here, edited elsewhere: it comes back');
+    t.eq(editedThere.remove, []);
+  });
+
+  test('a first sign-in uploads everything made before it', (t) => {
+    const r = mergeLibraries([entry('a', '1'), entry('b', '2'), entry('c', '3')], [], {});
+    t.eq(ids(r.upload), ['a', 'b', 'c']);
+    t.eq(r.remove, []);
+  });
+
+  test('agreement changes nothing and sends nothing', (t) => {
+    const r = mergeLibraries([entry('a', '1')], [entry('a', '1')], { a: '1' });
+    t.eq(r.upload, []);
+    t.eq(r.remove, []);
+    t.ok(!r.changed);
+  });
+
+  test('the merged library keeps this browser order, with new entries after', (t) => {
+    const r = mergeLibraries([entry('z', '1'), entry('a', '1')], [entry('m', '1'), entry('a', '1')], { a: '1' });
+    t.eq(r.entries.map((e) => e.id), ['z', 'a', 'm']);
   });
 
   return cases;

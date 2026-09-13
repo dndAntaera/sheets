@@ -11,7 +11,7 @@ import {
 import { effectsEditor } from './effects-editor.js';
 import { CONTENT_TYPES, CONTENT_KINDS, blankEntry } from '../engine/library.js';
 import { TARGETS } from '../engine/effects.js';
-import { library } from '../store.js';
+import { library, remote } from '../store.js';
 
 const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
@@ -58,7 +58,12 @@ export function showContent(main, app, kind = 'race', at = null) {
     h('div.content-head',
       h('div',
         h('h1', { text: 'Content' }),
-        h('p.hint', { text: 'Anything the SRD does not have. Write it once here, pick it by name on any sheet, and it counts - its numbers and its effects, not just its name.' })),
+        h('p.hint', { text: 'Anything the SRD does not have. Write it once here, pick it by name on any sheet, and it counts - its numbers and its effects, not just its name.' }),
+        h('p.hint.content-where', { text: app.user
+          ? `Saved to your account, ${app.user.name}, and available wherever you sign in.`
+          : remote.enabled() && !app.serverDown
+            ? 'Kept in this browser. Sign in to save your homebrew to your account.'
+            : 'Kept in this browser. Export it to share or back it up.' })),
       h('div.content-actions',
         button('Export all', exportLibrary, { subtle: true, title: 'Download every entry as one file, to share with your table.' }),
         importControl(() => showContent(main, app, kind, index)))),
@@ -118,7 +123,8 @@ function editor(app, kind, index, entry, redraw, go) {
     h('div.content-form-actions',
       button('Duplicate', () => {
         const shelf = library.load();
-        const copy = { ...structuredClone(entry), name: `${entry.name || 'Unnamed'} (copy)`, created: new Date().toISOString() };
+        const stamp = new Date().toISOString();
+        const copy = { ...structuredClone(entry), id: undefined, name: `${entry.name || 'Unnamed'} (copy)`, created: stamp, updated: stamp };
         shelf[type.plural].push(copy);
         library.save(shelf);
         go(kind, shelf[type.plural].length - 1);

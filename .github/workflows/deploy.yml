@@ -69,7 +69,10 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config worker/wrangler.toml
+          # Migrations first: the Worker expects the tables they create.
+          command: |
+            d1 migrations apply antaera-sheets --remote --config worker/wrangler.toml
+            deploy --config worker/wrangler.toml
       - name: Say why it was skipped
         if: steps.check.outputs.ready != 'true'
         run: echo "No CLOUDFLARE_API_TOKEN secret, so the Worker was not deployed. See MAINTAINING.md."

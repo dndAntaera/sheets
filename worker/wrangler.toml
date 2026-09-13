@@ -1,10 +1,10 @@
 # The campaign server.
 #
-# Deploying is two commands, and neither of them needs Node installed on your
-# own machine if you let GitHub Actions do it - see MAINTAINING.md.
+# Deploying is a few commands, and none of them needs Node on your own machine
+# if you let GitHub Actions do it - see MAINTAINING.md.
 #
 #   wrangler d1 create antaera-sheets          # once, then paste the id below
-#   wrangler d1 execute antaera-sheets --file worker/schema.sql --remote
+#   wrangler d1 migrations apply antaera-sheets --remote --config worker/wrangler.toml
 #   wrangler deploy --config worker/wrangler.toml
 
 name = "antaera-sheets"
@@ -16,17 +16,23 @@ workers_dev = true
 binding = "DB"
 database_name = "antaera-sheets"
 database_id = "PASTE-THE-DATABASE-ID-HERE"
+migrations_dir = "migrations"
 
 [vars]
-# Where the sheets are served from. The Worker will only accept requests from
-# this origin, and sends players back here after they sign in.
+# Where the sheets are served from. The Worker only answers this origin (and
+# localhost, for development), and sends players back here after sign-in.
 SITE_ORIGIN = "https://dndantaera.github.io"
 SITE_PATH = "/sheets/"
 
-# Discord ids of whoever runs the campaign. A GM sees every character and is
-# the only one who can move a campaign setting such as gestalt.
-GM_DISCORD_IDS = ""
+# Who runs the Antaera campaign. A GM sees and edits every Antaera character
+# (never anyone's SRD characters) and is the only one who can move the gestalt
+# switch. Either list is enough; an account is a GM if any of its sign-ins match.
+GM_DISCORD_IDS = ""        # Discord user ids, comma separated
+GM_GOOGLE_EMAILS = ""      # Google account emails, comma separated
 
-# DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET are secrets, not vars:
+# Secrets, not vars. Set whichever providers you use; a provider with no
+# secrets simply does not appear on the sign-in menu.
 #   wrangler secret put DISCORD_CLIENT_ID --config worker/wrangler.toml
 #   wrangler secret put DISCORD_CLIENT_SECRET --config worker/wrangler.toml
+#   wrangler secret put GOOGLE_CLIENT_ID --config worker/wrangler.toml
+#   wrangler secret put GOOGLE_CLIENT_SECRET --config worker/wrangler.toml

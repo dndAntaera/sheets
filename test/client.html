@@ -1,0 +1,76 @@
+<meta charset="utf-8">
+<title>Sheets Account Tests</title>
+<link rel="stylesheet" href="../web/css/tokens.css">
+<style>
+  body { margin: 0; padding: var(--sp-5); background: var(--sky); color: var(--ink);
+         font: var(--text-body)/1.5 var(--font-body); }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1 { font: 400 var(--text-page-title)/1.2 var(--font-display); margin: 0 0 var(--sp-2); }
+  .tally { font-variant-numeric: tabular-nums; margin-bottom: var(--sp-5); }
+  ol { list-style: none; padding: 0; margin: 0; }
+  li { padding: var(--sp-2) var(--sp-3); border-bottom: var(--hair) solid var(--rule);
+       display: grid; grid-template-columns: 2.5rem 1fr; gap: var(--sp-3); }
+  .mark { font-weight: 700; }
+  .pass .mark { color: var(--pass); }
+  .fail .mark { color: var(--fail); }
+  .why { grid-column: 2; color: var(--fail); font-family: var(--font-mono);
+         font-size: .85em; white-space: pre-wrap; margin-top: var(--sp-1); }
+</style>
+
+<main>
+  <h1>Accounts and homebrew sync</h1>
+  <p class="tally" id="tally">running…</p>
+  <ol id="results"></ol>
+</main>
+
+<script type="module">
+  // The runner for test/client-suite.js. This page shares its origin with the
+  // app on the dev server, so whatever the app had in storage is put aside
+  // before the run and put back after it.
+  import { buildClientSuite, snapshot, restore, blankDevice } from './client-suite.js';
+  import { checker } from './assert.js';
+
+  const tally = document.getElementById('tally');
+  const list = document.getElementById('results');
+  const saved = snapshot();
+  let passed = 0;
+  const failed = [];
+
+  try {
+    for (const testCase of buildClientSuite()) {
+      const t = checker();
+      let thrown = null;
+      try {
+        await fetch('/__test/d1/reset', { method: 'POST', body: '{}' });
+        blankDevice();
+        await testCase.run(t);
+      } catch (err) {
+        thrown = err;
+      }
+      const problems = thrown ? [`threw ${thrown.stack || thrown.message}`, ...t.failures] : t.failures;
+      const li = document.createElement('li');
+      li.className = problems.length ? 'fail' : 'pass';
+      li.innerHTML = `<span class="mark">${problems.length ? '✗' : '✓'}</span>`;
+      const name = document.createElement('span');
+      name.textContent = testCase.name;
+      li.append(name);
+      if (problems.length) {
+        const why = document.createElement('div');
+        why.className = 'why';
+        why.textContent = problems.join('\n');
+        li.append(why);
+        failed.push(testCase.name);
+      } else {
+        passed++;
+      }
+      list.append(li);
+    }
+    tally.textContent = failed.length ? `${failed.length} failing, ${passed} passing` : `${passed} passing, none failing`;
+    document.title = failed.length ? `${failed.length} failing - Sheets Account Tests` : 'All passing - Sheets Account Tests';
+  } catch (err) {
+    tally.textContent = `could not run: ${err.message}`;
+    document.title = 'Error - Sheets Account Tests';
+  } finally {
+    restore(saved);
+  }
+</script>

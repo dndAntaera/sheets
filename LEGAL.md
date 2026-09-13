@@ -30,10 +30,21 @@ campaign's backgrounds are not Open Game Content; they are the owner's own.
 If content from another open source is ever added to the data files, add its
 Section 15 notice to the wiki's legal page in the same change.
 
-## Content players write
+## Accounts and what players store
 
-Homebrew written under Content stays in the player's browser and inside the
-sheets that use it. The app ships no copyrighted non-SRD material, and should
-not: if a campaign server is ever opened to the public, it will need terms
-covering what players upload, since transcriptions of non-SRD books are not
-open content.
+Players may sign in with Google or Discord. The server stores the provider's
+user id, a display name and avatar URL, and each player's characters and
+homebrew. Email addresses are read at sign-in and not stored. There is no
+password.
+
+Homebrew written under Content is saved to the player's own account when they
+are signed in, and is visible to nobody else except inside a sheet they choose
+to share. The app ships no copyrighted non-SRD material and should not; but a
+player can type anything into a homebrew entry, including text copied from
+non-open books. Now that anyone can sign in and store content, the site should
+have short terms of use saying players must only store content they have the
+right to, and a way to remove an account and its data on request. Neither
+exists yet.
+
+Google's OAuth consent screen asks for a privacy policy link before it can be
+published to all users, which is a natural place for both.

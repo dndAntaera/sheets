@@ -5,7 +5,7 @@
 -- stored as the same JSON the browser holds, with the few fields the roster
 -- needs lifted out into columns so listing does not mean parsing every sheet.
 --
---   wrangler d1 execute antaera-sheets --file worker/schema.sql --remote
+--   wrangler d1 migrations apply antaera-sheets --remote --config worker/wrangler.toml
 
 CREATE TABLE IF NOT EXISTS users (
   id          TEXT PRIMARY KEY,        -- the Discord user id

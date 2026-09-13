@@ -23,13 +23,29 @@ edited `web/engine/build.js` keeps being served stale even through a hard reload
 
 ## The tests
 
-The engine is tested; the interface is not. `test/suite.js` holds the cases and
-runs in two places:
+Three suites, each a page on the dev server:
 
-- **In a browser**, at `/test/browser.html` — no Node required.
-- **Under Node**, with `npm test` — what CI runs on every push.
+| Page | What it tests | Against |
+| --- | --- | --- |
+| `/test/browser.html` | the engine: every calculation, rulesets, effects, library sync | nothing but the data files |
+| `/test/worker.html` | the server: sign-in with both providers, linking, sessions, homebrew and character permissions, the database migration | the real Worker, on a real SQLite database |
+| `/test/client.html` | the app's side of accounts: signing in through `web/store.js`, a library kept in step across two devices | the real Worker and SQLite again |
 
-`test/load-data.js` names the data files once for both runners.
+The engine suite also runs under Node with `npm test`, which is what CI runs.
+The other two need the dev server's SQLite stand-in, so they run in a browser.
+
+**How the server is tested without deploying it.** `scripts/serve.py` answers
+`/__test/d1` with an in-memory SQLite database built from `worker/migrations`.
+D1 is SQLite, so the Worker's own SQL runs against the real engine. Google and
+Discord are faked at the network by `test/worker-suite.js`: each test says who
+is signing in. A "device" in the client suite is a snapshot of the page's
+storage, swapped in and out. Each server case starts from an empty database;
+the migration case starts from the old Discord-only schema with data in it.
+
+`/test/app.html` is not a test but a way to look: the real app, talking to the
+in-page Worker. `?as=google` signs in as a player, `?as=dm` as the Antæra DM.
+
+`test/load-data.js` names the data files once for the engine runners.
 
 Add a case whenever you touch a formula. The valuable ones sit where 3.5 rounds,
 where multiclassing sums rather than replaces, where gestalt picks the better of
@@ -136,17 +152,36 @@ a field is a one-line change and adding a kind is a new entry in
 `CONTENT_TYPES` plus wherever the engine should read it (`contentIndex`,
 `resolveEntries`).
 
-Content lives in two places, on purpose:
+Content lives in three places, on purpose:
 
-- **The library**, in the browser under `antaera-sheets/v1/library`, shared by
-  every character made there. Exported and imported as files.
+- **The account**, on the server, one row per entry, when the player is signed
+  in. This is the copy that follows them to another device.
+- **The library**, in the browser under `antaera-sheets/v1/library`: the working
+  copy the editor reads and writes, kept in step with the account.
 - **The character**, under `content`: a copy of each entry the sheet uses. When
   a field names something on the library shelf, `app.js` copies it in
   (`NAMES_CONTENT`). The engine reads only this copy, which is why an exported
-  sheet adds up anywhere.
+  sheet adds up anywhere, and why a DM can read a player's homebrew in their
+  sheet without ever reading their library.
 
 The "Homebrew on this sheet" panel shows those copies and offers to update one
 when the library version is newer.
+
+### Keeping the library in step with the account
+
+Every library entry has an id and an `updated` timestamp. The browser remembers,
+per id, the timestamp it last agreed with the server on. `engine/sync.js` turns
+those three things into a plan - what to upload, what to delete, what to take -
+and `syncLibrary` in `web/store.js` carries it out: on sign-in, on page load
+while signed in, and a moment after each edit. The rules:
+
+- the newer copy of an entry wins;
+- an entry made before signing in is uploaded on the first sync;
+- a deletion on one device removes the entry everywhere;
+- when an edit and a deletion collide, the edit wins.
+
+Signing out sends any pending edit, then takes the library off the browser; it
+comes back on the next sign-in.
 
 ## What is deployed where
 
@@ -164,31 +199,95 @@ footer links there (`legalUrl` in `web/config.js`). If that page moves, update t
 link; if Open Game Content from a new source is added, add its notice there. See
 [LEGAL.md](LEGAL.md).
 
-## The campaign server
+## The server
 
-Optional, and unchanged by the rulesets work: it stores sheets (whatever their
-ruleset), signs players in with Discord, and holds the Antæra gestalt switch.
-That switch overrides gestalt on Antæra sheets only; SRD sheets are never
-touched by campaign settings. Homebrew libraries are not stored on the server —
-they stay in each browser, and travel inside the sheets that use them.
+Optional. Without it the app is complete and everything lives in the browser.
+With it, players sign in with **Google or Discord**, and their characters and
+homebrew library are kept under their account.
+
+### Accounts
+
+An account is not a Google account or a Discord account; it is an account that
+either can prove you own. The `identities` table holds one row per provider
+sign-in, each pointing at an account. A signed-in player can add the other
+provider from the account menu ("Also sign in with Discord"), and afterwards
+reaches the same characters and homebrew from either. An identity already on a
+different account is refused rather than moved, because moving it would strand
+that account's characters.
+
+**Sessions are bearer tokens, not cookies.** The app is on `github.io` and the
+Worker on `workers.dev`, so a cookie would be third-party, and Safari refuses
+those. The token is held by the app and sent in an `Authorization` header; the
+database stores only its SHA-256. The token never appears in a URL: the Worker
+redirects back with a one-time code, which the app exchanges together with a
+nonce it kept in `sessionStorage` when sign-in began - so a finished sign-in
+cannot be completed by any browser but the one that started it.
+
+**What is stored about a player:** the provider's user id, a display name, an
+avatar URL, and whether they are the DM. Email addresses are read at sign-in to
+check `GM_GOOGLE_EMAILS` and are not stored.
+
+### Who sees what
+
+| | Their own | Other players' Antæra characters | Other players' SRD characters | Other players' homebrew |
+| --- | --- | --- | --- | --- |
+| A player | read, edit | no | no | no |
+| The Antæra DM | read, edit | read, edit | no | no |
+
+The DM is whoever matches `GM_DISCORD_IDS` or a verified address in
+`GM_GOOGLE_EMAILS`. Now that anyone can sign in, the DM's roster is limited to
+Antæra characters; a stranger's SRD character is not the campaign's business. A
+player's homebrew reaches the DM only inside the sheets that use it.
+
+The Antæra gestalt switch is still the DM's, and still affects Antæra sheets
+only.
 
 ### One-time setup
 
-1. **A Discord application** at <https://discord.com/developers/applications>,
-   with an OAuth2 redirect of `https://<your-worker>.workers.dev/auth/callback`.
-   Only the `identify` scope is used.
-2. **A database:** `npx wrangler d1 create antaera-sheets`, paste the id into
-   `worker/wrangler.toml`, then
-   `npx wrangler d1 execute antaera-sheets --file worker/schema.sql --remote`.
-3. **Settings and secrets:** put the DM's Discord user id in `GM_DISCORD_IDS`,
-   then `npx wrangler secret put DISCORD_CLIENT_ID --config worker/wrangler.toml`
-   and the same for `DISCORD_CLIENT_SECRET`.
-4. **Deploy**, locally with `npx wrangler deploy --config worker/wrangler.toml`,
-   or by adding `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to the
-   repository's Actions secrets so every push deploys it.
-5. **Point the app at it:** set `apiBase` in `web/config.js` to the Worker URL.
+1. **A database:** `npx wrangler d1 create antaera-sheets`, and paste the id into
+   `worker/wrangler.toml`.
+2. **Google**, if wanted: in the Google Cloud console, create an OAuth client of
+   type *Web application*, with the authorised redirect URI
+   `https://<your-worker>.workers.dev/auth/callback/google`. The scopes used are
+   `openid`, `email` and `profile`. Set the consent screen to *External* and
+   publish it, or only test users can sign in.
+3. **Discord**, if wanted: an application at
+   <https://discord.com/developers/applications>, with OAuth2 redirects of
+   `https://<your-worker>.workers.dev/auth/callback/discord` and - for an
+   application registered before Google was added - the old
+   `.../auth/callback`, which still works. Only `identify` is used.
+4. **Secrets and settings.** For each provider set up:
 
-Until step 5 the app is a complete local-only build.
+   ```bash
+   npx wrangler secret put GOOGLE_CLIENT_ID --config worker/wrangler.toml
+   npx wrangler secret put GOOGLE_CLIENT_SECRET --config worker/wrangler.toml
+   npx wrangler secret put DISCORD_CLIENT_ID --config worker/wrangler.toml
+   npx wrangler secret put DISCORD_CLIENT_SECRET --config worker/wrangler.toml
+   ```
+
+   A provider without its secrets simply does not appear on the sign-in menu.
+   Put the DM's Discord id in `GM_DISCORD_IDS`, or their Google address in
+   `GM_GOOGLE_EMAILS`, in `worker/wrangler.toml`.
+5. **Deploy.** Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to the
+   repository's Actions secrets, and every push to `main` applies any new
+   migrations and deploys the Worker. By hand instead:
+
+   ```bash
+   npx wrangler d1 migrations apply antaera-sheets --remote --config worker/wrangler.toml
+   npx wrangler deploy --config worker/wrangler.toml
+   ```
+
+6. **Point the app at it:** set `apiBase` in `web/config.js` to the Worker's URL.
+
+Until step 6 the app is a complete local-only build.
+
+### Changing the database
+
+Add a new numbered file to `worker/migrations/` - never edit one that has been
+applied - and add a case to `test/worker-suite.js` that starts from the schema
+before it (`{ upTo: '000N' }`) with data in place, as the Discord-only upgrade
+case does. `0002_accounts_and_content.sql` voids existing sessions, since they
+were cookies; everyone signs in once more after it.
 
 ## The shape of the code
 

@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<base href="/web/">
+<title>3.5 Sheets - with a server</title>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/sheet.css">
+
+<!--
+  The real app, talking to the real Worker running in this page, on the dev
+  server's SQLite stand-in. For looking at the signed-in interface without
+  deploying anything.
+
+    /test/app.html              signed out
+    /test/app.html?as=google    signed in as a player, with Google
+    /test/app.html?as=dm        signed in as the Antaera DM, with Discord
+
+  It starts from an empty database each time. It shares storage with the app on
+  this dev server, so expect to sign out, or clear site data, afterwards.
+-->
+
+<script type="module">
+  import { signInAs } from '/test/client-suite.js';
+  import { googler, discorder } from '/test/worker-suite.js';
+
+  await fetch('/__test/d1/reset', { method: 'POST', body: '{}' });
+  const as = new URLSearchParams(location.search).get('as');
+  if (as === 'google') await signInAs(googler('g-demo', 'Ada', 'ada@example.com'), 'google');
+  if (as === 'dm') await signInAs(discorder('dm-on-discord', 'The DM'), 'discord');
+
+  await import('/web/app.js');
+</script>
