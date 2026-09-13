@@ -10,13 +10,13 @@
 
 import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
-  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary,
+  moduleState, MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
 import { wizardPage, paintWizard, WIZARD_STEPS, stepForNotice } from './ui/wizard.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
-  featsPanel, houserulesPanel, wealthPanel, textPanel, castingPanel,
+  featsPanel, houserulesPanel, wealthPanel, textPanel,
   effectsPanel, contentPanel, paintEffects, paintConditions, paintContent,
 } from './ui/sheet.js';
 import { showContent } from './ui/content.js';
@@ -24,6 +24,7 @@ import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
 import { showLanding } from './ui/landing.js';
 import { showReference } from './ui/reference.js';
+import { magicPanel } from './ui/magic.js';
 import { SHEET_PAGES, pageFor, pageForNotice, sheetTabs } from './ui/sheet-pages.js';
 import { showProfile, showSettings, avatarFor } from './ui/profile.js';
 import { applyAppearance, adoptAccountAppearance, setAppearance, isDark } from './ui/appearance.js';
@@ -43,7 +44,7 @@ const PANELS = {
   skills: skillsPanel,
   feats: featsPanel,
   houserules: houserulesPanel,
-  casting: castingPanel,
+  casting: (a) => magicPanel(a, { rest: restCharacter }),
   wealth: wealthPanel,
   effects: effectsPanel,
   content: contentPanel,
@@ -778,6 +779,13 @@ async function openSheet(id, opts = {}) {
   app.unbind = bindForm(main, () => app.character, onEdit);
   recompute();
   window.scrollTo(0, scroll);
+}
+
+/** A night's rest: spells and power points back, uses per day reset. */
+function restCharacter() {
+  app.character.magic = restedMagic(app.character.magic);
+  app.recompute();
+  for (const key of ['casting', 'trackers', 'feats']) if (app.panels[key]) app.rebuildPanel(key);
 }
 
 /** Draw the open character again, in the sheet or the wizard step it is in, once its changes are saved. */

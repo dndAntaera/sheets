@@ -12,6 +12,9 @@ LEGAL.md. This script writes, under web/data/srd/:
     feats.json     every feat: type, prerequisites, benefit, normal, special
     classes.json   every class, with its table: attack, saves, specials, slots, spells
                    known, power points, powers known - one row per level
+    progression.json  just the level-by-level columns the engine reads - spell
+                   slots, spells known, power points, powers known, highest power
+                   level, class specials - small enough to load with the app
     domains.json   cleric domains: granted power and a spell per level
     equipment.json weapons, armor, shields and goods
 
@@ -248,6 +251,28 @@ def classes(db):
     return out
 
 
+def progression(built_classes):
+    """The columns of each class table the engine needs, as parallel arrays by level."""
+    out = {}
+    for c in built_classes:
+        table = c.get('table') or []
+        if not table:
+            continue
+        cols = {
+            'slots': [r.get('slots', []) for r in table],
+            'known': [r.get('known', []) for r in table],
+            'powerPoints': [r.get('powerPoints') for r in table],
+            'powersKnown': [r.get('powersKnown') for r in table],
+            'maxPowerLevel': [r.get('maxPowerLevel') for r in table],
+            'special': [r.get('special') for r in table],
+            'casterLevel': [r.get('casterLevel') for r in table],
+        }
+        entry = {k: v for k, v in cols.items() if any(x not in (None, [], '') for x in v)}
+        if entry:
+            out[c['name']] = entry
+    return out
+
+
 def domains(db):
     out = []
     for r in rows(db, 'SELECT * FROM domain ORDER BY name'):
@@ -299,7 +324,11 @@ def main():
     write('spells.json', spells(db))
     write('powers.json', powers(db))
     write('feats.json', feats(db))
-    write('classes.json', classes(db))
+    built = classes(db)
+    write('classes.json', built)
+    body = json.dumps(progression(built), ensure_ascii=False, separators=(',', ':'))
+    (OUT / 'progression.json').write_text(body + chr(10), encoding='utf-8')
+    print(f'progression.json: {len(body.encode("utf-8")) // 1024} KB')
     write('domains.json', domains(db))
     write('equipment.json', equipment(db))
 

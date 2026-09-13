@@ -14,7 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
-  mergeLibraries, fillMissing, applyCampaign,
+  mergeLibraries, fillMissing, applyCampaign, restedMagic,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -734,6 +734,67 @@ export function buildSuite(data) {
     const c = homebrewFighter();
     derive(c, inCampaign({}, tableLibrary));
     t.eq(c.content.feats.map((f) => f.name), ['Stubborn', 'Table Blessing']);
+  });
+
+  /* === spells and powers ================================================ */
+
+  const caster = (cls, n, ability, score, extra = {}) => {
+    const c = characterWith(srd, repeat([cls], n));
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, [ability]: score };
+    return { ...c, ...extra };
+  };
+  const magicOf = (c, name) => derive(c, srd).magic.classes.find((m) => m.name === name);
+  const perDay = (m) => m.levels.map((l) => l.perDay);
+
+  test('a wizard’s spells per day are the table plus bonus spells, none at level 0', (t) => {
+    const m = magicOf(caster('Wizard', 5, 'int', 16), 'Wizard');
+    t.eq(perDay(m), [4, 4, 3, 2], 'table 4/3/2/1, Int 16 adds one each at 1st to 3rd');
+    t.eq([m.casterLevel, m.levels[3].saveDC, m.spellbook], [5, 16, true]);
+  });
+
+  test('a specialist wizard gets a slot of her school at every level, and a low score closes a level', (t) => {
+    t.eq(perDay(magicOf(caster('Wizard', 5, 'int', 16, { magic: { Wizard: { specialty: 'Evocation' } } }), 'Wizard')), [5, 5, 4, 3]);
+    const dull = magicOf(caster('Wizard', 5, 'int', 11), 'Wizard');
+    t.eq(perDay(dull), [4, 3, 0, 0], 'Int 11 casts no 2nd- or 3rd-level spells');
+    t.eq(dull.levels[2].castable, false);
+  });
+
+  test('a sorcerer casts from spells known, and the sheet counts what is cast', (t) => {
+    const c = caster('Sorcerer', 4, 'cha', 16, { magic: { Sorcerer: { used: { 1: 2 }, known: [{ name: 'Magic Missile', level: 1 }] } } });
+    const m = magicOf(c, 'Sorcerer');
+    t.eq(perDay(m), [6, 7, 4]);
+    t.eq(m.levels.map((l) => l.knownAllowed), [6, 3, 1]);
+    t.eq([m.levels[1].used, m.levels[1].remaining, m.levels[1].knownCount], [2, 5, 1]);
+  });
+
+  test('a cleric has a domain slot beside her own, and a paladin’s 0 is bonus spells only', (t) => {
+    const cleric = magicOf(caster('Cleric', 1, 'wis', 15), 'Cleric');
+    t.eq(perDay(cleric), [3, 3], '1st level: 1 + 1 bonus + 1 domain');
+    t.eq(cleric.levels[1].domain, 1);
+    const paladin = magicOf(caster('Paladin', 4, 'wis', 12), 'Paladin');
+    t.eq([paladin.levels.map((l) => [l.level, l.perDay]), paladin.casterLevel], [[[1, 1]], 2]);
+    t.eq(magicOf(caster('Paladin', 3, 'wis', 18), 'Paladin').levels, [], 'no spells before 4th level');
+  });
+
+  test('power points: the table plus modifier times manifester level over two, in one pool', (t) => {
+    const psion = caster('Psion', 1, 'int', 14);
+    t.eq(derive(psion, srd).magic.powerPoints.total, 3, '2 + (2 x 1) / 2');
+    const m = magicOf(psion, 'Psion');
+    t.eq([m.powersKnown.allowed, m.maxPowerLevel], [3, 1]);
+    const both = characterWith(srd, [['Psion'], ['Psychic Warrior'], ['Psychic Warrior']]);
+    both.abilities.base = { str: 10, dex: 10, con: 10, int: 14, wis: 14, cha: 10 };
+    both.magic = { powerPointsUsed: 2 };
+    const pool = derive(both, srd).magic.powerPoints;
+    t.eq([pool.base, pool.bonus, pool.total, pool.remaining], [3, 3, 6, 4], 'Psion 1 (2 + 1) and Psychic Warrior 2 (1 + 2)');
+  });
+
+  test('the sheet says when more is known or cast than allowed, and rest clears the day', (t) => {
+    const c = caster('Sorcerer', 1, 'cha', 12, { magic: { Sorcerer: { used: { 1: 9 }, known: [1, 2, 3].map((i) => ({ name: `Spell ${i}`, level: 1 })) } } });
+    const d = derive(c, srd);
+    t.ok(d.notices.some((n) => n.level === 'error' && /1st-level spells: 3 known, but only 2/.test(n.text)));
+    t.ok(d.notices.some((n) => n.level === 'error' && /1st-level spells: 9 cast/.test(n.text)));
+    const rested = restedMagic({ Sorcerer: { used: { 1: 9 }, prepared: { 1: [{ name: 'Sleep', used: true }] } }, powerPointsUsed: 5 });
+    t.eq([rested.Sorcerer.used, rested.Sorcerer.prepared[1][0], rested.powerPointsUsed], [{}, { name: 'Sleep', used: false }, 0]);
   });
 
   return cases;

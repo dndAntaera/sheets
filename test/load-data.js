@@ -4,11 +4,12 @@
 export const RULESETS = ['srd', 'antaera'];
 
 export async function loadData(read) {
-  const [core, classes, skills, races, ...rulesets] = await Promise.all([
+  const [core, classes, skills, races, progression, ...rulesets] = await Promise.all([
     read('core.json'),
     read('classes.json'),
     read('skills.json'),
     read('races.json'),
+    read('srd/progression.json'),
     ...RULESETS.map((id) => read(`rulesets/${id}.json`)),
   ]);
   return {
@@ -16,6 +17,7 @@ export async function loadData(read) {
     classes,
     skills,
     races,
+    progression,
     rulesets: Object.fromEntries(rulesets.map((r) => [r.id, r])),
   };
 }

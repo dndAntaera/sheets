@@ -796,6 +796,60 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 @media print { .sheet-tabs { display: none; } }
 
 /* ---------------------------------------------------------------------------
+   The Spell Sheet / Powers Sheet (ui/magic.js)
+   --------------------------------------------------------------------------- */
+
+.magic-top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); }
+.magic-rest { display: flex; align-items: center; gap: var(--sp-2); margin-left: auto; }
+.magic-pool { flex: 1 1 18rem; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); background: var(--surface-sunk); border: var(--hair) solid var(--rule); border-radius: var(--radius-lg); }
+.magic-pool-numbers { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+.magic-pool-left { font: 600 var(--text-total-lg)/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.magic-meter { height: .5rem; border-radius: 999px; background: var(--rule); overflow: hidden; }
+.magic-meter span { display: block; height: 100%; background: var(--accent); }
+.magic-class { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-3); border-top: var(--hair) solid var(--rule); }
+.magic-class-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-3); }
+.magic-class-head h3 { margin: 0; font: 600 1.05rem/1.2 var(--font-display); text-transform: none; letter-spacing: 0; color: var(--ink); }
+.magic-options { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); align-items: flex-end; }
+.magic-option { display: flex; flex-direction: column; gap: .15rem; }
+.magic-prohibited { align-items: center; }
+.magic-slots { border-collapse: collapse; font-size: var(--text-small); min-width: 28rem; }
+.magic-slots th, .magic-slots td { padding: .3rem .5rem; border-bottom: var(--hair) solid var(--rule); text-align: left; }
+.magic-slots thead th { color: var(--ink-soft); font-weight: 600; }
+.magic-slots tr.is-closed td, .magic-slots tr.is-closed th { color: var(--ink-faint); }
+.magic-lists { display: flex; flex-direction: column; gap: var(--sp-2); }
+.magic-lists h4 { margin: var(--sp-2) 0 0; font: 600 var(--text-small)/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.magic-level { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-2) 0; border-bottom: var(--hair) dashed var(--rule); }
+.magic-level-head { display: flex; align-items: baseline; gap: var(--sp-2); }
+.magic-level-name { font-weight: 600; }
+.magic-spells { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .15rem; }
+.magic-spell-line, .magic-slot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.magic-spell-name { font-weight: 600; }
+.magic-spell-summary { flex: 1 1 12rem; min-width: 0; }
+.magic-spell.is-prohibited .magic-spell-name { text-decoration: line-through; }
+.magic-slot.is-used .field { text-decoration: line-through; color: var(--ink-faint); }
+.magic-slot-input { display: flex; flex: 1 1 14rem; min-width: 0; }
+.magic-adder { max-width: 32rem; }
+.magic-details summary { cursor: pointer; font-size: var(--text-small); color: var(--link); }
+.magic-detail { padding: var(--sp-2) var(--sp-3); margin: var(--sp-1) 0 var(--sp-2); background: var(--surface-raised); border: var(--hair) solid var(--rule); border-radius: var(--radius); }
+.is-error { color: var(--fail) !important; }
+
+/* Boxes for uses: filled when used. Shared by spell slots and uses-per-day trackers. */
+.pips { display: inline-flex; flex-wrap: wrap; gap: .25rem; align-items: center; }
+.pip {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: var(--hair) solid var(--ink-soft);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.pip:hover { border-color: var(--accent); }
+.pip.is-used { background: var(--accent-dark); border-color: var(--accent-dark); }
+.pip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media print { .magic-adder, .magic-rest, .magic-details { display: none; } }
+
+/* ---------------------------------------------------------------------------
    Reference - the SRD's entries, and the card that shows one (ui/reference.js)
    --------------------------------------------------------------------------- */
 

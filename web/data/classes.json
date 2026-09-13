@@ -14,7 +14,15 @@
     "",
     "A class not listed here is not a problem: a player adds it once, by hand,",
     "under Custom Classes, and it then behaves exactly like one of these.",
-    "Splatbook and prestige classes are expected to arrive that way."
+    "Splatbook and prestige classes are expected to arrive that way.",
+    "",
+    "  casting / manifesting  the ability a caster or manifester uses, and:",
+    "    spontaneous  casts without preparing (bard, sorcerer)",
+    "    spellbook    prepares from a spellbook of spells learned (wizard)",
+    "    half         caster level is half the class level (paladin, ranger)",
+    "    domains      chooses two domains, each with a slot a level (cleric)",
+    "    disciplines  chooses a discipline, with its own powers (psion)",
+    "  Spells per day, spells known and power points come from data/srd/progression.json."
   ],
   "classes": [
     {
@@ -79,7 +87,7 @@
       "saves": {"fort": "good", "ref": "poor", "will": "good"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false, "domains": true},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -161,7 +169,7 @@
       "saves": {"fort": "good", "ref": "poor", "will": "poor"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false, "half": true},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -182,7 +190,7 @@
       "saves": {"fort": "good", "ref": "good", "will": "poor"},
       "skillPoints": 6,
       "srd": true,
-      "casting": {"ability": "wis", "type": "divine", "spontaneous": false},
+      "casting": {"ability": "wis", "type": "divine", "spontaneous": false, "half": true},
       "classSkills": [
         "Climb",
         "Concentration",
@@ -261,7 +269,7 @@
       "saves": {"fort": "poor", "ref": "poor", "will": "good"},
       "skillPoints": 2,
       "srd": true,
-      "casting": {"ability": "int", "type": "arcane", "spontaneous": false},
+      "casting": {"ability": "int", "type": "arcane", "spontaneous": false, "spellbook": true},
       "classSkills": [
         "Concentration",
         "Craft",
@@ -280,7 +288,7 @@
       "skillPoints": 2,
       "srd": true,
       "psionic": true,
-      "manifesting": {"ability": "int"},
+      "manifesting": {"ability": "int", "disciplines": true},
       "classSkills": ["Concentration", "Craft", "Knowledge", "Profession", "Psicraft"],
       "note": "A psion's discipline adds its own class skills on top of these; pick the discipline under Class Features and add them by hand."
     },
