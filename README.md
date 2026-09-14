@@ -116,6 +116,9 @@ alternative skill systems, class variants, generic and paragon classes, craft
 points, reputation, sanity and the rest - can be switched on from a character's
 Rules page, or set for everyone by a campaign's GM, and the sheet follows it.
 
+**Contact Me**, in the footer, sends feedback to the site's admins, who read it on
+their Feedback page.
+
 Each player has a **profile** and a **Settings** page: a username and profile
 picture of their own, and how the site looks to them - day or night, an accent
 color, larger text, reduced motion - kept with their account.

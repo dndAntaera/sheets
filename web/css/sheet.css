@@ -1770,3 +1770,25 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   .shop-details { flex: 1 1 100%; order: 1; }
   .shop-actions { order: 2; margin-left: auto; }
 }
+
+/* ---------------------------------------------------------------------------
+   Contact Me, and the admins' Feedback page (ui/feedback.js)
+   --------------------------------------------------------------------------- */
+
+.contact-form { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
+.contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--sp-3); }
+.contact-field { display: flex; flex-direction: column; gap: .2rem; }
+.contact-error { color: var(--fail); font-size: var(--text-small); min-height: 0; }
+.contact-error:empty { display: none; }
+.contact-count { align-self: flex-end; margin-top: calc(-1 * var(--sp-2)); }
+/* The trap for bots: out of sight and out of reach, but still in the form. */
+.contact-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.feedback-tabs { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-3) 0 var(--sp-1); }
+.feedback-list { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-2); }
+.feedback-item { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border: var(--hair) solid var(--rule); border-radius: var(--radius-lg); background: var(--surface-sunk); }
+.feedback-item.is-new { border-left: 4px solid var(--accent); }
+.feedback-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.feedback-from { font-weight: 600; margin-right: auto; }
+.feedback-contact { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); font-size: var(--text-small); }
+.feedback-message { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--leading); }
+.feedback-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); justify-content: flex-end; }

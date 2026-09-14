@@ -28,6 +28,7 @@ import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
 import { showLanding } from './ui/landing.js';
 import { showReference } from './ui/reference.js';
+import { showContact, showFeedback } from './ui/feedback.js';
 import { magicPanel } from './ui/magic.js';
 import { variantRulesPanel, variantCombatPanel, variantTracksPanel } from './ui/variants.js';
 import { referenceNow, lookUp } from './reference.js';
@@ -403,7 +404,9 @@ function footer() {
     h('p',
       h('a', { href: config.privacyUrl, text: 'Privacy Policy' }),
       ' · ',
-      h('a', { href: config.termsUrl, text: 'Terms of Service' })));
+      h('a', { href: config.termsUrl, text: 'Terms of Service' }),
+      ' · ',
+      h('a', { href: '#/contact', text: 'Contact Me' })));
 }
 
 /** The header's Day / Night switch: a shortcut to the Theme setting. */
@@ -472,6 +475,8 @@ const VIEWS = [
   { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: ([id]) => showCampaign(main(), app, id) },
   { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
   { match: /^admin$/, nav: 'admin', title: 'Accounts', show: () => showAdmin(main(), app) },
+  { match: /^feedback$/, nav: 'feedback', title: 'Feedback', show: () => showFeedback(main(), app) },
+  { match: /^contact$/, nav: 'contact', title: 'Contact Me', show: () => showContact(main(), app) },
   {
     match: /^reference(?:\/([a-z]+))?(?:\/(.+))?$/,
     nav: 'reference',
@@ -502,6 +507,7 @@ const NAV = [
   { key: 'content', label: 'Content', href: '#/content', visible: () => signedIn() },
   { key: 'reference', label: 'Reference', href: '#/reference', visible: () => signedIn() },
   { key: 'admin', label: 'Accounts', href: '#/admin', visible: () => Boolean(app.user?.admin) },
+  { key: 'feedback', label: 'Feedback', href: '#/feedback', visible: () => Boolean(app.user?.admin) },
 ];
 
 function route() {

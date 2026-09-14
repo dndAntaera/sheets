@@ -619,6 +619,22 @@ other players' characters in those campaigns are released, not deleted.
 
 A role change applies at once, to sessions already open.
 
+### Contact Me and feedback
+
+The Contact Me page (`#/contact`, linked in the footer) lets anyone send a
+message, signed in or not, with a name, Discord username or email if they
+choose. `web/engine/feedback.js` is the one description of what a message may
+hold; the page checks it before sending and the Worker
+(`worker/src/features/feedback.js`) again before storing it in the `feedback`
+table. Admins read them on the Feedback page (`#/feedback`): newest first, New,
+Read or All, marked read or new, deleted.
+
+Two things keep the form from being flooded: a field people never see, which a
+bot fills in and whose message is silently dropped, and a limit of a few
+messages an hour per sender - a hash of the network address (salted with
+`FEEDBACK_SALT` if set), or of the account when signed in. The address itself is
+never stored. The Privacy Policy describes all of this; change it with the form.
+
 ### Profiles and settings
 
 Every account has a profile (`#/profile`) and a Settings page (`#/settings`),
@@ -764,6 +780,7 @@ applied - and add a case that starts from the schema before it
 - `0005_campaign_homebrew.sql` adds each campaign's homebrew library.
 - `0006_profiles.sql` adds chosen usernames and pictures, preferences, and each
   sign-in's own name and picture.
+- `0007_feedback.sql` adds the Contact Me page's messages.
 
 ### The shape of the server
 

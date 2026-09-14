@@ -419,6 +419,14 @@ export const remote = {
   },
 
   /** Your profile and preferences, and the profiles of people you share a campaign with. */
+  /** Messages from the Contact Me page: anyone sends one; only admins read them. */
+  feedback: {
+    send: (message) => api('/api/feedback', { method: 'POST', body: JSON.stringify(message) }),
+    list: (status = null) => api(`/api/feedback${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+    mark: (id, status) => api(`/api/feedback/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    remove: (id) => api(`/api/feedback/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+
   profile: {
     mine: () => api('/api/profile'),
     get: (id) => api(`/api/profile/${encodeURIComponent(id)}`),

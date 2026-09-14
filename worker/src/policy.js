@@ -117,4 +117,7 @@ export const accountCan = {
    * campaign with its owner - the people who already see their name at the table.
    */
   viewProfile: (viewer, targetId, sharesCampaign) => viewer.id === targetId || atLeast(viewer, 'admin') || Boolean(sharesCampaign),
+
+  /** Messages from the Contact Me page, with whatever contact details they carry, are for admins only. */
+  readFeedback: (user) => atLeast(user, 'admin'),
 };
