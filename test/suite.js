@@ -1143,5 +1143,28 @@ export function buildSuite(data) {
     t.eq([derive(fifth, rules).wealth.startingGold, derive(fifth, rules).wealth.source], [5000, 'campaign'], 'the GM\u2019s figure, not the player\u2019s');
   });
 
+  test('skill synergies: 5 ranks give +2, untyped, stacking; conditional ones only noted', (t) => {
+    const c = characterWith(srd, repeat(['Rogue'], 2));
+    const line = (d, label) => d.skills.lines.find((l) => l.label === label);
+    const set = (name, ranks) => { c.skills.find((s) => s.name === name).ranks = ranks; };
+    const before = derive(c, srd);
+    set('Bluff', 5);
+    set('Sense Motive', 4);
+    set('Tumble', 5);
+    let d = derive(c, srd);
+    t.eq(line(d, 'Diplomacy').total - line(before, 'Diplomacy').total, 2, 'Bluff 5 ranks: +2 Diplomacy');
+    t.eq([line(d, 'Balance').total - line(before, 'Balance').total, line(d, 'Jump').total - line(before, 'Jump').total], [2, 2], 'Tumble 5 ranks: Balance and Jump');
+    t.eq(line(d, 'Disguise').total, line(before, 'Disguise').total, 'acting in character is conditional: not added');
+    t.ok(d.effects.resolved['skill.Disguise'].conditional.length === 1, 'but listed');
+    set('Sense Motive', 5);
+    d = derive(c, srd);
+    t.eq(line(d, 'Diplomacy').total - line(before, 'Diplomacy').total, 4, 'Sense Motive too: they stack');
+    c.skills.push({ name: 'Knowledge', subtype: 'arcana', ranks: 5, misc: 0 });
+    d = derive(c, srd);
+    t.eq(line(d, 'Spellcraft').total - line(before, 'Spellcraft').total, 2, 'Knowledge (arcana) 5 ranks: +2 Spellcraft');
+    c.skills.push({ name: 'Knowledge', subtype: 'history', ranks: 6, misc: 0 });
+    t.ok(derive(c, srd).specialNotes.some((n) => n.kind === 'synergy' && /bardic knowledge/.test(n.text)), 'a synergy on something not a skill is a note');
+  });
+
   return cases;
 }

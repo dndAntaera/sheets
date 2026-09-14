@@ -56,7 +56,7 @@ export const WIZARD_STEPS = [
     title: 'Class',
     intro: [
       'Your class decides your hit die, how fast your attack bonus and saves grow, and how many skill points you get.',
-      'Pick a class for your first level. If you start above 1st level, fill in the rest below - a different class on a row is multiclassing.',
+      'Type to narrow the list and choose a class for your first level. If you start above 1st level, fill in the rest below - a different class on a row is multiclassing.',
     ],
     panels: ['levels'],
     notices: ['levels'],
@@ -282,39 +282,50 @@ function conceptStep(app, ways) {
       h('p.hint', { text: 'Every other variant rule in the SRD - defense bonus, spell points, vitality and wound points and the rest - can be switched on from the sheet\u2019s Rules page.' }))));
 }
 
+/**
+ * One box for a choice from a list: typing narrows the list, and choosing one
+ * (or leaving the box) takes it. A name not on the list can be typed in all the
+ * same, for homebrew the sheet does not yet know.
+ *
+ * @param opts { label, listId, value, choices: [{ name, note }], placeholder, onPick(name) }
+ */
+function pickerBox(opts) {
+  const input = h('input.field.wizard-pick-field', {
+    type: 'text',
+    value: opts.value,
+    placeholder: opts.placeholder,
+    autocomplete: 'off',
+    'aria-label': opts.label,
+    dataset: { unbound: '' },
+  });
+  input.setAttribute('list', opts.listId);
+  input.addEventListener('change', () => {
+    const typed = input.value.trim();
+    const match = opts.choices.find((c) => c.name.toLowerCase() === typed.toLowerCase());
+    const name = match ? match.name : typed;
+    if (name !== opts.value) opts.onPick(name);
+  });
+  return h('div.wizard-pick',
+    labelled(opts.label, input),
+    h('datalist', { id: opts.listId }, opts.choices.map((c) => h('option', { value: c.name, label: c.note || '' }))));
+}
+
 function raceStep(app, ways) {
   const chosen = app.character.race?.name || '';
   const choices = ways.raceChoices();
   const adjust = (a = {}) => Object.entries(a).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k.toUpperCase()}`).join(', ') || 'no adjustments';
   const picked = choices.find((r) => r.name === chosen);
 
-  // One box: typing narrows the list of races, and choosing one (or leaving
-  // the box) takes it. A race not on the list can be typed in all the same.
-  const listId = 'wizard-race-names';
-  const input = h('input.field.grow.wizard-race-field', {
-    type: 'text',
-    value: chosen,
-    list: listId,
-    placeholder: 'Start typing a race',
-    autocomplete: 'off',
-    'aria-label': 'Race',
-    dataset: { unbound: '' },
-  });
-  input.setAttribute('list', listId);
-  input.addEventListener('change', () => {
-    const typed = input.value.trim();
-    const match = choices.find((r) => r.name.toLowerCase() === typed.toLowerCase());
-    const name = match ? match.name : typed;
-    if (name !== chosen) ways.choose('race.name', name);
-  });
-
   return h('div.wizard-body',
     h('section.panel', h('div.panel-body',
-      h('label.cell.wide', h('span.label', { text: 'Race' }), input),
-      h('datalist', { id: listId }, choices.map((r) => h('option', {
-        value: r.name,
-        label: [adjust(r.abilityAdjust), r.la ? `LA +${r.la}` : '', r.custom ? 'homebrew' : ''].filter(Boolean).join(' - '),
-      }))),
+      pickerBox({
+        label: 'Race',
+        listId: 'wizard-race-names',
+        value: chosen,
+        placeholder: 'Start typing a race',
+        choices: choices.map((r) => ({ name: r.name, note: [adjust(r.abilityAdjust), r.la ? `LA +${r.la}` : '', r.custom ? 'homebrew' : ''].filter(Boolean).join(' - ') })),
+        onPick: (name) => ways.choose('race.name', name),
+      }),
       chosen
         ? (app.derived.race.known
           ? h('div.race-facts',
@@ -331,25 +342,40 @@ function raceStep(app, ways) {
 function classStep(app, ways) {
   const chosen = app.character.levels?.[0]?.a || '';
   const choices = ways.classChoices();
-  const groups = [
-    ['Classes', choices.filter((c) => !c.npcClass && !c.psionic && !c.custom)],
-    ['Psionic classes', choices.filter((c) => c.psionic && !c.custom)],
-    ['NPC classes', choices.filter((c) => c.npcClass && !c.custom)],
-    ['Homebrew', choices.filter((c) => c.custom)],
-  ].filter(([, list]) => list.length);
-  const goodSaves = (s = {}) => Object.entries(s).filter(([, v]) => v === 'good').map(([k]) => k[0].toUpperCase() + k.slice(1)).join(', ') || 'none';
+  const goodSaves = (s = {}) => Object.entries(s).filter(([, v]) => v === 'good').map(([k]) => ({ fort: 'Fortitude', ref: 'Reflex', will: 'Will' }[k] || k)).join(', ') || 'none';
+  const kind = (k) => [k.psionic ? 'psionic' : '', k.custom ? 'homebrew' : ''].filter(Boolean).join(', ');
+  const picked = app.derived.index.classByName.get(chosen) || choices.find((k) => k.name === chosen);
 
-  return h('div.wizard-body', groups.map(([label, list]) => h('div.choice-group',
-    h('h3.choice-group-title', { text: label }),
-    h('div.choice-cards', list.map((k) => h(`button.choice-card${k.name === chosen ? '.is-chosen' : ''}`, {
-      type: 'button',
-      'aria-pressed': String(k.name === chosen),
-      onclick: () => ways.choose('levels.0.a', k.name),
-    },
-    h('span.choice-card-title', { text: k.name }),
-    k.custom ? h('span.tag', { text: 'homebrew' }) : null,
-    h('span.choice-card-line', { text: `d${k.hd} hit die - ${k.skillPoints ?? '?'} skill points` }),
-    h('span.choice-card-line.hint', { text: `Attack ${PROGRESSION[k.bab] || k.bab || '?'} - good saves: ${goodSaves(k.saves)}` })))))));
+  const facts = (k) => {
+    const casting = k.casting?.ability ? `${k.casting.type || ''} spells from ${k.casting.ability.toUpperCase()}${k.casting.spontaneous ? ', cast without preparing' : k.casting.spellbook ? ', prepared from a spellbook' : ', prepared'}`
+      : k.manifesting?.ability ? `psionic powers from ${k.manifesting.ability.toUpperCase()}` : null;
+    const skills = Array.isArray(k.classSkills) ? k.classSkills.join(', ') : k.classSkills;
+    return h('div.class-facts',
+      h('div.row',
+        h('div.total', h('span.label', { text: 'Hit die' }), h('span.out', { text: k.hd ? `d${k.hd}` : '?' })),
+        h('div.total', h('span.label', { text: 'Attack' }), h('span.out', { text: PROGRESSION[k.bab] || k.bab || '?' })),
+        h('div.total', h('span.label', { text: 'Skill points' }), h('span.out', { text: k.skillPoints !== undefined ? `${k.skillPoints} + Int` : '?' })),
+        k.startingGold ? h('div.total', h('span.label', { text: 'Starting gold' }), h('span.out', { text: `${k.startingGold.average} gp` })) : null),
+      h('p', { text: `Good saves: ${goodSaves(k.saves)}.` }),
+      casting ? h('p', { text: `Casts ${casting}.` }) : null,
+      skills ? h('p.hint', { text: `Class skills: ${skills}.` }) : null);
+  };
+
+  return h('div.wizard-body',
+    h('section.panel', h('div.panel-body',
+      pickerBox({
+        label: '1st-level class',
+        listId: 'wizard-class-names',
+        value: chosen,
+        placeholder: 'Start typing a class',
+        choices: choices.map((k) => ({ name: k.name, note: [`d${k.hd} hit die`, `${k.skillPoints ?? '?'} skill points`, kind(k)].filter(Boolean).join(' - ') })),
+        onPick: (name) => ways.choose('levels.0.a', name),
+      }),
+      chosen
+        ? (picked && !picked.missing
+          ? facts(picked)
+          : h('p.hint', { text: `${chosen} is not a class the sheet knows. Write it up under Content so its numbers count.` }))
+        : h('p.hint', { text: 'No class chosen yet.' }))));
 }
 
 function reviewStep(app, ways) {

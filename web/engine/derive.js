@@ -45,6 +45,7 @@ import { featPlan, featSlots, featNotices, featRuleIndex } from './feats.js';
 import { classFeatures, featureEffects, domainClassSkills, domainFeats, domainTrackers } from './features.js';
 import { languagePlan, languageNotices } from './languages.js';
 import { traitEntries, traitNotices } from './traits.js';
+import { synergiesFor } from './synergies.js';
 import { abilityMod, num } from './util.js';
 
 const SAVE_ABILITY = { fort: 'con', ref: 'dex', will: 'wis' };
@@ -137,7 +138,7 @@ export function derive(character, rules, options = {}) {
   const featRuleNames = new Set((rules.featRules || []).map((f) => f.name.toLowerCase()));
   const features = classFeatures(character, summary, rules, featRuleNames);
   effects.push(...featureEffects(character, summary, abilities, features));
-  const resolved = resolveEffects(effects, summary.hitDiceCount);
+  let resolved = resolveEffects(effects, summary.hitDiceCount);
 
   // --- 5. everything else ------------------------------------------------
   const gear = character.gear || {};
@@ -182,7 +183,17 @@ export function derive(character, rules, options = {}) {
     resolved,
     system: skillSystemOf(modules),
   };
-  const skills = skillTable(character, skillCtx);
+  let skills = skillTable(character, skillCtx);
+  // Skill synergies come from ranks, so they are read from this first table and
+  // added as effects; the table is then worked out again with them. They touch
+  // only skills, so nothing above them changes.
+  const synergy = synergiesFor(skills.lines, rules);
+  if (synergy.effects.length) {
+    effects.push(...synergy.effects);
+    resolved = resolveEffects(effects, summary.hitDiceCount);
+    skillCtx.resolved = resolved;
+    skills = skillTable(character, skillCtx);
+  }
   const extraSkillPoints = bonusTo(resolved, 'skillPoints.perLevel')
     + (race.known ? 0 : num(character.race?.skillPointsPerLevel));
   const budget = skillPointBudget(summary, abilities.int.mod, extraSkillPoints);
@@ -273,7 +284,8 @@ export function derive(character, rules, options = {}) {
   derived.languages = languagePlan(character, derived, rules);
   const featNotes = entries.feats.flatMap((f) => (f.notes || []).map((text) => ({ source: f.choice ? `${f.name} (${f.choice})` : f.name, kind: 'feat', text })));
   const traitNotes = entries.other.flatMap((t) => (t.notes || []).map((text) => ({ source: t.name, kind: t.kind, text })));
-  derived.specialNotes = [...featNotes, ...traitNotes];
+  derived.specialNotes = [...featNotes, ...traitNotes, ...synergy.notes];
+  derived.synergies = synergy.earned;
   if (derived.languages.illiterate) derived.specialNotes.push({ source: 'Barbarian', kind: 'class', text: 'Illiterate: cannot read or write until 2 skill points are spent, or a level is taken in another class.' });
   derived.traitsFlaws = entries.other;
   // What decides who may take which trait or flaw: scores before any flaw, speed before any trait.

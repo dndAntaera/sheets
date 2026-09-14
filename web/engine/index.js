@@ -35,6 +35,7 @@ export * from './feats.js';
 export * from './features.js';
 export * from './languages.js';
 export * from './traits.js';
+export * from './synergies.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 
@@ -50,7 +51,7 @@ export const RULESET_IDS = ['srd', 'antaera'];
  */
 export function makeRules({
   core, rulesets, classes, skills, races, backgrounds = {}, progression = {}, variants = null,
-  featRules = [], featEffects = null, traits = [], languages = [], domains = [],
+  featRules = [], featEffects = null, traits = [], languages = [], domains = [], synergies = null,
 }, rulesetId = 'srd') {
   const base = {
     core,
@@ -66,6 +67,7 @@ export function makeRules({
     traits,
     languages,
     domains,
+    synergies,
     classByName: new Map(classes.classes.map((c) => [c.name, c])),
     skillsByName: new Map(skills.skills.map((s) => [s.name, s])),
     raceByName: new Map((races?.races || []).map((r) => [r.name, r])),
@@ -87,7 +89,7 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     return res.json();
   };
 
-  const [core, classes, skills, races, progression, variants, featRules, featEffects, traits, languages, domains, ...rulesetFiles] = await Promise.all([
+  const [core, classes, skills, races, progression, variants, featRules, featEffects, traits, languages, domains, synergies, ...rulesetFiles] = await Promise.all([
     get('core.json'),
     get('classes.json'),
     get('skills.json'),
@@ -99,6 +101,7 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     get('srd/traits.json'),
     get('srd/languages.json'),
     get('srd/domains.json'),
+    get('synergies.json'),
     ...RULESET_IDS.map((id) => get(`rulesets/${id}.json`)),
   ]);
 
@@ -113,6 +116,6 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
   }
 
   return makeRules({
-    core, rulesets, classes, skills, races, backgrounds, progression, variants, featRules, featEffects, traits, languages, domains,
+    core, rulesets, classes, skills, races, backgrounds, progression, variants, featRules, featEffects, traits, languages, domains, synergies,
   }, rulesetId);
 }

@@ -1010,6 +1010,12 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .wizard-body { display: flex; flex-direction: column; gap: var(--gap); }
 .wizard-body .panel h3 { margin-top: 0; }
 .wizard-name-field { font-size: 1.1em; }
+/* A choice from a list (race, class): a box the width of the longest name, not the panel. */
+.wizard-pick { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2); }
+.wizard-pick .cell { flex: 0 1 20rem; }
+.wizard-pick-field { width: 100%; }
+.class-facts { display: flex; flex-direction: column; gap: var(--sp-2); }
+.class-facts p { margin: 0; }
 
 .choice-group { display: flex; flex-direction: column; gap: var(--sp-2); }
 .choice-group-title { margin: var(--sp-2) 0 0; font: 600 var(--text-small)/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--sky-ink-dim); }

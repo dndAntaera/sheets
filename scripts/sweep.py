@@ -259,6 +259,15 @@ def sweep_data():
                 bad += ['%s speaks %s' % (r['name'], l) for l in spoken if l not in languages]
     check('classes and races name real feats and languages', bad)
 
+    bad = []
+    for syn in load(os.path.join(DATA, 'synergies.json'))['synergies']:
+        for end in (syn['from'], syn['to']):
+            if end and end.split(' (')[0] not in skills:
+                bad.append('%s -> %s' % (syn['from'], syn['to']))
+        if not syn['to'] and not syn.get('note'):
+            bad.append('%s has no skill and no note' % syn['from'])
+    check('every synergy joins real skills', bad)
+
     spec = importlib.util.spec_from_file_location('build_feat_rules', os.path.join(ROOT, 'scripts', 'build-feat-rules.py'))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

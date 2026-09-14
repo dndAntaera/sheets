@@ -4,7 +4,7 @@
 export const RULESETS = ['srd', 'antaera'];
 
 export async function loadData(read) {
-  const [core, classes, skills, races, progression, variants, featRules, featEffects, traits, languages, domains, ...rulesets] = await Promise.all([
+  const [core, classes, skills, races, progression, variants, featRules, featEffects, traits, languages, domains, synergies, ...rulesets] = await Promise.all([
     read('core.json'),
     read('classes.json'),
     read('skills.json'),
@@ -16,6 +16,7 @@ export async function loadData(read) {
     read('srd/traits.json'),
     read('srd/languages.json'),
     read('srd/domains.json'),
+    read('synergies.json'),
     ...RULESETS.map((id) => read(`rulesets/${id}.json`)),
   ]);
   return {
@@ -30,6 +31,7 @@ export async function loadData(read) {
     traits,
     languages,
     domains,
+    synergies,
     rulesets: Object.fromEntries(rulesets.map((r) => [r.id, r])),
   };
 }

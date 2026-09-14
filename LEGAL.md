@@ -34,6 +34,7 @@ game mechanics taken from the 3.5 System Reference Document:
   Content
 - `web/data/srd/traits.json` — Unearthed Arcana's character traits and flaws
 - `web/data/srd/languages.json` — the SRD's languages
+- `web/data/synergies.json` — the SRD's skill synergies
 - `web/data/srd/feat-rules.json` and `web/data/feat-effects.json` — the SRD's feat
   prerequisites and benefits, restated for the engine
 

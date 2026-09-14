@@ -417,7 +417,8 @@ function refreshDatalists() {
   const names = (...lists) => [...new Set(lists.flat().filter(Boolean))].sort();
 
   const lists = {
-    'class-names': names(app.rules.classes.classes.map((c) => c.name), idx ? [...idx.classByName.keys()] : [], from('classes')),
+    // Not the NPC classes: they are kept for later, not offered to players.
+    'class-names': names(app.rules.classes.classes.filter((c) => !c.npcClass).map((c) => c.name), idx ? [...idx.classByName.values()].filter((c) => !c.npcClass).map((c) => c.name) : [], from('classes')),
     'race-names': names((app.rules.races?.races || []).map((r) => r.name), idx ? [...idx.raceByName.keys()] : [], from('races')),
     'feat-names': names(idx ? [...idx.featByName.keys()] : [], from('feats'), (referenceNow('feats')?.list || []).map((f) => f.name)),
     'armor-names': names((referenceNow('equipment')?.list || []).filter((e) => e.category === 'Armor' && e.subcategory !== 'Shields' && e.subcategory !== 'Extras').map((e) => e.name)),
@@ -892,9 +893,11 @@ function wizardWays() {
       app.rules.races?.races || [],
       shelvesFor(app.character).map((s) => s.shelf.list('race').map((r) => ({ ...r, custom: true }))),
     ]),
+    // NPC classes (adept, aristocrat, commoner, expert, warrior) are kept in the
+    // data for later use, but are not for building a player character.
     classChoices: () => byName([
-      app.rules.classes.classes,
-      [...(app.derived?.index?.classByName?.values() || [])].filter((k) => k.variant && !k.classVariant),
+      app.rules.classes.classes.filter((k) => !k.npcClass),
+      [...(app.derived?.index?.classByName?.values() || [])].filter((k) => k.variant && !k.classVariant && !k.npcClass),
       shelvesFor(app.character).map((s) => s.shelf.list('class').map((k) => ({ ...k, custom: true }))),
     ]),
   };
