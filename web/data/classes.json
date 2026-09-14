@@ -22,7 +22,14 @@
     "    half         caster level is half the class level (paladin, ranger)",
     "    domains      chooses two domains, each with a slot a level (cleric)",
     "    disciplines  chooses a discipline, with its own powers (psion)",
-    "  Spells per day, spells known and power points come from data/srd/progression.json."
+    "  Spells per day, spells known and power points come from data/srd/progression.json.",
+    "",
+    "  startingGold   the SRD's random starting gold, and its average - a 1st-level character's wealth",
+    "  bonusFeats     class bonus feats: at `levels`, from a named `list` (fighter, wizard, psion,",
+    "                 psychicWarrior); or `choices` of named feats by level, which a monk or a",
+    "                 ranger takes without the prerequisites",
+    "  grantedFeats   feats the class simply gives, which take no slot",
+    "  languages      bonus languages the class adds to its race's, and any it knows automatically"
   ],
   "classes": [
     {
@@ -42,7 +49,9 @@
         "Ride",
         "Survival",
         "Swim"
-      ]
+      ],
+      "startingGold": {"dice": "4d4", "multiplier": 10, "average": 100},
+      "illiterate": true
     },
     {
       "name": "Bard",
@@ -78,7 +87,8 @@
         "Swim",
         "Tumble",
         "Use Magic Device"
-      ]
+      ],
+      "startingGold": {"dice": "4d4", "multiplier": 10, "average": 100}
     },
     {
       "name": "Cleric",
@@ -99,7 +109,9 @@
         "Knowledge (the planes)",
         "Profession",
         "Spellcraft"
-      ]
+      ],
+      "startingGold": {"dice": "5d4", "multiplier": 10, "average": 125},
+      "languages": {"bonus": ["Abyssal", "Celestial", "Infernal"]}
     },
     {
       "name": "Druid",
@@ -123,7 +135,9 @@
         "Spot",
         "Survival",
         "Swim"
-      ]
+      ],
+      "startingGold": {"dice": "2d4", "multiplier": 10, "average": 50},
+      "languages": {"automatic": ["Druidic"], "bonus": ["Sylvan"]}
     },
     {
       "name": "Fighter",
@@ -132,7 +146,9 @@
       "saves": {"fort": "good", "ref": "poor", "will": "poor"},
       "skillPoints": 2,
       "srd": true,
-      "classSkills": ["Climb", "Craft", "Handle Animal", "Intimidate", "Jump", "Ride", "Swim"]
+      "classSkills": ["Climb", "Craft", "Handle Animal", "Intimidate", "Jump", "Ride", "Swim"],
+      "startingGold": {"dice": "6d4", "multiplier": 10, "average": 150},
+      "bonusFeats": {"levels": [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20], "list": "fighter"}
     },
     {
       "name": "Monk",
@@ -160,7 +176,17 @@
         "Spot",
         "Swim",
         "Tumble"
-      ]
+      ],
+      "startingGold": {"dice": "5d4", "multiplier": 1, "average": 12.5},
+      "bonusFeats": {
+        "choices": {
+          "1": ["Improved Grapple", "Stunning Fist"],
+          "2": ["Combat Reflexes", "Deflect Arrows"],
+          "6": ["Improved Disarm", "Improved Trip"]
+        },
+        "ignorePrerequisites": true
+      },
+      "grantedFeats": [{"level": 1, "name": "Improved Unarmed Strike"}]
     },
     {
       "name": "Paladin",
@@ -181,7 +207,8 @@
         "Profession",
         "Ride",
         "Sense Motive"
-      ]
+      ],
+      "startingGold": {"dice": "6d4", "multiplier": 10, "average": 150}
     },
     {
       "name": "Ranger",
@@ -211,7 +238,19 @@
         "Survival",
         "Swim",
         "Use Rope"
-      ]
+      ],
+      "startingGold": {"dice": "6d4", "multiplier": 10, "average": 150},
+      "bonusFeats": {
+        "choices": {
+          "2": ["Rapid Shot", "Two-Weapon Fighting"],
+          "6": ["Manyshot", "Improved Two-Weapon Fighting"],
+          "11": ["Improved Precise Shot", "Greater Two-Weapon Fighting"]
+        },
+        "ignorePrerequisites": true,
+        "samePath": true,
+        "label": "Combat style"
+      },
+      "grantedFeats": [{"level": 1, "name": "Track"}, {"level": 3, "name": "Endurance"}]
     },
     {
       "name": "Rogue",
@@ -250,7 +289,8 @@
         "Tumble",
         "Use Magic Device",
         "Use Rope"
-      ]
+      ],
+      "startingGold": {"dice": "5d4", "multiplier": 10, "average": 125}
     },
     {
       "name": "Sorcerer",
@@ -260,7 +300,8 @@
       "skillPoints": 2,
       "srd": true,
       "casting": {"ability": "cha", "type": "arcane", "spontaneous": true},
-      "classSkills": ["Bluff", "Concentration", "Craft", "Knowledge (arcana)", "Profession", "Spellcraft"]
+      "classSkills": ["Bluff", "Concentration", "Craft", "Knowledge (arcana)", "Profession", "Spellcraft"],
+      "startingGold": {"dice": "3d4", "multiplier": 10, "average": 75}
     },
     {
       "name": "Wizard",
@@ -274,11 +315,14 @@
         "Concentration",
         "Craft",
         "Decipher Script",
-        "Forgery",
         "Knowledge",
         "Profession",
         "Spellcraft"
-      ]
+      ],
+      "startingGold": {"dice": "3d4", "multiplier": 10, "average": 75},
+      "bonusFeats": {"levels": [5, 10, 15, 20], "list": "wizard"},
+      "grantedFeats": [{"level": 1, "name": "Scribe Scroll"}],
+      "languages": {"bonus": ["Draconic"]}
     },
     {
       "name": "Psion",
@@ -290,7 +334,9 @@
       "psionic": true,
       "manifesting": {"ability": "int", "disciplines": true},
       "classSkills": ["Concentration", "Craft", "Knowledge", "Profession", "Psicraft"],
-      "note": "A psion's discipline adds its own class skills on top of these; pick the discipline under Class Features and add them by hand."
+      "note": "A psion's discipline adds its own class skills on top of these; pick the discipline under Class Features and add them by hand.",
+      "startingGold": {"dice": "3d4", "multiplier": 10, "average": 75},
+      "bonusFeats": {"levels": [1, 5, 10, 15, 20], "list": "psion"}
     },
     {
       "name": "Psychic Warrior",
@@ -312,7 +358,9 @@
         "Ride",
         "Search",
         "Swim"
-      ]
+      ],
+      "startingGold": {"dice": "5d4", "multiplier": 10, "average": 125},
+      "bonusFeats": {"levels": [1, 2, 5, 8, 11, 14, 17, 20], "list": "psychicWarrior"}
     },
     {
       "name": "Wilder",
@@ -341,7 +389,8 @@
         "Spot",
         "Swim",
         "Tumble"
-      ]
+      ],
+      "startingGold": {"dice": "4d4", "multiplier": 10, "average": 100}
     },
     {
       "name": "Soulknife",
@@ -364,6 +413,13 @@
         "Profession",
         "Spot",
         "Tumble"
+      ],
+      "startingGold": {"dice": "5d4", "multiplier": 10, "average": 125},
+      "grantedFeats": [
+        {"level": 1, "name": "Weapon Focus", "choice": "Mind blade"},
+        {"level": 1, "name": "Wild Talent"},
+        {"level": 6, "name": "Speed of Thought"},
+        {"level": 9, "name": "Greater Weapon Focus", "choice": "Mind blade"}
       ]
     },
     {

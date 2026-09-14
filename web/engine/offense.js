@@ -48,21 +48,30 @@ export function attacks(summary, abilities, size, misc = {}, bonuses = {}) {
   };
 }
 
-/** One weapon line: its own enhancement on top of the character's routine. */
-export function weaponLine(weapon, attackSet, abilities) {
+/**
+ * One weapon line: its own enhancement on top of the character's routine, and
+ * whatever is aimed at this weapon by name - Weapon Focus (longsword).
+ *
+ * @param resolved  the character's resolved effects, for `weapon.attack.<name>`
+ */
+export function weaponLine(weapon, attackSet, abilities, resolved = {}) {
   const useDex = weapon.ranged || weapon.finesse;
   const set = useDex ? attackSet.ranged : attackSet.melee;
-  const extra = num(weapon.attackBonus);
+  const named = String(weapon.name || '').trim().toLowerCase();
+  const focus = named ? num(resolved[`weapon.attack.${named}`]?.total) : 0;
+  const specialization = named ? num(resolved[`weapon.damage.${named}`]?.total) : 0;
+  const extra = num(weapon.attackBonus) + focus;
 
   // A thrown weapon adds Strength to damage; a bow or crossbow does not.
   const isRanged = weapon.ranged && !weapon.thrown;
   const strToDamage = isRanged ? 0 : abilities.str.mod;
   const effectDamage = weapon.ranged ? attackSet.damageBonus?.ranged || 0 : attackSet.damageBonus?.melee || 0;
-  const damageMod = strToDamage + num(weapon.damageBonus) + effectDamage;
+  const damageMod = strToDamage + num(weapon.damageBonus) + effectDamage + specialization;
 
   return {
     ...weapon,
     attack: set.total + extra,
+    fromFeats: { attack: focus, damage: specialization },
     routine: set.attacks.map((a) => signed(a + extra)).join('/'),
     damageMod,
     damage: `${weapon.damageDice || ''}${damageMod ? signed(damageMod) : ''}`,

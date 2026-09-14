@@ -12,7 +12,9 @@
     "can know whether you are fighting a giant. Those are listed on the sheet",
     "beside the number they would modify, which is what a paper sheet does too.",
     "",
-    "See web/engine/effects.js for the vocabulary of targets and bonus types."
+    "See web/engine/effects.js for the vocabulary of targets and bonus types.",
+    "",
+    "`languages`: what the race speaks from birth, and the bonus languages a high Intelligence may add (\"any\" but secret ones like Druidic)."
   ],
   "races": [
     {
@@ -29,7 +31,8 @@
           "note": "4 extra skill points at 1st level, 1 per level after"
         }
       ],
-      "traits": "Bonus feat at 1st level. Four extra skill points at 1st level and one per level after. Favored class: any."
+      "traits": "Bonus feat at 1st level. Four extra skill points at 1st level and one per level after. Favored class: any.",
+      "languages": {"automatic": ["Common"], "bonus": "any"}
     },
     {
       "name": "Dwarf",
@@ -67,7 +70,11 @@
         },
         {"target": "skill.Craft", "type": "racial", "value": 2, "condition": "on stone or metal"}
       ],
-      "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load."
+      "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load.",
+      "languages": {
+        "automatic": ["Common", "Dwarven"],
+        "bonus": ["Giant", "Gnome", "Goblin", "Orc", "Terran", "Undercommon"]
+      }
     },
     {
       "name": "Elf",
@@ -82,7 +89,11 @@
         {"target": "skill.Spot", "type": "racial", "value": 2},
         {"target": "save.will", "type": "racial", "value": 2, "condition": "against enchantments"}
       ],
-      "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Notices a secret door on passing within 5 ft, with a Search check."
+      "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Notices a secret door on passing within 5 ft, with a Search check.",
+      "languages": {
+        "automatic": ["Common", "Elven"],
+        "bonus": ["Draconic", "Gnoll", "Gnome", "Goblin", "Orc", "Sylvan"]
+      }
     },
     {
       "name": "Gnome",
@@ -103,7 +114,11 @@
         {"target": "skill.Listen", "type": "racial", "value": 2},
         {"target": "skill.Craft", "type": "racial", "value": 2, "condition": "on alchemy"}
       ],
-      "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better."
+      "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better.",
+      "languages": {
+        "automatic": ["Common", "Gnome"],
+        "bonus": ["Draconic", "Dwarven", "Elven", "Giant", "Goblin", "Orc"]
+      }
     },
     {
       "name": "Half-Elf",
@@ -119,7 +134,8 @@
         {"target": "skill.Gather Information", "type": "racial", "value": 2},
         {"target": "save.will", "type": "racial", "value": 2, "condition": "against enchantments"}
       ],
-      "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares."
+      "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares.",
+      "languages": {"automatic": ["Common", "Elven"], "bonus": "any"}
     },
     {
       "name": "Half-Orc",
@@ -129,7 +145,8 @@
       "favoredClass": "Barbarian",
       "abilityAdjust": {"str": 2, "int": -2, "cha": -2},
       "effects": [],
-      "traits": "Darkvision 60 ft. Orc blood: counts as an orc for anything that cares."
+      "traits": "Darkvision 60 ft. Orc blood: counts as an orc for anything that cares.",
+      "languages": {"automatic": ["Common", "Orc"], "bonus": ["Draconic", "Giant", "Gnoll", "Goblin", "Abyssal"]}
     },
     {
       "name": "Halfling",
@@ -152,7 +169,8 @@
           "condition": "with thrown weapons and slings"
         }
       ],
-      "traits": "+1 on all saving throws, and a further +2 morale bonus against fear. Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them."
+      "traits": "+1 on all saving throws, and a further +2 morale bonus against fear. Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them.",
+      "languages": {"automatic": ["Common", "Halfling"], "bonus": ["Dwarven", "Elven", "Gnome", "Goblin", "Orc"]}
     }
   ]
 }

@@ -225,6 +225,10 @@ export function contentIndex(rules, character) {
   index.skillsByName = new Map(index.skills.map((s) => [s.name, s]));
 
   index.featByName = new Map((content.feats || []).filter((f) => f.name).map((f) => [f.name, f]));
+  // The SRD's feats carry their effects from data/feat-effects.json; a homebrew
+  // feat of the same name, carried by the character, wins.
+  index.srdFeatEffects = new Map(Object.entries(rules.featEffects?.feats || {}));
+  index.featRuleByName = new Map((rules.featRules || []).map((f) => [f.name.toLowerCase(), f]));
   index.itemByName = new Map((content.items || []).filter((i) => i.name).map((i) => [i.name, i]));
   index.templateByName = new Map((content.templates || []).filter((t) => t.name).map((t) => [t.name, t]));
   index.featureByName = new Map((content.features || []).filter((f) => f.name).map((f) => [f.name, f]));
@@ -286,7 +290,7 @@ export function raceFacts(character, index) {
  * does. Both work, and a row that does both gets both - a +1 ring someone has
  * also written a note on is still a +1 ring.
  */
-export function resolveEntries(character, index) {
+export function resolveEntries(character, index, granted = []) {
   const race = index.raceByName.get(character.race?.name);
   const raceEntry = race || (character.race?.name ? { name: character.race.name } : null);
 
@@ -298,16 +302,53 @@ export function resolveEntries(character, index) {
       return { ...entry, ...row, kind, effects };
     });
 
+  // Feats: the character's own content first, then what the SRD feat does -
+  // with its choice filled in, again for each further time it is taken, and
+  // Psionic Body's hit points for every psionic feat held. Feats a class grants
+  // count as held.
+  const featRows = [...granted.map((g) => ({ ...g, granted: true })), ...(character.feats || [])];
+  const psionicFeats = featRows.filter((f) => f?.name && (index.featRuleByName?.get(f.name.toLowerCase())?.types || []).includes('Psionic')).length;
+  const copies = new Map();
+  const feats = withContent(featRows, index.featByName, 'feat').map((row) => {
+    if (index.featByName.has(row.name)) return row;
+    const srd = index.srdFeatEffects?.get(row.name);
+    if (!srd) return row;
+    const n = copies.get(row.name) || 0;
+    copies.set(row.name, n + 1);
+    const filled = fillChoice(srd, row.choice);
+    const effects = filled.effects.map((e) => ({
+      ...e,
+      value: toNumber(e.value) * (e.perPsionicFeat ? psionicFeats : 1) + toNumber(e.perCopy) * n,
+    }));
+    return { ...row, effects: [...effects, ...(row.effects || [])], notes: filled.notes };
+  });
+
   return {
     race: raceEntry
       ? { ...raceEntry, effects: [...(race?.effects || []), ...(character.race?.effects || [])] }
       : null,
     templates: withContent(character.templates, index.templateByName, 'template'),
-    feats: withContent(character.feats, index.featByName, 'feat'),
+    feats,
     features: withContent(character.features, index.featureByName, 'feature'),
     items: withContent(character.wealth?.items, index.itemByName, 'item'),
   };
 }
+
+/** Fill `{choice}` in an entry's effects and notes; drop what names a choice not made. */
+function fillChoice(entry, choice) {
+  const chosen = String(choice || '').trim();
+  const fill = (text) => String(text).replace(/\{choice\}/g, chosen);
+  const effects = (entry.effects || [])
+    .filter((e) => !String(e.target).includes('{choice}') || chosen)
+    .map((e) => {
+      const target = fill(e.target);
+      return { ...e, target: target.startsWith('weapon.') ? target.toLowerCase() : target };
+    });
+  const notes = (entry.notes || []).filter((n) => !n.includes('{choice}') || chosen).map(fill);
+  return { effects, notes };
+}
+
+const toNumber = (v) => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? 0 : Number(v));
 
 /**
  * Copy a library entry onto a character, so the sheet carries what it uses.

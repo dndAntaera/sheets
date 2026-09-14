@@ -94,6 +94,22 @@ export function referenceCard(kind, e) {
         h('p.reference-note', h('b', { text: 'On the sheet: ' }), e.onSheet),
         prose(e.text),
         h('p.hint', {}, 'Also on the ', h('a', { href: e.url, target: '_blank', rel: 'noopener', text: 'Hypertext d20 SRD' }), '.'));
+    case 'traits':
+      return h('article.reference-card',
+        head(`${e.kind === 'flaw' ? 'Flaw' : 'Trait'} - Unearthed Arcana`),
+        h('p', { text: e.description }),
+        e.benefit ? h('p', h('b', { text: 'Benefit: ' }), e.benefit) : null,
+        e.drawback ? h('p', h('b', { text: 'Drawback: ' }), e.drawback) : null,
+        e.effect ? h('p', h('b', { text: 'Effect: ' }), e.effect) : null,
+        e.special ? h('p.reference-note', h('b', { text: 'Special: ' }), e.special) : null,
+        h('p.hint', { text: e.kind === 'flaw' ? 'Each flaw taken at 1st level buys a bonus feat.' : 'Up to two traits at 1st level.' }));
+    case 'languages':
+      return h('article.reference-card',
+        head(e.secret ? 'Secret language' : 'Language'),
+        h('div.reference-block',
+          line('Typical speakers', e.speakers),
+          line('Alphabet', e.alphabet)),
+        e.secret ? h('p.hint', { text: 'Only druids learn Druidic, and they may not teach it.' }) : null);
     case 'equipment':
       return h('article.reference-card',
         head([e.category, e.subcategory].filter(Boolean).join(' - ')),
@@ -154,8 +170,8 @@ export async function showReference(main, app, kind = 'spells', name = null) {
     count.textContent = `${found.length} of ${index.list.length}`;
     refill(results,
       found.slice(0, LIST_LIMIT).map((e) => h('li', h('a.content-item', {
-        href: referenceHref(kind, e.name),
-        class: open && e.name === open.name ? 'is-active' : '',
+        href: referenceHref(kind, e.id || e.name),
+        class: open && e === open ? 'is-active' : '',
       },
       h('span.content-item-name', { text: e.name }),
       h('span.content-item-meta', { text: listLine(kind, e, state) })))),
@@ -175,7 +191,7 @@ export async function showReference(main, app, kind = 'spells', name = null) {
     h('div.content-head',
       h('div',
         h('h1', { text: 'Reference' }),
-        h('p.hint', { text: 'The System Reference Document: every spell, power, feat, class, domain, piece of equipment and variant rule. Pick one on a sheet and it reads the same as it does here.' }))),
+        h('p.hint', { text: 'The System Reference Document: every spell, power, feat, class, domain, piece of equipment, variant rule, trait, flaw and language. Pick one on a sheet and it reads the same as it does here.' }))),
     h('nav.content-tabs', Object.entries(REFERENCE_KINDS).map(([k, v]) => h('a.content-tab', { href: referenceHref(k), class: k === kind ? 'is-active' : '' }, v.label))),
     h('div.content-body',
       h('aside.content-side',
@@ -218,6 +234,8 @@ function filterControls(kind, list, state, draw) {
       return h('div.reference-filters', choose('Category', 'category', distinct((e) => e.category)));
     case 'variants':
       return h('div.reference-filters', choose('Category', 'group', distinct((e) => e.category)));
+    case 'traits':
+      return h('div.reference-filters', choose('Kind', 'traitKind', [['trait', 'Traits'], ['flaw', 'Flaws']]));
     default:
       return null;
   }
@@ -237,6 +255,7 @@ function matches(kind, e, state) {
   if (state.kind && !(e.kinds || []).includes(state.kind)) return false;
   if (state.category && e.category !== state.category) return false;
   if (state.group && e.category !== state.group) return false;
+  if (state.traitKind && e.kind !== state.traitKind) return false;
   return true;
 }
 
@@ -252,6 +271,8 @@ function listLine(kind, e, state) {
     case 'domains': return e.grantedPower ? `${e.grantedPower.slice(0, 60)}…` : '';
     case 'equipment': return [e.category, e.cost].filter(Boolean).join(' - ');
     case 'variants': return e.category;
+    case 'traits': return `${e.kind === 'flaw' ? 'Flaw' : 'Trait'} - ${e.kind === 'flaw' ? e.effect : e.benefit}`;
+    case 'languages': return e.speakers;
     default: return '';
   }
 }

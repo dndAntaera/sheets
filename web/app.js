@@ -13,12 +13,15 @@ import {
   moduleState, MODULES, VARIANT_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic, restedTrackers,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
-import { wizardPage, paintWizard, WIZARD_STEPS, stepForNotice } from './ui/wizard.js';
+import {
+  wizardPage, paintWizard, WIZARD_STEPS, stepForNotice, skippedSteps, finishCreator, visitStep, listed,
+} from './ui/wizard.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
-  featsPanel, houserulesPanel, wealthPanel, textPanel, trackersPanel,
+  houserulesPanel, wealthPanel, textPanel, trackersPanel, hitPointsPanel, startingWealthPanel,
   effectsPanel, contentPanel, paintEffects, paintConditions, paintContent,
 } from './ui/sheet.js';
+import { featsPanel, abilitiesListPanel, languagesPanel } from './ui/feats.js';
 import { showContent } from './ui/content.js';
 import { showAdmin, ROLE_LABELS } from './ui/admin.js';
 import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
@@ -45,6 +48,10 @@ const PANELS = {
   combat: combatPanel,
   skills: skillsPanel,
   feats: featsPanel,
+  abilitiesList: abilitiesListPanel,
+  languages: languagesPanel,
+  hitPoints: hitPointsPanel,
+  startingWealth: startingWealthPanel,
   houserules: houserulesPanel,
   casting: (a) => magicPanel(a, { rest: restCharacter }),
   trackers: (a) => trackersPanel(a, { rest: restCharacter, newWeek: () => restCharacter('week'), setUsed: setTrackerUsed }),
@@ -71,6 +78,22 @@ const app = {
   status: null,
   user: null,
   unbind: null,
+};
+
+/** Homebrew entries of a kind on the shelves this character may use. */
+app.shelfEntries = (kind) => (app.character ? shelvesFor(app.character).flatMap(({ shelf }) => shelf.list(kind)) : []);
+
+/** Copy a shelf's entry of this name onto the character, so it counts. */
+app.adopt = (kind, name) => {
+  if (!app.character || !name) return false;
+  if ((app.character.content?.[CONTENT_TYPES[kind].plural] || []).some((e) => e.name === name)) return false;
+  for (const { shelf, campaign } of shelvesFor(app.character)) {
+    const entry = shelf.find(kind, name);
+    if (!entry) continue;
+    embed(app.character, kind, campaign ? { ...entry, campaign } : entry);
+    return true;
+  }
+  return false;
 };
 
 /* =========================================================================
@@ -752,10 +775,7 @@ async function openSheet(id, opts = {}) {
       : WIZARD_STEPS.some((s) => s.key === saved) ? saved : WIZARD_STEPS[0].key;
     if (opts.wizard !== step) history.replaceState(null, '', `${location.pathname}${location.search}#/create/${app.character.id}/${step}`);
     app.wizard = { step };
-    if (app.character.meta?.wizard?.step !== step) {
-      app.character.meta = { ...app.character.meta, wizard: { step } };
-      scheduleSave();
-    }
+    if (visitStep(app.character, step)) scheduleSave();
     const page = wizardPage(app, step, wizardWays());
     app.panels = page.panels;
     refill(main, page.root);
@@ -769,7 +789,9 @@ async function openSheet(id, opts = {}) {
   // One page of the sheet: its panels, and the tabs to the others.
   const page = pageFor(opts.page);
   app.page = page;
-  const keys = page.panels || Object.keys(PANELS);
+  // The full sheet is every panel but the creator's own: its hit points and
+  // starting wealth are parts of Combat and Gear.
+  const keys = page.panels || Object.keys(PANELS).filter((k) => !['hitPoints', 'startingWealth'].includes(k));
   app.panels = {};
   const sheet = h('div.sheet');
   for (const key of keys) {
@@ -836,8 +858,15 @@ function wizardWays() {
       await flush();
       location.hash = `#/create/${id}/${step}`;
     },
+    skip: async () => {
+      finishCreator(app.character, skippedSteps(app.character));
+      await flush();
+      location.hash = `#/sheet/${id}`;
+    },
     finish: async () => {
-      if (app.character.meta) delete app.character.meta.wizard;
+      const skipped = skippedSteps(app.character);
+      if (skipped.length && !confirm(`You skipped ${listed(skipped.map((s) => s.title))}. Finish anyway? The sheet will flag ${skipped.length === 1 ? 'it' : 'them'} until you go back.`)) return;
+      finishCreator(app.character, skipped);
       await flush();
       location.hash = `#/sheet/${id}`;
     },
@@ -866,6 +895,11 @@ function sheetToolbar() {
   return h('div.toolbar',
     h('a.back', { href: '#/characters', text: 'All characters' }),
     draft ? h('a.btn.primary', { href: `#/create/${app.character.id}/${draft}` }, 'Continue in the creator') : null,
+    !draft && (app.character.meta?.creatorSkipped || []).length
+      ? h('span.toolbar-flag', { title: 'Steps of the character creator this character skipped.' },
+        'Skipped: ',
+        app.character.meta.creatorSkipped.map((st, i) => [i ? ', ' : '', h('a', { href: `#/create/${app.character.id}/${st.key}`, text: st.title })]))
+      : null,
     rs.wiki ? h('a.back', { href: rs.wiki, target: '_blank', rel: 'noopener', text: rs.wikiName || `${rs.shortName} Wiki` }) : null,
     h('span.grow'),
     button('Export', exportCharacter, { subtle: true, title: 'Download this sheet as a file. Any homebrew it uses goes with it.' }),
@@ -986,14 +1020,20 @@ const RESHAPES = [
   [/^race\.name$/, ['identity']],
   [/^race\.racialHD$/, ['levels', 'abilities']],
   [/^abilities\.method$/, ['abilities']],
-  [/^feats\.\d+\.name$/, ['feats', 'trackers']],
-  [/^features\.\d+\.name$/, ['feats', 'trackers']],
+  [/^feats\.\d+\.name$/, ['feats', 'trackers', 'abilitiesList']],
+  [/^features\.\d+\.name$/, ['abilitiesList', 'trackers']],
+  [/^levels\.\d+\.[ab]$/, ['feats', 'abilitiesList', 'hitPoints', 'startingWealth', 'languages']],
+  [/^race\.name$/, ['languages', 'feats', 'abilitiesList']],
+  [/^abilities\.(base|levelUps)\./, ['feats', 'languages']],
+  [/^skills\.\d+\.ranks$/, ['languages', 'feats']],
+  [/^options\./, ['feats']],
   [/^wealth\.items\.\d+\.name$/, ['wealth', 'trackers']],
-  [/^(feats|features|wealth\.items)\.\d+\.uses$/, ['trackers']],
+  [/^(feats|features|wealth\.items)\.\d+\.uses$/, ['trackers', 'abilitiesList']],
   [/^levels\.\d+\.[ab]$/, ['casting']],
 ];
 
 function onEdit(path, value, el, ev) {
+  if (path === 'abilities.method' && app.character.abilities) delete app.character.abilities.placed;
   // Adopt library content the name points at, before recomputing.
   let embedded = false;
   for (const [pattern, kind] of NAMES_CONTENT) {
@@ -1043,6 +1083,7 @@ function fillFromEquipment(path, value) {
   if (armor && item.category === 'Armor') {
     const slot = c.gear[armor[1]] = { ...(c.gear[armor[1]] || {}) };
     slot.name = item.name;
+    slot.category = item.subcategory || '';
     slot.bonus = item.armorBonus ?? 0;
     slot.maxDex = item.maxDex ?? null;
     slot.acp = Math.abs(item.checkPenalty || 0);
@@ -1116,6 +1157,10 @@ function paintNotices() {
         text: n.text,
         onclick: (ev) => {
           ev.preventDefault();
+          if (n.field === 'creator' && n.step) {
+            location.hash = `#/create/${app.character.id}/${n.step}`;
+            return;
+          }
           const target = app.panels[NOTICE_PANEL[n.field] || n.field];
           if (!target && app.wizard) {
             location.hash = `#/create/${app.character.id}/${stepForNotice(n.field)}`;

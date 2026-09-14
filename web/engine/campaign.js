@@ -45,6 +45,15 @@ export const GENERAL_SETTINGS = [
     hint: 'Players may use homebrew from their own libraries on characters here. Homebrew the GMs write for this campaign is always allowed.',
   },
   {
+    key: 'startingWealth',
+    type: 'int',
+    label: 'Starting wealth (gp)',
+    min: 0,
+    max: 10000000,
+    default: null,
+    hint: 'What every character in this campaign starts with. Leave it empty for wealth by level: the DMG table, or the class’s starting gold at 1st level.',
+  },
+  {
     key: 'houseRules',
     type: 'textarea',
     label: 'House rules',
@@ -175,8 +184,9 @@ export function applyCampaign(rules, campaign) {
   }
   const startingLevel = settingValue(campaign, ruleset, 'startingLevel');
   const allowHomebrew = Boolean(settingValue(campaign, ruleset, 'allowHomebrew'));
+  const startingWealth = settingValue(campaign, ruleset, 'startingWealth') ?? null;
   return {
-    rules: { ...rules, ruleset: { ...ruleset, startingLevel }, campaign: { ...campaign, allowHomebrew } },
+    rules: { ...rules, ruleset: { ...ruleset, startingLevel }, campaign: { ...campaign, allowHomebrew, startingWealth } },
     overrides,
   };
 }

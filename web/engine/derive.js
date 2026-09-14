@@ -21,7 +21,7 @@
 
 import { buildSummary } from './build.js';
 import {
-  abilityTotals, pointBuyCost, pointBuyBudget, rolledArrayCheck, standardArrayCheck,
+  abilityTotals, pointBuyCost, pointBuyBudget, rolledArrayCheck, standardArrayCheck, scorePlacement,
   bonusSlots, ABILITIES,
 } from './abilities.js';
 import { skillPointBudget, skillTable } from './skills.js';
@@ -41,7 +41,11 @@ import {
   variantClassIndex, variantArmorClass, variantHealth, variantScores, magicRatingFor, spontaneousMetamagicFor,
   skillSystemOf, skillsKnownAllowed, variantNotices,
 } from './variants.js';
-import { num } from './util.js';
+import { featPlan, featSlots, featNotices, featRuleIndex } from './feats.js';
+import { classFeatures, featureEffects, domainClassSkills, domainFeats, domainTrackers } from './features.js';
+import { languagePlan, languageNotices } from './languages.js';
+import { traitEntries, traitNotices } from './traits.js';
+import { abilityMod, num } from './util.js';
 
 const SAVE_ABILITY = { fort: 'con', ref: 'dex', will: 'wis' };
 
@@ -95,12 +99,23 @@ export function derive(character, rules, options = {}) {
     summary.la -= cut;
     summary.ecl -= cut;
   }
+  // A cleric's domains add class skills.
+  for (const skill of domainClassSkills(character, summary)) summary.classSkills.add(skill);
   const race = raceFacts(character, index);
   const size = rules.core.sizes.find((s) => s.name === race.size)
     || rules.core.sizes.find((s) => s.name === 'Medium');
 
   // --- 3. every effect ---------------------------------------------------
-  const entries = resolveEntries(character, index);
+  // Feats a class or a domain hands out count as taken, and do what they do.
+  const granted = [
+    ...featSlots(character, { summary, race, index, gestalt }, rules).granted,
+    ...domainFeats(character, summary),
+  ];
+  const entries = resolveEntries(character, index, granted);
+  // Traits and flaws (Unearthed Arcana), with what the SRD says each one does.
+  entries.other = modules.traitsFlaws
+    ? [...traitEntries(character, rules, 'trait'), ...traitEntries(character, rules, 'flaw')]
+    : [];
   const effects = [
     ...collectEffects(entries),
     ...sheetEffects(character).map((e) => ({ condition: null, perLevel: false, note: null, ...e })),
@@ -111,10 +126,18 @@ export function derive(character, rules, options = {}) {
       effects.push({ target: `ability.${key}`, type: 'untyped', value: -num(character.variants.taint), source: 'taint', condition: null, perLevel: false, note: null });
     }
   }
-  const resolved = resolveEffects(effects, summary.hitDiceCount);
+  const firstResolved = resolveEffects(effects, summary.hitDiceCount);
 
   // --- 4. abilities ------------------------------------------------------
-  const abilities = abilityTotals(character, summary, race.abilityAdjust, resolved);
+  const abilities = abilityTotals(character, summary, race.abilityAdjust, firstResolved);
+
+  // Class features that are numbers read the ability scores - a paladin's
+  // divine grace, a monk's Wisdom to AC - so they join the effects now. None of
+  // them touches an ability score, so the scores above stand.
+  const featRuleNames = new Set((rules.featRules || []).map((f) => f.name.toLowerCase()));
+  const features = classFeatures(character, summary, rules, featRuleNames);
+  effects.push(...featureEffects(character, summary, abilities, features));
+  const resolved = resolveEffects(effects, summary.hitDiceCount);
 
   // --- 5. everything else ------------------------------------------------
   const gear = character.gear || {};
@@ -164,13 +187,13 @@ export function derive(character, rules, options = {}) {
     + (race.known ? 0 : num(character.race?.skillPointsPerLevel));
   const budget = skillPointBudget(summary, abilities.int.mod, extraSkillPoints);
 
-  const money = wealth(character, summary.ecl, rules);
+  const money = wealth(character, summary.ecl, rules, index.classByName.get(character.levels?.[0]?.a) || null);
   const la = levelAdjustment(summary.la, summary.ecl, rules);
   const feats = featBudget(character, summary, rules, {
     traitsFlaws: modules.traitsFlaws,
     bonusFromEffects: bonusTo(resolved, 'feats.bonus'),
   });
-  const weapons = (character.weapons || []).map((w) => weaponLine(w, attackSet, abilities));
+  const weapons = (character.weapons || []).map((w) => weaponLine(w, attackSet, abilities, resolved));
 
   const derived = {
     ruleset: rules.ruleset.id,
@@ -188,7 +211,8 @@ export function derive(character, rules, options = {}) {
     },
     abilities,
     size,
-    speed: race.speed + bonusTo(resolved, 'speed'),
+    // A flaw or trait that halves base land speed rounds down to 5 feet.
+    speed: (bonusTo(resolved, 'speed.half') > 0 ? Math.floor(race.speed / 10) * 5 : race.speed) + bonusTo(resolved, 'speed'),
     spellResistance: Math.max(num(character.combat?.spellResistance), bonusTo(resolved, 'spellResistance')),
     hp,
     ac,
@@ -213,6 +237,55 @@ export function derive(character, rules, options = {}) {
       : null,
     taint: modules.taint ? taint(character, abilities, rules) : null,
     training: modules.training ? nextLevelTraining(character, rules, summary, gestalt, index) : null,
+  };
+
+  // Power points from feats: Wild Talent, Psionic Talent.
+  const extraPoints = bonusTo(resolved, 'powerPoints');
+  if (extraPoints) {
+    const pool = derived.magic.powerPoints || { base: 0, bonus: 0, used: Math.max(0, Number(character.magic?.powerPointsUsed) || 0) };
+    pool.bonus += extraPoints;
+    pool.total = pool.base + pool.bonus;
+    pool.remaining = pool.total - pool.used;
+    derived.magic.powerPoints = pool;
+  }
+
+  // The domains' powers that are used so many times a day.
+  for (const t of domainTrackers(character, summary, abilities)) {
+    const extraTurning = t.turning ? 4 * (character.feats || []).filter((f) => /^extra turning$/i.test(String(f.name || '').trim())).length : 0;
+    const max = Math.max(0, t.max + extraTurning);
+    const used = Math.max(0, num(character.trackers?.[t.key]));
+    derived.trackers.push({ ...t, max, used, remaining: max - used, unit: t.unit || null });
+  }
+
+  // Feats: every slot, what fills it, and whether it may.
+  const plan = featPlan(character, derived, rules, { raceBonus: bonusTo(resolved, 'feats.bonus'), fromFlaws: feats.fromFlaws, granted: domainFeats(character, summary) });
+  derived.featPlan = plan;
+  feats.allowed = plan.slots.length;
+  feats.taken = plan.slots.filter((slot) => slot.feat).length + plan.extra.length;
+  feats.remaining = feats.allowed - feats.taken;
+  feats.fromClasses = plan.slots.filter((slot) => slot.kind === 'class').length;
+  feats.granted = plan.slots.filter((slot) => slot.id.startsWith('race:') || slot.id.startsWith('extra:')).length;
+  feats.grantedFeats = plan.granted;
+
+  // What the character can do that is not a number: class features, what
+  // feats, traits and flaws do beyond their numbers, and its race's traits.
+  derived.classFeatures = features;
+  derived.languages = languagePlan(character, derived, rules);
+  const featNotes = entries.feats.flatMap((f) => (f.notes || []).map((text) => ({ source: f.choice ? `${f.name} (${f.choice})` : f.name, kind: 'feat', text })));
+  const traitNotes = entries.other.flatMap((t) => (t.notes || []).map((text) => ({ source: t.name, kind: t.kind, text })));
+  derived.specialNotes = [...featNotes, ...traitNotes];
+  if (derived.languages.illiterate) derived.specialNotes.push({ source: 'Barbarian', kind: 'class', text: 'Illiterate: cannot read or write until 2 skill points are spent, or a level is taken in another class.' });
+  derived.traitsFlaws = entries.other;
+  // What decides who may take which trait or flaw: scores before any flaw, speed before any trait.
+  const startingScores = Object.fromEntries(ABILITIES.map((k) => [k, abilities[k].parts.base + abilities[k].parts.racial]));
+  derived.traitContext = {
+    scores: startingScores,
+    modifierTotal: ABILITIES.reduce((t, k) => t + abilityMod(startingScores[k]), 0),
+    speed: race.speed,
+    modules,
+    raceTraits: race.traits,
+    feats: new Set(plan.held.map((f) => f.name.toLowerCase())),
+    classes: new Set(summary.sides.flatMap((side) => side.classes.map((c) => c.name))),
   };
 
   // The variant rules' own readouts and tracks.
@@ -248,8 +321,16 @@ export function derive(character, rules, options = {}) {
   // between methods never edits anything a player typed.
   derived.pointBuy = pointBuyCost(character.abilities?.base, rules, pointBuyBudget(character, rules));
   derived.rolledTotal = rolledArrayCheck(character.abilities?.base, rules).total;
+  derived.placement = scorePlacement(character, rules);
 
   derived.notices = notices(character, derived, rules);
+  featNotices(plan, (level, text, field) => derived.notices.push({ level, text, field }));
+  languageNotices(derived.languages, (level, text, field) => derived.notices.push({ level, text, field }));
+  if (modules.traitsFlaws) traitNotices(entries.other, derived.traitContext, (level, text, field) => derived.notices.push({ level, text, field }));
+  // Steps of the character creator that were skipped.
+  for (const step of character.meta?.creatorSkipped || []) {
+    derived.notices.push({ level: 'warn', text: `Skipped in the character creator: ${step.title}.`, field: 'creator', step: step.key });
+  }
   return derived;
 }
 
@@ -335,9 +416,16 @@ function notices(character, d, rules) {
     const r = rolledArrayCheck(character.abilities?.base, rules);
     if (r.tooLow) add('error', `Rolled array totals ${r.total}; under ${r.min} it must be rerolled.`, 'abilities');
     if (r.tooHigh) add('error', `Rolled array totals ${r.total}; over ${r.max} it must be rerolled.`, 'abilities');
-  } else if (method === 'array') {
+    if (!d.placement) add('info', 'No scores rolled yet.', 'abilities');
+  } else if (method === 'array' && !d.placement) {
     const check = standardArrayCheck(character.abilities?.base, rules);
     if (!check.ok) add('warn', `The standard array is ${check.want.join(', ')}, in any order.`, 'abilities');
+  }
+  const placing = d.placement;
+  if (placing?.unplaced.length) {
+    add('info', `${plural(placing.unplaced.length, 'score', 'scores')} still to place.`, 'abilities');
+  } else if (placing && !placing.matches) {
+    add('warn', `The base scores are not the ${placing.method === 'array' ? 'standard array' : 'scores rolled'}: ${[...placing.scores].sort((x, y) => y - x).join(', ')}, in any order.`, 'abilities');
   }
 
   if (d.abilities.levelUpsUsed > d.abilities.levelUpsAllowed) {
@@ -420,8 +508,10 @@ function notices(character, d, rules) {
 
   // --- Feats, traits, flaws ------------------------------------------------
   const f = d.feats;
-  if (f.taken > f.allowed) add('error', `${f.taken} feats taken, ${f.allowed} available.`, 'feats');
-  else if (f.taken < f.allowed) add('info', `${plural(f.allowed - f.taken, 'feat', 'feats')} still to choose.`, 'feats');
+  const plan = d.featPlan;
+  const open = plan ? plan.slots.filter((slot) => !slot.feat).length : f.allowed - f.taken;
+  if (plan && plan.extra.length && !open) add('error', `${plural(plan.extra.length, 'feat', 'feats')} more than there are feat slots: ${plan.extra.map((x) => x.feat.name).join(', ')}.`, 'feats');
+  else if (open > 0) add('info', `${plural(open, 'feat', 'feats')} still to choose.`, 'feats');
   if (d.modules.traitsFlaws) {
     if (f.traits > f.traitLimit) add('error', `${f.traits} traits taken; the limit is ${f.traitLimit}.`, 'feats');
     if (f.flaws > f.flawLimit) add('error', `${f.flaws} flaws taken; the limit is ${f.flawLimit}.`, 'feats');

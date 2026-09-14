@@ -151,7 +151,7 @@ An unknown target is kept and reported as a notice, never silently dropped.
 
 **Stacking** is done once, in `resolveEffects`: within a type the largest bonus
 applies; `dodge`, `circumstance` and `untyped` stack; penalties always count.
-The sheet's own typed fields — armour, shield, natural, deflection, dodge,
+The sheet's own typed fields — armor, shield, natural, deflection, dodge,
 enhancement, inherent, resistance — are turned into effects before resolving, so
 a typed +2 deflection and a ring of protection +1 give +2, not +3.
 
@@ -223,7 +223,22 @@ their numbers (`fillFromEquipment` in `app.js`).
 
 `progression.json` is the small part the engine loads with the app: spell
 slots, spells known, power points, powers known, highest power level and class
-specials, per class, per level.
+specials, per class, per level. The engine also loads, with the app:
+
+- `srd/feat-rules.json` - each feat's types, prerequisites as written, whether it
+  can be taken again and on what, and whether it is a fighter bonus feat. Built
+  from `feats.json` by `scripts/build-feat-rules.py`; rerun it after
+  `build-srd.py`.
+- `srd/traits.json` - Unearthed Arcana's traits and flaws, each with its effects,
+  its choice (the skill Illiterate improves) and who may take it. Written by hand
+  from the SRD's trait and flaw pages.
+- `srd/languages.json` - the SRD's languages, their speakers and alphabets.
+- `srd/domains.json` - for the domains' granted powers.
+- `data/feat-effects.json` - what the SRD's feats do to the numbers, as effects:
+  Toughness's +3 hit points, Skill Focus's +3 on the skill chosen. Written by
+  hand; a feat not in it is still taken and shown, it just changes no number.
+
+Traits & flaws and languages are Reference kinds too.
 
 ### The sheet's pages
 
@@ -245,6 +260,47 @@ spent. `restedMagic` is a night's rest. Which classes cast is `casting` and
 `manifesting` in `web/data/classes.json`, with `spontaneous`, `spellbook`,
 `half`, `domains` and `disciplines`. The Spell or Powers Sheet is
 `web/ui/magic.js`.
+
+### Feats, class features, languages and wealth
+
+- **Feats** (`web/engine/feats.js`). `featSlots` lists every slot a character
+  has - the 1st-level feat and one every third hit die, a race's bonus feat, a
+  class's bonus feats (`bonusFeats` in `web/data/classes.json`: a named `list`, or
+  `choices` by level for a monk and a ranger), one per flaw, and any typed in -
+  and the feats a class simply grants (`grantedFeats`). `parsePrerequisites`
+  reads the SRD's prerequisite words into clauses; `stateAtLevel` is the
+  character as it stood at a level (its base attack bonus, caster level, class
+  levels, scores and the feats held before), and `featEligibility` checks one
+  against the other. `featPlan` puts it together, and `featOptions` is what a
+  slot's dropdown offers. A feat row on the character is `{ name, choice, slot }`.
+- **Traits and flaws** (`web/engine/traits.js`) resolve a row `{ name, choice }`
+  against `srd/traits.json`; their effects join the rest, their notes are listed
+  with the special abilities.
+- **Class features** (`web/engine/features.js`) are read from each class's
+  "Special" column, one feature per name with its latest step ("Sneak attack
+  +3d6"). `featureEffects` turns the ones that are numbers into effects (divine
+  grace, a monk's AC bonus and fast movement, trap sense...). A cleric's domains
+  (`DOMAIN_RULES`) add class skills, granted feats, trackers and effects. The
+  Special abilities panel (`web/ui/feats.js`) shows each with its SRD text, cut
+  from the class's description.
+- **Languages** (`web/engine/languages.js`): a race's automatic languages and
+  bonus languages (`languages` in `races.json`), a class's (`classes.json`), one
+  bonus language per point of starting Intelligence bonus, and a language a rank
+  of Speak Language. The character stores the names chosen, `character.languages`.
+- **Starting wealth** (`wealth` in `web/engine/houserules.js`): a campaign's
+  `startingWealth` setting, else an independent character's own figure, else
+  wealth by level - the class's average starting gold at 1st level
+  (`startingGold` in `classes.json`).
+
+### Ability scores
+
+Point buy is a dropdown of the scores it allows, with their cost. The standard
+array and rolled scores are a set to place: `scorePlacement` in
+`web/engine/abilities.js` says which score of the set each ability holds
+(`abilities.placed`), and `placeScore` puts one there, swapping with whichever
+ability held it. Rolls (`newAbilityRolls`, 4d6 drop the lowest) are kept on the
+character as `abilities.rolls`, with how many times they were rolled; scores
+rolled at the table can be typed in instead, and the sheet says they were.
 
 ### Limited uses
 
@@ -300,6 +356,11 @@ Each step in `WIZARD_STEPS` names its panels, the notice fields it answers for
 its own. **Adding a step** is an entry there. A character in the creator carries
 `meta.wizard.step`, which the character list reports as `draftStep` so a draft
 reopens where it was left; Finish removes it and opens the sheet.
+
+Every step opened is added to `meta.creatorVisited`. Finishing - or "Skip to the
+full sheet" - with steps never opened keeps them in `meta.creatorSkipped`: the
+sheet then shows a warning for each, and a link back, until the step is opened.
+The creator does not buy equipment; that is the sheet's Gear page.
 
 ### Keeping the library in step with the account
 
@@ -590,7 +651,7 @@ deploy workflow pins it.
       library      content kinds, contentIndex, raceFacts, embedding
       build        the class build and the gestalt best-of rule
       abilities    scores, point buy, rolled arrays, the standard array
-      skills       points, costs, caps, armour check penalty, effect bonuses
+      skills       points, costs, caps, armor check penalty, effect bonuses
       hp / defense / offense
       houserules   action points, taint, wealth, LA, feats, training
       derive       composes everything, and produces the notices

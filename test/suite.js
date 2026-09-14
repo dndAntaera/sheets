@@ -15,6 +15,8 @@ import {
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
   mergeLibraries, fillMissing, applyCampaign, restedMagic, usesInSpecial, restedTrackers, VARIANT_MODULES,
+  rollAbilityArray, newAbilityRolls, placeScore, parsePrerequisites, featRuleIndex, stateAtLevel, featEligibility,
+  featOptions, languagePlan, featureKey, applyCampaign as campaignRules,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -144,6 +146,49 @@ export function buildSuite(data) {
     const high = { str: 18, dex: 18, con: 18, int: 18, wis: 18, cha: 18 };
     t.ok(rolledArrayCheck(high, antaera).tooHigh);
     t.ok(rolledArrayCheck({ str: 16, dex: 14, con: 14, int: 12, wis: 10, cha: 9 }, antaera).ok);
+  });
+
+  test('rolling ability scores: 4d6, the lowest die dropped, six times', (t) => {
+    // Dice come round 1..6 in turn: 1,2,3,4 then 5,6,1,2 and so on.
+    let n = 0;
+    const cycle = () => ((n++ % 6) + 0.5) / 6;
+    const array = rollAbilityArray(cycle);
+    t.eq(array.length, 6);
+    t.eq(array[0], { dice: [1, 2, 3, 4], score: 9 }, 'the 1 is dropped');
+    t.eq(array[1], { dice: [5, 6, 1, 2], score: 13 });
+    const all = rollAbilityArray(Math.random);
+    t.ok(all.every((r) => r.score >= 3 && r.score <= 18 && r.dice.every((d) => d >= 1 && d <= 6)), 'every score 3 to 18');
+    t.eq([newAbilityRolls(srd).arrays.length, newAbilityRolls(antaera).arrays.length], [1, 2], 'Antaera rolls two sets');
+    t.eq(newAbilityRolls(srd, { times: 2 }).times, 3, 'rolling again is counted');
+  });
+
+  test('rolled scores are placed where the player chooses, a taken one swapping', (t) => {
+    const c = blankCharacter(srd);
+    c.abilities.method = 'rolled';
+    const scores = [15, 14, 13, 12, 10, 8];
+    c.abilities.rolls = { arrays: [scores.map((score) => ({ dice: [], score }))], chosen: 0, times: 1 };
+    const place = (key, i) => Object.assign(c.abilities, placeScore(c, srd, key, i));
+    place('int', 0);
+    place('dex', 1);
+    let d = derive(c, srd);
+    t.eq([c.abilities.base.int, c.abilities.base.dex, d.placement.unplaced], [15, 14, [2, 3, 4, 5]]);
+    t.ok(d.notices.some((x) => x.text === '4 scores still to place.'), 'the sheet says what is left');
+    place('dex', 0);
+    t.eq([c.abilities.base.dex, c.abilities.base.int], [15, 14], 'giving INT\u2019s 15 to DEX hands DEX\u2019s 14 to INT');
+    ['str', 'con', 'wis', 'cha'].forEach((key, i) => place(key, i + 2));
+    d = derive(c, srd);
+    t.eq([d.placement.unplaced, d.placement.matches], [[], true]);
+    t.ok(!d.notices.some((x) => x.field === 'abilities'), 'nothing left to say');
+    c.abilities.base.str = 18;
+    t.ok(derive(c, srd).notices.some((x) => x.text.startsWith('The base scores are not the scores rolled')), 'a typed-over score is noticed');
+  });
+
+  test('the standard array is placed the same way', (t) => {
+    const c = blankCharacter(srd);
+    c.abilities.method = 'array';
+    ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach((key, i) => Object.assign(c.abilities, placeScore(c, srd, key, i)));
+    const d = derive(c, srd);
+    t.eq([c.abilities.base.str, c.abilities.base.cha, d.placement.method, d.placement.matches], [15, 8, 'array', true]);
   });
 
   test('bonus spell slots match the printed table', (t) => {
@@ -506,12 +551,13 @@ export function buildSuite(data) {
   });
 
   test('a human gets a bonus feat and an extra skill point a level', (t) => {
-    const c = characterWith(srd, repeat(['Fighter'], 2));
+    const c = characterWith(srd, repeat(['Wizard'], 2));
     c.race.name = 'Human';
     c.abilities.base.int = 10;
     const d = derive(c, srd);
     t.eq(d.feats.allowed, 2, 'one from first level, one from being human');
     t.eq(d.skills.budget.total, 15, '(2 + 1) x 4, then 3');
+    t.eq(derive({ ...c, levels: characterWith(srd, repeat(['Fighter'], 2)).levels }, srd).feats.allowed, 4, 'and a fighter’s bonus feats at 1st and 2nd');
   });
 
   /* === homebrew content ================================================ */
@@ -967,6 +1013,134 @@ export function buildSuite(data) {
     c.feats = [{ name: 'Empower Spell' }];
     const tracker = derive(c, srd).trackers.find((x) => x.name === 'Empower Spell');
     t.eq([tracker.max, tracker.highestSpell], [3, 1], 'highest spell 3, less 2 for Empower');
+  });
+
+  /* === feats, traits, languages, class features, wealth ================== */
+
+  test('prerequisites are read from the SRD\u2019s words', (t) => {
+    const rules = featRuleIndex(srd);
+    const kinds = (text) => parsePrerequisites(text, rules).map((c) => c.kind);
+    t.eq(kinds('Str 13, Power Attack, base attack bonus +1.'), ['ability', 'feat', 'bab']);
+    t.eq(kinds('Caster level 3rd.'), ['casterLevel']);
+    t.eq(kinds('Weapon Focus with selected weapon, fighter level 4th.'), ['feat', 'classLevel']);
+    t.eq(kinds('Knowledge (arcana) 5 ranks, Spell Focus (conjuration).'), ['skill', 'feat']);
+    t.eq(kinds('Ability to turn or rebuke creatures.'), ['feature']);
+    t.eq(parsePrerequisites('fighter level 4th', rules)[0], { text: 'fighter level 4th', kind: 'classLevel', className: 'Fighter', min: 4 });
+  });
+
+  test('a feat is legal only when its prerequisites were met at the level it was taken', (t) => {
+    const c = characterWith(srd, repeat(['Fighter'], 4));
+    c.abilities.base.str = 13;
+    const d = derive(c, srd);
+    const rules = featRuleIndex(srd);
+    const at1 = stateAtLevel(c, d, srd, 1, [{ name: 'Power Attack', types: ['General'] }]);
+    t.ok(featEligibility(rules.get('cleave'), at1, rules).ok, 'Cleave after Power Attack');
+    t.ok(!featEligibility(rules.get('cleave'), stateAtLevel(c, d, srd, 1, []), rules).ok, 'but not before');
+    const spec = rules.get('weapon specialization');
+    const wf = [{ name: 'Weapon Focus', choice: 'Longsword', types: ['General'] }];
+    t.ok(!featEligibility(spec, stateAtLevel(c, d, srd, 3, wf), rules, { choice: 'Longsword' }).ok, 'Weapon Specialization needs fighter 4');
+    t.ok(featEligibility(spec, stateAtLevel(c, d, srd, 4, wf), rules, { choice: 'Longsword' }).ok, 'and has it at 4th');
+    t.ok(!featEligibility(spec, stateAtLevel(c, d, srd, 4, wf), rules, { choice: 'Greatsword' }).ok, 'on the weapon it focused on');
+  });
+
+  test('feat slots: every third level, a human\u2019s, a fighter\u2019s from the fighter list, a wizard\u2019s from its own', (t) => {
+    const human = characterWith(srd, repeat(['Fighter'], 6));
+    human.race.name = 'Human';
+    const plan = derive(human, srd).featPlan;
+    t.eq(plan.slots.map((s) => s.id), ['level:1', 'race:0', 'class:Fighter:1', 'class:Fighter:2', 'level:3', 'class:Fighter:4', 'level:6', 'class:Fighter:6']);
+    const fighterSlot = plan.slots.find((s) => s.id === 'class:Fighter:1');
+    const d = derive(human, srd);
+    const options = featOptions(fighterSlot, plan, human, d, srd, srd.featRules).map((o) => o.name);
+    t.ok(options.includes('Blind-Fight') && !options.includes('Alertness'), 'fighter bonus feats only');
+    t.ok(!options.includes('Cleave'), 'and only those whose prerequisites are met');
+    const wizard = characterWith(srd, repeat(['Wizard'], 5));
+    const wp = derive(wizard, srd).featPlan;
+    t.eq(wp.granted.map((g) => g.name), ['Scribe Scroll'], 'Scribe Scroll is granted, not chosen');
+    const wslot = wp.slots.find((s) => s.id === 'class:Wizard:5');
+    const wopts = featOptions(wslot, wp, wizard, derive(wizard, srd), srd, srd.featRules).map((o) => o.name);
+    t.ok(wopts.includes('Empower Spell') && wopts.includes('Craft Wand') && !wopts.includes('Dodge'), 'metamagic and item creation');
+  });
+
+  test('a monk\u2019s bonus feats ignore prerequisites, and an illegal feat is an error', (t) => {
+    const monk = characterWith(srd, repeat(['Monk'], 2));
+    monk.feats = [{ name: 'Deflect Arrows', slot: 'class:Monk:2' }, { name: 'Cleave', slot: 'level:1' }];
+    const d = derive(monk, srd);
+    t.ok(d.featPlan.slots.find((s) => s.id === 'class:Monk:2').check.ok, 'Deflect Arrows without Dex 13');
+    t.ok(d.notices.some((n) => n.level === 'error' && n.text.startsWith('Cleave (1st-level feat)')), 'Cleave without Power Attack');
+  });
+
+  test('SRD feats bring their effects: Toughness, Skill Focus, Weapon Focus', (t) => {
+    const c = characterWith(srd, repeat(['Fighter'], 1));
+    c.weapons = [{ name: 'Longsword', attackBonus: 0, damageDice: '1d8', damageBonus: 0 }];
+    const before = derive(c, srd);
+    c.feats = [{ name: 'Toughness' }, { name: 'Skill Focus', choice: 'Climb' }, { name: 'Weapon Focus', choice: 'Longsword' }];
+    const d = derive(c, srd);
+    t.eq(d.hp.total - before.hp.total, 3, 'Toughness: +3 hit points');
+    const climb = (x) => x.skills.lines.find((l) => l.name === 'Climb').total;
+    t.eq(climb(d) - climb(before), 3, 'Skill Focus (Climb): +3');
+    t.eq(d.weapons[0].attack - before.weapons[0].attack, 1, 'Weapon Focus (longsword): +1 with it');
+  });
+
+  test('traits and flaws change the sheet, and flaws buy feats', (t) => {
+    const c = characterWith(srd, repeat(['Rogue'], 1));
+    c.options = { traitsFlaws: true };
+    const before = derive(c, srd);
+    c.traits = [{ name: 'Hardy' }, { name: 'Illiterate', choice: 'Hide' }];
+    c.flaws = [{ name: 'Vulnerable' }, { name: 'Slow' }];
+    const d = derive(c, srd);
+    t.eq([d.saves.fort.total - before.saves.fort.total, d.saves.ref.total - before.saves.ref.total], [1, -1], 'Hardy');
+    t.eq(d.ac.total - before.ac.total, -1, 'Vulnerable');
+    t.eq(d.speed, 15, 'Slow halves 30 feet');
+    t.eq(d.feats.allowed - before.feats.allowed, 2, 'two flaws, two feats');
+    t.ok(d.specialNotes.some((n) => n.source === 'Illiterate'), 'what is not a number is listed');
+  });
+
+  test('languages: automatic, a bonus per point of Intelligence from the race\u2019s list, and Speak Language', (t) => {
+    const c = characterWith(srd, repeat(['Wizard'], 1));
+    c.race.name = 'Dwarf';
+    c.abilities.base.int = 14;
+    c.languages = ['Giant', 'Draconic', 'Elven'];
+    const plan = languagePlan(c, derive(c, srd), srd);
+    t.eq(plan.automatic, ['Common', 'Dwarven']);
+    t.eq(plan.bonusAllowed, 2);
+    t.eq(plan.chosen.map((x) => x.via), ['bonus', 'bonus', null], 'Draconic through the wizard; Elven is not on the list');
+    t.ok(!plan.available.includes('Druidic'), 'never a secret language');
+  });
+
+  test('class features come from the class table, and some are numbers', (t) => {
+    t.eq([featureKey('Sneak attack +3d6'), featureKey('Slow fall 40 ft.'), featureKey('2nd favored enemy'), featureKey('Wild shape (Large)')], ['sneak attack', 'slow fall', 'favored enemy', 'wild shape']);
+    const rogue = derive(characterWith(srd, repeat(['Rogue'], 5)), srd);
+    const sneak = rogue.classFeatures.find((f) => f.key === 'sneak attack');
+    t.eq(sneak.latest, 'Sneak attack +3d6');
+    const paladin = characterWith(srd, repeat(['Paladin'], 2));
+    paladin.abilities.base.cha = 16;
+    const base = characterWith(srd, repeat(['Paladin'], 1));
+    base.abilities.base.cha = 16;
+    t.eq(derive(paladin, srd).saves.will.total - derive(base, srd).saves.will.total, 3, 'divine grace: +3 Charisma at 2nd, on top of the save\u2019s own +0');
+    const monk = characterWith(srd, repeat(['Monk'], 5));
+    monk.abilities.base.wis = 14;
+    const m = derive(monk, srd);
+    t.eq([m.ac.total, m.speed], [10 - 1 + 2 + 1, 40], 'Wisdom +2 and +1 at 5th to AC; fast movement +10');
+  });
+
+  test('a cleric\u2019s domains add class skills, granted feats and trackers', (t) => {
+    const c = characterWith(srd, repeat(['Cleric'], 1));
+    c.magic = { Cleric: { domains: ['Travel', 'Darkness'] } };
+    const d = derive(c, srd);
+    t.ok(d.summary.classSkills.has('Survival'), 'Travel: Survival');
+    t.ok(d.feats.grantedFeats.some((g) => g.name === 'Blind-Fight'), 'Darkness: Blind-Fight');
+    t.ok(d.trackers.some((x) => x.name === 'Freedom of movement' && x.max === 1), 'Travel: a round a level');
+  });
+
+  test('starting wealth: the class\u2019s gold at 1st, wealth by level after, a custom figure, and a campaign\u2019s', (t) => {
+    const first = characterWith(srd, [['Fighter']]);
+    t.eq([derive(first, srd).wealth.startingGold, derive(first, srd).wealth.source], [150, 'classGold']);
+    const fifth = characterWith(srd, repeat(['Fighter'], 5));
+    t.eq(derive(fifth, srd).wealth.startingGold, 9000);
+    fifth.wealth.startingGold = 12000;
+    t.eq(derive(fifth, srd).wealth.source, 'custom');
+    const { rules } = campaignRules(srd, { id: 'c1', ruleset: 'srd', settings: { startingWealth: 5000 } });
+    t.eq([derive(fifth, rules).wealth.startingGold, derive(fifth, rules).wealth.source], [5000, 'campaign'], 'the GM\u2019s figure, not the player\u2019s');
   });
 
   return cases;

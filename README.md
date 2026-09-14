@@ -29,16 +29,26 @@ there. Changing rules never loses anything typed; it changes which rules read it
 - **Base attack bonus, saves and hit dice** across any number of classes,
   summed per class the way 3.5 actually does it — and under gestalt, the better
   of two complete builds
+- **Ability scores** — point buy, the standard array, or 4d6 rolled six times,
+  each score chosen from a dropdown
 - **Hit points** — maximum at 1st level, then average or rolled
 - **Skills** — points per level, class and cross-class costs and caps, the
-  armour check penalty (twice for Swim)
-- **Armour Class**, touch and flat-footed, with Dexterity capped by armour
+  armor check penalty (twice for Swim)
+- **Armor Class**, touch and flat-footed, with Dexterity capped by armor
 - **Attack routines** from base attack bonus, so a second attack appears when
   it is earned and not before
 - **Racial traits** of the SRD races, applied rather than described
 - **Bonus stacking** — two bonuses of the same type give the better one, as the
   rules say; dodge, circumstance and untyped bonuses stack
-- **Spell save DCs and bonus slots** for any casting class
+- **Feats** — every slot a character has, each offering only the feats it
+  qualifies for at that level, with what each feat does counted for it
+- **Class features** from the class tables, with their SRD text and uses per day
+- **Spells and powers** chosen from the lists a class may use: a wizard's
+  spellbook and preparation, a cleric's domains, a psion's discipline
+- **Languages** — the race's, and as many more as Intelligence and Speak
+  Language allow
+- **Starting wealth** by level, or a figure of your own (a campaign's GMs set it
+  for their table)
 - Under Antæra: action points, taint thresholds, wealth caps, level adjustment
   limits, traits and flaws, and training time
 
@@ -56,7 +66,7 @@ What makes that real is **effects**. An entry can say what it changes:
 
 | Changes | Type | By | Only when |
 | --- | --- | --- | --- |
-| Armour Class | deflection | +2 | |
+| Armor Class | deflection | +2 | |
 | Hide | racial | +4 | in rocky terrain |
 | all saving throws | resistance | +1 | |
 

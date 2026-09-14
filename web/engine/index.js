@@ -31,6 +31,10 @@ export * from './preferences.js';
 export * from './magic.js';
 export * from './trackers.js';
 export * from './variants.js';
+export * from './feats.js';
+export * from './features.js';
+export * from './languages.js';
+export * from './traits.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 
@@ -44,7 +48,10 @@ export const RULESET_IDS = ['srd', 'antaera'];
  * `ruleset` is the one in force. Use `withRuleset` to get the context for a
  * different one - it shares everything else.
  */
-export function makeRules({ core, rulesets, classes, skills, races, backgrounds = {}, progression = {}, variants = null }, rulesetId = 'srd') {
+export function makeRules({
+  core, rulesets, classes, skills, races, backgrounds = {}, progression = {}, variants = null,
+  featRules = [], featEffects = null, traits = [], languages = [], domains = [],
+}, rulesetId = 'srd') {
   const base = {
     core,
     rulesets,
@@ -54,6 +61,11 @@ export function makeRules({ core, rulesets, classes, skills, races, backgrounds 
     backgrounds,
     progression,
     variants,
+    featRules,
+    featEffects,
+    traits,
+    languages,
+    domains,
     classByName: new Map(classes.classes.map((c) => [c.name, c])),
     skillsByName: new Map(skills.skills.map((s) => [s.name, s])),
     raceByName: new Map((races?.races || []).map((r) => [r.name, r])),
@@ -75,13 +87,18 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     return res.json();
   };
 
-  const [core, classes, skills, races, progression, variants, ...rulesetFiles] = await Promise.all([
+  const [core, classes, skills, races, progression, variants, featRules, featEffects, traits, languages, domains, ...rulesetFiles] = await Promise.all([
     get('core.json'),
     get('classes.json'),
     get('skills.json'),
     get('races.json'),
     get('srd/progression.json'),
     get('variants.json'),
+    get('srd/feat-rules.json'),
+    get('feat-effects.json'),
+    get('srd/traits.json'),
+    get('srd/languages.json'),
+    get('srd/domains.json'),
     ...RULESET_IDS.map((id) => get(`rulesets/${id}.json`)),
   ]);
 
@@ -95,5 +112,7 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     }
   }
 
-  return makeRules({ core, rulesets, classes, skills, races, backgrounds, progression, variants }, rulesetId);
+  return makeRules({
+    core, rulesets, classes, skills, races, backgrounds, progression, variants, featRules, featEffects, traits, languages, domains,
+  }, rulesetId);
 }

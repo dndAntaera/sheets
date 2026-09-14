@@ -1,4 +1,5 @@
-// The SRD's reference data: spells, powers, feats, classes, domains, equipment.
+// The SRD's reference data: spells, powers, feats, classes, domains, equipment,
+// variant rules, Unearthed Arcana's traits and flaws, and languages.
 //
 // Built from the SRD by scripts/build-srd.py into data/srd/, and large enough
 // (two megabytes between them) that each file is fetched only when something
@@ -14,6 +15,8 @@ export const REFERENCE_KINDS = {
   domains: { label: 'Domains', singular: 'domain' },
   equipment: { label: 'Equipment', singular: 'item' },
   variants: { label: 'Variant rules', singular: 'variant rule' },
+  traits: { label: 'Traits & flaws', singular: 'trait or flaw' },
+  languages: { label: 'Languages', singular: 'language' },
 };
 
 const loading = new Map();
@@ -34,7 +37,9 @@ export function loadReference(kind) {
         return res.json();
       })
       .then((list) => {
-        const index = { list, byName: new Map(list.map((e) => [key(e.name), e])) };
+        // An entry sharing its name with another (the trait Slow and the flaw
+        // Slow) is also found by its id.
+        const index = { list, byName: new Map([...list.map((e) => [key(e.name), e]), ...list.filter((e) => e.id).map((e) => [key(e.id), e])]) };
         loaded.set(kind, index);
         return index;
       })

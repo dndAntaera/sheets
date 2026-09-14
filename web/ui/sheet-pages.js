@@ -16,10 +16,10 @@ import { h } from './dom.js';
  * the magic page is Spells, Powers, or both.
  */
 export const SHEET_PAGES = [
-  { key: 'character', label: 'Character', panels: ['identity', 'levels', 'abilities'], notices: ['identity', 'levels', 'abilities'] },
+  { key: 'character', label: 'Character', panels: ['identity', 'levels', 'abilities', 'languages'], notices: ['identity', 'levels', 'abilities', 'languages', 'creator'] },
   { key: 'combat', label: 'Combat', panels: ['combat', 'variantCombat', 'effects'], notices: ['hp', 'effects'] },
   { key: 'skills', label: 'Skills', panels: ['skills'], notices: ['skills'] },
-  { key: 'feats', label: 'Feats & abilities', panels: ['trackers', 'variantTracks', 'feats', 'houserules'], notices: ['feats', 'houserules', 'trackers'] },
+  { key: 'feats', label: 'Feats & abilities', panels: ['trackers', 'variantTracks', 'abilitiesList', 'feats', 'houserules'], notices: ['feats', 'houserules', 'trackers'] },
   {
     key: 'magic',
     label: (d) => magicLabel(d),

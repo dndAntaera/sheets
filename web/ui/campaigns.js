@@ -317,7 +317,7 @@ function settingsForm(app, campaign, ruleset, attempt) {
     const path = `settings.${f.key}`;
     switch (f.type) {
       case 'bool': return h('div.cell.cell-check', checkbox(path, current(f), f.label, { title: f.hint }), f.hint ? h('span.hint', { text: f.hint }) : null);
-      case 'int': return labelled(f.label, field(path, current(f), { type: 'int', min: f.min, max: f.max, width: '5rem', title: f.hint }));
+      case 'int': return h('div.cell', labelled(f.label, field(path, current(f), { type: 'int', min: f.min, max: f.max, width: f.max > 9999 ? '8rem' : '5rem', title: f.hint, placeholder: f.default === null ? 'by level' : undefined })), f.default === null && f.hint ? h('span.hint', { text: f.hint }) : null);
       case 'textarea': return labelled(f.label, textarea(path, current(f), { rows: 4, placeholder: f.hint }), { wide: true });
       default: return labelled(f.label, field(path, current(f), { placeholder: f.hint, className: 'grow' }), { wide: true });
     }

@@ -68,15 +68,18 @@ export function skillLine(entry, ctx) {
   const acp = def.acp ? ctx.armorCheckPenalty * (def.acpDouble ? 2 : 1) : 0;
   const sizeMod = def.sizeMod ? num(ctx.sizeHideMod) : 0;
   const misc = num(entry.misc);
-  const bonuses = ctx.resolved ? bonusToSkill(ctx.resolved, entry.name) : 0;
-  const conditions = ctx.resolved ? conditionsFor(ctx.resolved, `skill.${entry.name}`, 'skill.*') : [];
+  const label = entry.subtype ? `${entry.name} (${entry.subtype})` : entry.name;
+  const bonuses = ctx.resolved ? bonusToSkill(ctx.resolved, entry.name, label, def.ability) : 0;
+  const conditions = ctx.resolved
+    ? conditionsFor(ctx.resolved, `skill.${entry.name}`, 'skill.*', ...(label !== entry.name ? [`skill.${label}`] : []), ...(def.ability ? [`skills.ability.${def.ability}`] : []))
+    : [];
 
   const total = (ability ? ability.mod : 0) + ranks + misc + bonuses + sizeMod - acp;
 
   return {
     ...entry,
     def,
-    label: entry.subtype ? `${entry.name} (${entry.subtype})` : entry.name,
+    label,
     classSkill,
     ranks,
     abilityKey: def.ability,

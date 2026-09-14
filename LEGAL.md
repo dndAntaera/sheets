@@ -32,6 +32,10 @@ game mechanics taken from the 3.5 System Reference Document:
   rule text) — the variant rules from Unearthed Arcana, built by
   `scripts/build-variants.py`; the catalog's own descriptions are not Open Game
   Content
+- `web/data/srd/traits.json` — Unearthed Arcana's character traits and flaws
+- `web/data/srd/languages.json` — the SRD's languages
+- `web/data/srd/feat-rules.json` and `web/data/feat-effects.json` — the SRD's feat
+  prerequisites and benefits, restated for the engine
 
 The app's code, the Antæra ruleset (`web/data/rulesets/antaera.json`) and the
 campaign's backgrounds are not Open Game Content; they are the owner's own.

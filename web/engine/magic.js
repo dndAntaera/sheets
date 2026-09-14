@@ -186,6 +186,12 @@ function spellcaster(c, casting, level, at, ability, score, mod, state, extra = 
     domains: casting.domains ? (state.domains || []) : null,
     specialty: spellbook ? state.specialty || null : null,
     prohibited: spellbook ? state.prohibited || [] : null,
+    // A wizard's spellbook: every 0-level spell, then three 1st-level spells and
+    // one more per point of Intelligence bonus, and two a level after that.
+    spellbookFree: spellbook ? {
+      free: 3 + Math.max(0, mod) + 2 * Math.max(0, level - 1),
+      used: (state.known || []).filter((k) => k && k.name && Number(k.level) > 0).length,
+    } : null,
     levels,
     highest: levels.filter((l) => l.perDay > 0 || (l.knownAllowed ?? 0) > 0).reduce((n, l) => Math.max(n, l.level), -1),
   };
@@ -237,7 +243,17 @@ export function magicNotices(magic, add) {
           add('info', `${c.name}, ${label}: ${l.knownAllowed - l.knownCount} still to learn.`, 'casting');
         }
       }
-      if (c.domains && c.domains.filter(Boolean).length < 2) add('info', `${c.name}: choose two domains.`, 'casting');
+      if (c.domains && new Set(c.domains.filter(Boolean)).size < 2) add('info', `${c.name}: choose two different domains.`, 'casting');
+      if (c.spellbookFree) {
+        const { free, used } = c.spellbookFree;
+        if (used < free) add('info', `${c.name}: ${free - used} free spell${free - used === 1 ? '' : 's'} still to add to the spellbook.`, 'casting');
+        else if (used > free) add('info', `${c.name}: ${used - free} spell${used - free === 1 ? '' : 's'} beyond the free ones - copied from scrolls or other spellbooks.`, 'casting');
+      }
+      if (c.specialty) {
+        const need = c.specialty === 'Divination' ? 1 : 2;
+        const have = (c.prohibited || []).filter((s) => s !== c.specialty && s !== 'Divination').length;
+        if (have !== need) add('warn', `${c.name}: a ${c.specialty.toLowerCase()} specialist gives up ${need} other school${need === 1 ? '' : 's'}; ${have} chosen.`, 'casting');
+      }
     } else {
       if (c.powersKnown.count > c.powersKnown.allowed) {
         add('error', `${c.name}: ${c.powersKnown.count} powers known, but only ${c.powersKnown.allowed} allowed.`, 'casting');

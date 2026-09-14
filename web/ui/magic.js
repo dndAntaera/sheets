@@ -97,7 +97,7 @@ function casterBlock(app, m, state, changed) {
           h('td', { text: m.spontaneous
             ? `${l.knownCount} / ${l.knownAllowed ?? '-'}`
             : m.spellbook
-              ? String(l.knownCount)
+              ? (l.level === 0 ? 'all' : String(l.knownCount))
               : `${l.preparedCount + l.preparedExtra} / ${l.perDay}` }),
           h('td', m.spellPoints
             ? (l.castable && l.level > 0 ? button(`Cast (${m.spellPoints.cost[l.level]})`, () => { state.spellPointsUsed = (Number(state.spellPointsUsed) || 0) + m.spellPoints.cost[l.level]; changed(); }, { subtle: true }) : h('span.hint', { text: l.level === 0 ? 'free' : '-' }))
@@ -136,94 +136,192 @@ function perDayTitle(l) {
 }
 
 function options(app, m, state, changed) {
-  const pick = (label, value, list, onPick) => h('label.magic-option',
+  const pick = (label, value, list, onPick, disabledValues = []) => h('label.magic-option',
     h('span.label', { text: label }),
-    h('select.field', { onchange: (ev) => onPick(ev.target.value) },
-      [['', '- none -'], ...list.map((v) => [v, v])].map(([v, t]) => h('option', { value: v, text: t, selected: (value || '') === v }))));
+    h('select.field', { onchange: (ev) => onPick(ev.target.value), dataset: { unbound: '' } },
+      [['', '- choose -'], ...list.map((v) => [v, v])].map(([v, t]) => h('option', {
+        value: v,
+        text: disabledValues.includes(v) && v ? `${t} (chosen)` : t,
+        selected: (value || '') === v,
+        disabled: Boolean(v) && disabledValues.includes(v),
+      }))));
 
   if (m.domains) {
     const domains = (referenceNow('domains')?.list || []).map((d) => d.name);
     const current = state.domains || [];
-    return h('div.row.magic-options',
-      [0, 1].map((i) => pick(`Domain ${i + 1}`, current[i], domains, (v) => {
-        const next = [...current];
-        next[i] = v || null;
-        state.domains = next;
-        changed();
-      })),
+    return h('div.magic-options',
+      h('div.row',
+        [0, 1].map((i) => pick(`Domain ${i + 1}`, current[i], domains, (v) => {
+          const next = [...current];
+          next[i] = v || null;
+          state.domains = next;
+          changed();
+        }, current.filter((d, j) => j !== i && d)))),
+      h('p.hint', { text: 'Two different domains. Each gives a granted power, listed under Special abilities, and a domain spell a day at every level you can cast.' }),
       current.filter(Boolean).map((name) => h('a.hint', { href: referenceHref('domains', name), text: `${name} domain` })));
   }
   if (m.spellbook) {
     const prohibited = new Set(state.prohibited || []);
+    const need = state.specialty === 'Divination' ? 1 : 2;
     return h('div.magic-options',
-      h('div.row', pick('Specialty school', state.specialty, SCHOOLS, (v) => { state.specialty = v || null; changed(); })),
+      h('div.row', pick('Specialty school', state.specialty, SCHOOLS, (v) => {
+        state.specialty = v || null;
+        state.prohibited = (state.prohibited || []).filter((s) => s !== v && s !== 'Divination');
+        changed();
+      })),
       state.specialty
-        ? h('div.row.magic-prohibited', h('span.label', { text: 'Prohibited schools' }), SCHOOLS.filter((s) => s !== state.specialty).map((school) => h('label.check',
-          h('input', {
-            type: 'checkbox',
-            checked: prohibited.has(school),
-            onchange: (ev) => {
-              if (ev.target.checked) prohibited.add(school); else prohibited.delete(school);
-              state.prohibited = [...prohibited];
-              changed();
-            },
-          }), h('span', { text: school }))))
-        : null);
+        ? h('div.row.magic-prohibited',
+          h('span.label', { text: `Prohibited schools (${need})` }),
+          SCHOOLS.filter((s) => s !== state.specialty).map((school) => h('label.check', { title: school === 'Divination' ? 'A wizard can never give up divination.' : '' },
+            h('input', {
+              type: 'checkbox',
+              checked: prohibited.has(school),
+              disabled: school === 'Divination' || (!prohibited.has(school) && prohibited.size >= need),
+              onchange: (ev) => {
+                if (ev.target.checked) prohibited.add(school); else prohibited.delete(school);
+                state.prohibited = [...prohibited];
+                changed();
+              },
+            }), h('span', { text: school }))))
+        : h('p.hint', { text: 'A specialist prepares one more spell of their school at each level, and gives up two other schools (a diviner, one).' }));
   }
   return null;
+}
+
+/* ==========================================================================
+   The lists: what may be learned, and what may be prepared
+   ========================================================================== */
+
+/** The spells a class may choose at a level, from the reference, less a specialist's prohibited schools. */
+function spellsFor(className, level, state) {
+  const prohibited = new Set(state?.prohibited || []);
+  return (referenceNow('spells')?.list || [])
+    .filter((e) => e.levels?.[className] === level && !prohibited.has(e.school));
+}
+
+/** The names a manifester may learn: its class list and discipline, up to the highest level it can learn. */
+function powersFor(lists, maxLevel) {
+  return (referenceNow('powers')?.list || [])
+    .map((e) => ({ e, level: Math.min(...lists.map((w) => e.levels?.[w]).filter((n) => n !== undefined)) }))
+    .filter(({ level }) => Number.isFinite(level) && level <= maxLevel);
+}
+
+const METAMAGIC = {
+  'Empower Spell': 2, 'Enlarge Spell': 1, 'Extend Spell': 1, 'Maximize Spell': 3,
+  'Quicken Spell': 4, 'Silent Spell': 1, 'Still Spell': 1, 'Widen Spell': 3, 'Heighten Spell': 0,
+};
+
+/** A dropdown that manages itself. `groups`: [{ label, options: [{ value, text, disabled }] }]. */
+function dropdown(label, value, groups, onPick, opts = {}) {
+  return h('select.field.grow', {
+    'aria-label': label,
+    dataset: { unbound: '' },
+    disabled: opts.disabled,
+    onchange: (ev) => onPick(ev.target.value),
+  },
+  h('option', { value: '', text: opts.empty || '- choose -', selected: !value }),
+  groups.filter((g) => g.options.length).map((g) => (g.label
+    ? h('optgroup', { label: g.label }, g.options.map((o) => h('option', { value: o.value, text: o.text, selected: o.value === value, disabled: o.disabled })))
+    : g.options.map((o) => h('option', { value: o.value, text: o.text, selected: o.value === value, disabled: o.disabled })))));
 }
 
 /** A spontaneous caster's spells known, or a wizard's spellbook, by level. */
 function knownLists(app, m, state, levels, changed) {
   state.known = state.known || [];
+  const book = m.spellbook ? m.spellbookFree : null;
   return h('div.magic-lists',
     h('h4', { text: m.spellbook ? 'Spellbook' : 'Spells known' }),
+    book ? h('p.hint', { text: `A wizard's spellbook holds every 0-level spell of an allowed school, plus ${book.free} spells chosen at 1st level and as levels are gained (${book.used} chosen). More can be copied in from scrolls and other spellbooks.` }) : null,
     levels.map((l) => {
+      if (m.spellbook && l.level === 0) {
+        const cantrips = spellsFor(m.name, 0, state);
+        return h('div.magic-level',
+          h('div.magic-level-head', h('span.magic-level-name', { text: levelName(0) }), h('span.hint', { text: `all ${cantrips.length}` })),
+          h('details.magic-cantrips', h('summary', { text: 'Every 0-level spell of an allowed school' }),
+            h('ul.magic-spells', cantrips.map((e) => spellRow(e.name, 'spells', [], m, state)))));
+      }
       const here = state.known.map((k, i) => ({ ...k, i })).filter((k) => Number(k.level) === l.level);
+      const full = l.knownAllowed !== null && here.length >= l.knownAllowed;
+      // A wizard learns spells only of levels they can cast.
+      const learnable = !m.spellbook || (l.castable && l.base + l.bonus > 0);
+      const have = new Set(state.known.map((k) => k.name));
+      const choices = spellsFor(m.name, l.level, state).filter((e) => !have.has(e.name));
       return h('div.magic-level',
         h('div.magic-level-head', h('span.magic-level-name', { text: levelName(l.level) }),
           l.knownAllowed !== null ? h('span.hint', { text: `${here.length} of ${l.knownAllowed}` }) : null),
         h('ul.magic-spells', here.map((k) => spellRow(k.name, 'spells', [
           button('x', () => { state.known.splice(k.i, 1); changed(); }, { subtle: true, danger: true, title: 'Forget this spell' }),
         ], m, state))),
-        adder(m.name, 'spells', l.level, state.known.map((k) => k.name), (name) => {
-          state.known.push({ name, level: l.level });
-          changed();
-        }, m));
+        h('div.row.magic-adder',
+          dropdown(`Add a ${levelName(l.level)} spell`, '', [{ options: choices.map((e) => ({ value: e.name, text: `${e.name} - ${e.school}` })) }], (name) => {
+            if (!name) return;
+            state.known.push({ name, level: l.level });
+            changed();
+          }, {
+            disabled: full || !learnable || !choices.length,
+            empty: full ? '- all known -' : !learnable ? `- needs ${m.ability.toUpperCase()} ${10 + l.level} and a slot -` : `- learn a ${levelName(l.level)} spell -`,
+          })));
     }));
 }
 
 /** A prepared caster's spells for today, a slot at a time, with a box to mark each one cast. */
 function preparedLists(app, m, state, levels, changed) {
   state.prepared = state.prepared || {};
-  const domainSpells = (level) => (state.domains || []).filter(Boolean)
-    .map((d) => referenceNow('domains')?.byName.get(d.toLowerCase())?.spells?.[level - 1])
-    .filter(Boolean).map((n) => lookUp('spells', n)?.name || n);
+  const metamagicFeats = (app.derived.featPlan?.held || []).map((f) => f.name).filter((n) => METAMAGIC[n] !== undefined);
+  const domainSpells = (upTo) => {
+    const out = [];
+    for (const d of (state.domains || []).filter(Boolean)) {
+      const spells = referenceNow('domains')?.byName.get(d.toLowerCase())?.spells || [];
+      spells.slice(0, upTo).forEach((n, i) => { if (n) out.push({ name: lookUp('spells', n)?.name || n, level: i + 1, school: lookUp('spells', n)?.school }); });
+    }
+    return out;
+  };
+  // What may go in a slot: a spell of the slot's level or lower, from the
+  // spellbook (a wizard), the class list (a cleric, druid, paladin or ranger),
+  // the domains (a domain slot), or the specialty school (a specialist's slot).
+  const sourceFor = (kind, level) => {
+    if (kind === 'domain') return domainSpells(level);
+    const pool = [];
+    for (let L = 0; L <= level; L++) {
+      if (m.spellbook) {
+        if (L === 0) pool.push(...spellsFor(m.name, 0, state).map((e) => ({ name: e.name, level: 0, school: e.school })));
+        else pool.push(...(state.known || []).filter((k) => Number(k.level) === L).map((k) => ({ name: k.name, level: L, school: lookUp('spells', k.name)?.school })));
+      } else {
+        pool.push(...spellsFor(m.name, L, state).map((e) => ({ name: e.name, level: L, school: e.school })));
+      }
+    }
+    if (m.spellbook && !pool.some((p) => p.name === 'Read Magic') && level >= 0) pool.push({ name: 'Read Magic', level: 0, school: 'Universal' });
+    // A specialist cannot prepare spells of a prohibited school, even ones already in the spellbook.
+    const prohibited = new Set(state.prohibited || []);
+    const allowed = pool.filter((p) => !prohibited.has(p.school));
+    return kind === 'school' ? allowed.filter((p) => p.school === state.specialty) : allowed;
+  };
 
   return h('div.magic-lists',
     h('h4', { text: 'Prepared today' }),
+    m.spellbook ? h('p.hint', { text: 'From the spellbook only (and read magic, from memory). A lower-level spell can fill a higher slot, and a metamagic feat raises the slot a spell needs.' }) : null,
     levels.filter((l) => l.perDay > 0 || (state.prepared[l.level] || []).length).map((l) => {
       const list = state.prepared[l.level] = state.prepared[l.level] || [];
       const regular = l.perDay - l.domain - l.school;
       const rows = [];
-      // A slot is the index-th prepared entry of its kind: regular, domain, or specialty school.
       const ofKind = (kind) => list.filter((p) => (kind === 'domain' ? p?.domain : kind === 'school' ? p?.school : !p?.domain && !p?.school));
       const slot = (kind, index, label) => {
         const entry = ofKind(kind)[index] || null;
         const at = entry ? list.indexOf(entry) : -1;
-        const source = kind === 'domain'
-          ? domainSpells(l.level)
-          : m.spellbook ? (state.known || []).filter((k) => Number(k.level) === l.level).map((k) => k.name) : null;
-        const choose = spellInput(m.name, 'spells', l.level, entry?.name || '', (name) => {
-          if (!name) {
-            if (at >= 0) list.splice(at, 1);
-          } else if (entry) {
-            entry.name = name;
-          } else {
-            list.push({ name, used: false, ...(kind === 'domain' ? { domain: true } : {}), ...(kind === 'school' ? { school: true } : {}) });
-          }
-          changed();
-        }, source, label);
+        const source = sourceFor(kind, l.level);
+        const adjust = entry?.metamagic ? (entry.metamagic === 'Heighten Spell' ? 0 : METAMAGIC[entry.metamagic] || 0) : 0;
+        const fits = (p) => p.level + adjust <= l.level;
+        const byLevel = new Map();
+        for (const p of source) {
+          const key = p.level === l.level ? 'This level' : `${levelName(p.level)}`;
+          if (!byLevel.has(key)) byLevel.set(key, []);
+          if (!byLevel.get(key).some((x) => x.value === p.name)) byLevel.get(key).push({ value: p.name, text: p.name, disabled: !fits(p) });
+        }
+        const groups = [...byLevel.entries()].sort(([a], [b]) => (a === 'This level' ? -1 : b === 'This level' ? 1 : b.localeCompare(a)))
+          .map(([group, options]) => ({ label: group, options: options.sort((x, y) => x.text.localeCompare(y.text)) }));
+        if (entry?.name && !source.some((p) => p.name === entry.name)) groups.unshift({ label: 'Prepared', options: [{ value: entry.name, text: `${entry.name} (not available)` }] });
+        const prepared = entry ? source.find((p) => p.name === entry.name) : null;
+        const tooHigh = prepared && !fits(prepared);
         rows.push(h(`li.magic-slot${entry?.used ? '.is-used' : ''}`,
           h('label.check', { title: 'Cast' }, h('input', {
             type: 'checkbox',
@@ -231,8 +329,25 @@ function preparedLists(app, m, state, levels, changed) {
             disabled: !entry,
             onchange: (ev) => { entry.used = ev.target.checked; changed(); },
           })),
-          choose,
+          h('span.magic-slot-input', { dataset: { unbound: '' } },
+            dropdown(`${levelName(l.level)} slot`, entry?.name || '', groups, (name) => {
+              if (!name) {
+                if (at >= 0) list.splice(at, 1);
+              } else if (entry) {
+                entry.name = name;
+              } else {
+                list.push({ name, used: false, ...(kind === 'domain' ? { domain: true } : {}), ...(kind === 'school' ? { school: true } : {}) });
+              }
+              changed();
+            }, { empty: source.length ? (kind === 'domain' ? '- a domain spell -' : '- prepare a spell -') : m.spellbook ? '- nothing in the spellbook yet -' : kind === 'domain' ? '- choose domains first -' : '- no spells -' })),
+          entry && metamagicFeats.length && l.level > 0
+            ? dropdown('Metamagic', entry.metamagic || '', [{ options: metamagicFeats.map((f) => ({ value: f, text: `${f.replace(' Spell', '')} (+${METAMAGIC[f] || 'to slot'})` })) }], (feat) => {
+              entry.metamagic = feat || null;
+              changed();
+            }, { empty: '- no metamagic -' })
+            : null,
           label ? h('span.tag', { text: label }) : null,
+          tooHigh ? h('span.tag.is-blocked', { text: `needs a ${levelName(prepared.level + adjust)} slot` }) : null,
           entry?.name ? detailToggle('spells', entry.name) : null));
       };
       for (let i = 0; i < Math.max(regular, 0); i++) slot('regular', i, null);
@@ -301,12 +416,29 @@ function manifesterBlock(app, m, state, changed) {
           button('x', () => { state.known.splice(i, 1); changed(); }, { subtle: true, danger: true, title: 'Forget this power' }),
         ], m, state);
       })),
-      adder(lists, 'powers', null, state.known.map((k) => k.name), (name) => {
-        const power = lookUp('powers', name);
-        const level = power ? Math.min(...lists.map((w) => power.levels?.[w]).filter((n) => n !== undefined)) : 1;
-        state.known.push({ name: power?.name || name, level: Number.isFinite(level) ? level : 1 });
-        changed();
-      }, m, m.maxPowerLevel)));
+      (() => {
+        const have = new Set(state.known.map((k) => k.name));
+        const full = m.powersKnown.count >= m.powersKnown.allowed;
+        const byLevel = new Map();
+        for (const { e, level } of powersFor(lists, m.maxPowerLevel)) {
+          if (have.has(e.name)) continue;
+          if (!byLevel.has(level)) byLevel.set(level, []);
+          byLevel.get(level).push({ value: e.name, text: `${e.name} (${e.powerPoints ?? '?'} pp)` });
+        }
+        const groups = [...byLevel.entries()].sort(([x], [y]) => x - y)
+          .map(([level, options]) => ({ label: levelName(level), options: options.sort((x, y) => x.text.localeCompare(y.text)) }));
+        return h('div.row.magic-adder', { dataset: { unbound: '' } },
+          dropdown('Learn a power', '', groups, (name) => {
+            if (!name) return;
+            const power = lookUp('powers', name);
+            const level = power ? Math.min(...lists.map((w) => power.levels?.[w]).filter((n) => n !== undefined)) : 1;
+            state.known.push({ name: power?.name || name, level: Number.isFinite(level) ? level : 1 });
+            changed();
+          }, {
+            disabled: full || !groups.length,
+            empty: full ? '- all powers known -' : m.maxPowerLevel < 1 ? `- needs ${m.ability.toUpperCase()} 11 to learn a power -` : m.disciplines && !m.discipline ? '- choose a discipline, or learn from the psion list -' : '- learn a power -',
+          }));
+      })()));
 }
 
 /* ==========================================================================
@@ -336,59 +468,6 @@ function detailToggle(kind, name) {
     if (details.open && !holder.firstChild) refill(holder, referenceCard(kind, lookUp(kind, name)) || h('p.hint', { text: 'Not in the reference.' }));
   });
   return details;
-}
-
-/** The names a class may choose at a level, from the reference. */
-function namesFor(lists, kind, level, maxLevel) {
-  const who = [].concat(lists);
-  return (referenceNow(kind)?.list || [])
-    .filter((e) => who.some((w) => {
-      const at = e.levels?.[w];
-      if (at === undefined) return false;
-      if (level !== null && level !== undefined) return at === level;
-      return maxLevel === undefined || at <= maxLevel;
-    }))
-    .map((e) => e.name);
-}
-
-let pickerCount = 0;
-
-/** A text box that completes from the class's list, and adds what is chosen. */
-function adder(lists, kind, level, have, onAdd, m, maxLevel) {
-  const names = namesFor(lists, kind, level, maxLevel).filter((n) => !have.includes(n));
-  const id = `magic-picker-${++pickerCount}`;
-  const input = h('input.field.grow', {
-    type: 'text',
-    placeholder: kind === 'powers' ? `Add a power${maxLevel ? ` (up to ${levelName(maxLevel)})` : ''}` : `Add a ${level === 0 ? '0-level' : `${ordinal(level)}-level`} spell`,
-    list: id,
-    dataset: { unbound: '' },
-  });
-  const add = () => {
-    const typed = input.value.trim();
-    if (!typed) return;
-    onAdd(lookUp(kind, typed)?.name || typed);
-  };
-  input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); add(); } });
-  input.addEventListener('change', () => { if (names.includes(input.value.trim()) || lookUp(kind, input.value)) add(); });
-  return h('div.row.magic-adder', { dataset: { unbound: '' } },
-    input,
-    h('datalist', { id }, names.map((n) => h('option', { value: n }))),
-    button('Add', add, { subtle: true }));
-}
-
-/** A slot's spell: a box that completes from the spellbook, the domain, or the class's list. */
-function spellInput(className, kind, level, value, onSet, source, label) {
-  const names = source || namesFor(className, kind, level);
-  const id = `magic-picker-${++pickerCount}`;
-  const input = h('input.field.grow', {
-    type: 'text',
-    value,
-    placeholder: label === 'domain' ? 'Domain spell' : source && !source.length ? 'Nothing in the spellbook at this level' : 'Prepare a spell',
-    list: id,
-    dataset: { unbound: '' },
-  });
-  input.addEventListener('change', () => onSet(lookUp(kind, input.value)?.name || input.value.trim()));
-  return h('span.magic-slot-input', { dataset: { unbound: '' } }, input, h('datalist', { id }, names.map((n) => h('option', { value: n }))));
 }
 
 /** A row of boxes, one a slot, filled for each cast; clicking sets how many are cast. */

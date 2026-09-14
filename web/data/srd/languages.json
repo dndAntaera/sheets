@@ -1,0 +1,22 @@
+[
+{"name":"Abyssal","speakers":"Demons, chaotic evil outsiders","alphabet":"Infernal"},
+{"name":"Aquan","speakers":"Water-based creatures","alphabet":"Elven"},
+{"name":"Auran","speakers":"Air-based creatures","alphabet":"Draconic"},
+{"name":"Celestial","speakers":"Good outsiders","alphabet":"Celestial"},
+{"name":"Common","speakers":"Humans, halflings, half-elves, half-orcs","alphabet":"Common"},
+{"name":"Draconic","speakers":"Kobolds, troglodytes, lizardfolk, dragons","alphabet":"Draconic"},
+{"name":"Druidic","speakers":"Druids (only)","alphabet":"Druidic","secret":true},
+{"name":"Dwarven","speakers":"Dwarves","alphabet":"Dwarven"},
+{"name":"Elven","speakers":"Elves","alphabet":"Elven"},
+{"name":"Giant","speakers":"Ogres, giants","alphabet":"Dwarven"},
+{"name":"Gnome","speakers":"Gnomes","alphabet":"Dwarven"},
+{"name":"Goblin","speakers":"Goblins, hobgoblins, bugbears","alphabet":"Dwarven"},
+{"name":"Gnoll","speakers":"Gnolls","alphabet":"Common"},
+{"name":"Halfling","speakers":"Halflings","alphabet":"Common"},
+{"name":"Ignan","speakers":"Fire-based creatures","alphabet":"Draconic"},
+{"name":"Infernal","speakers":"Devils, lawful evil outsiders","alphabet":"Infernal"},
+{"name":"Orc","speakers":"Orcs","alphabet":"Dwarven"},
+{"name":"Sylvan","speakers":"Dryads, brownies, leprechauns","alphabet":"Elven"},
+{"name":"Terran","speakers":"Xorns and other earth-based creatures","alphabet":"Dwarven"},
+{"name":"Undercommon","speakers":"Drow","alphabet":"Elven"}
+]

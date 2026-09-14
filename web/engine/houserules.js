@@ -121,20 +121,48 @@ export function taint(character, abilities, rules) {
    --------------------------------------------------------------------------- */
 
 /**
- * Wealth: what the character holds, what a character of its level is expected
- * to hold, and - only where the ruleset enforces them - the caps on a single
- * item. Under the SRD the expectation is advice and nothing is capped.
+ * Wealth: what the character starts with, what it holds, what a character of
+ * its level is expected to hold, and - only where the ruleset enforces them -
+ * the caps on a single item. Under the SRD the expectation is advice and
+ * nothing is capped.
+ *
+ * Starting wealth, in order of who decides:
+ *
+ *   campaign        a campaign's GMs set one figure for every character in it
+ *   custom          an independent character's own figure
+ *   wealthByLevel   the DMG's table, from 2nd level
+ *   classGold       at 1st level, the average of the first class's starting gold
+ *
+ * @param firstClass  the class taken at 1st level, for its starting gold
  */
-export function wealth(character, ecl, rules) {
+export function wealth(character, ecl, rules, firstClass = null) {
   const table = rules.core.wealthByLevel;
   const policy = rules.ruleset.wealth || {};
-  const expected = table.gp[String(ecl)] ?? null;
+  const tableGold = table.gp[String(ecl)] ?? null;
+  const classGold = ecl <= 1 ? firstClass?.startingGold?.average ?? null : null;
+  const expected = tableGold ?? classGold;
   const firstLevel = ecl <= 1;
   const caps = policy.enforceCaps && policy.singleItemCap;
   const capFraction = caps
     ? (firstLevel ? policy.singleItemCap.atFirstLevel : policy.singleItemCap.afterFirstLevel)
     : null;
-  const startingGold = num(character.wealth?.startingGold, expected || 0);
+
+  const inCampaign = Boolean(rules.campaign);
+  const campaignGold = inCampaign ? rules.campaign.startingWealth : null;
+  const typed = character.wealth?.startingGold;
+  const custom = !inCampaign && typed !== null && typed !== undefined && typed !== '' ? num(typed) : null;
+  let startingGold = 0;
+  let source = 'none';
+  if (campaignGold !== null && campaignGold !== undefined && campaignGold !== '') {
+    startingGold = num(campaignGold);
+    source = 'campaign';
+  } else if (custom !== null) {
+    startingGold = custom;
+    source = 'custom';
+  } else if (expected !== null) {
+    startingGold = expected;
+    source = tableGold !== null ? 'wealthByLevel' : 'classGold';
+  }
   const cap = caps && startingGold ? startingGold * capFraction : null;
 
   const items = (character.wealth?.items || []).map((item) => ({
@@ -143,10 +171,16 @@ export function wealth(character, ecl, rules) {
     overCap: cap !== null && num(item.value) > cap,
   }));
 
-  const held = items.reduce((t, i) => t + i.lineValue, 0) + num(character.wealth?.gold);
+  const itemsValue = items.reduce((t, i) => t + i.lineValue, 0);
+  const held = itemsValue + num(character.wealth?.gold);
   return {
     expected,
     startingGold,
+    source,
+    classGold,
+    itemsValue,
+    /** What is left of the starting wealth after the gear bought with it. */
+    leftToSpend: startingGold - itemsValue,
     capFraction,
     cap,
     items,

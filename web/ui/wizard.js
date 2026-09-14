@@ -8,7 +8,9 @@
 // easiest to make by comparing: race and class.
 //
 // A character in the wizard carries `meta.wizard.step`; finishing removes it.
-// app.js draws a step with openSheet(id, { wizard: key }).
+// app.js draws a step with openSheet(id, { wizard: key }). Every step opened is
+// remembered in `meta.creatorVisited`; finishing with steps never opened keeps
+// them in `meta.creatorSkipped`, and the sheet flags them until they are.
 
 import { h, field, select, labelled, row, total, out, button } from './dom.js';
 import { ABILITIES, ABILITY_NAMES } from '../engine/abilities.js';
@@ -64,8 +66,8 @@ export const WIZARD_STEPS = [
     key: 'abilities',
     title: 'Ability scores',
     intro: [
-      'Six scores, from which nearly every other number follows. Choose how you generate them, then set the base scores; your race’s adjustments are added for you.',
-      'Under point buy, the sheet counts what you have spent. With your class chosen, you know which scores matter most.',
+      'Six scores, from which nearly every other number follows. Choose how they are made: buy them with points, take the standard array, or roll 4d6 six times. Then choose each score from its dropdown; your race’s adjustments are added for you.',
+      'With your class chosen, you know which scores matter most.',
     ],
     panels: ['abilities'],
     notices: ['abilities'],
@@ -84,30 +86,30 @@ export const WIZARD_STEPS = [
     key: 'feats',
     title: 'Feats',
     intro: [
-      'Everyone gets a feat at 1st level, and another every three levels; some races and classes give more. Name them here.',
-      'A feat with a bonus the sheet can count - Toughness, Iron Will - can carry that effect, so its numbers add up.',
+      'Everyone gets a feat at 1st level and another every three levels; a human, a fighter, a wizard and others get more. Each slot lists only the feats you qualify for when you gain it, and what a feat does is counted for you.',
+      'Your class features fill in from the class table below. Where the table says so, traits and flaws come next.',
     ],
-    panels: ['feats', 'houserules'],
-    notices: ['feats', 'houserules'],
+    panels: ['feats', 'abilitiesList', 'houserules'],
+    notices: ['feats', 'houserules', 'trackers'],
   },
   {
     key: 'gear',
-    title: 'Hit points & gear',
+    title: 'Hit points & wealth',
     intro: [
-      'Hit points are maximum at 1st level and average after, unless you roll. Then armor, shield and weapons: the sheet turns them into your Armor Class and attacks.',
-      'Starting gold and anything else you carry go in wealth.',
+      'Hit points are maximum at 1st level and average after, unless you roll.',
+      'Starting wealth is wealth by level: at 1st level, the average of your class’s starting gold. Equipment is bought once the character is made, on the sheet’s Gear & wealth page.',
     ],
-    panels: ['combat', 'wealth'],
-    notices: ['hp', 'wealth', 'effects'],
+    panels: ['hitPoints', 'startingWealth'],
+    notices: ['hp', 'wealth'],
   },
   {
     key: 'details',
-    title: 'Details',
+    title: 'Spells, languages & story',
     intro: [
-      'Spells, languages, class features and the story. None of it changes a number, and all of it can wait.',
+      'Spells or powers, if your class has them - chosen from the lists your class may use - then the languages you speak, and the story.',
     ],
-    panels: ['casting', 'text'],
-    notices: ['content'],
+    panels: ['casting', 'languages', 'text'],
+    notices: ['casting', 'languages', 'content'],
   },
   {
     key: 'review',
@@ -123,6 +125,45 @@ export const WIZARD_STEPS = [
 ];
 
 export const stepIndex = (key) => Math.max(0, WIZARD_STEPS.findIndex((s) => s.key === key));
+
+/** "a", "a and b", "a, b and c". */
+export const listed = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
+
+/**
+ * Remember that a step was opened, and that it is no longer skipped. Returns
+ * whether anything changed, so the caller knows to save.
+ */
+export function visitStep(character, key) {
+  const meta = character.meta = character.meta || {};
+  let changed = false;
+  // A draft begun before visits were remembered has been through the steps before its own.
+  if (!meta.creatorVisited && meta.wizard?.step) {
+    meta.creatorVisited = WIZARD_STEPS.slice(0, stepIndex(meta.wizard.step)).map((s) => s.key);
+  }
+  if (meta.wizard?.step !== key) { meta.wizard = { step: key }; changed = true; }
+  const visited = new Set(meta.creatorVisited || []);
+  if (!visited.has(key)) { visited.add(key); meta.creatorVisited = [...visited]; changed = true; }
+  if ((meta.creatorSkipped || []).some((s) => s.key === key)) {
+    meta.creatorSkipped = meta.creatorSkipped.filter((s) => s.key !== key);
+    if (!meta.creatorSkipped.length) delete meta.creatorSkipped;
+    changed = true;
+  }
+  return changed;
+}
+
+/** The steps never opened, the review aside. */
+export function skippedSteps(character) {
+  const visited = new Set(character.meta?.creatorVisited || []);
+  return WIZARD_STEPS.filter((s) => s.key !== 'review' && !visited.has(s.key)).map((s) => ({ key: s.key, title: s.title }));
+}
+
+/** Leave the creator: the draft is done, and any skipped steps are kept to be flagged. */
+export function finishCreator(character, skipped) {
+  character.meta = character.meta || {};
+  delete character.meta.wizard;
+  if (skipped.length) character.meta.creatorSkipped = skipped;
+  else delete character.meta.creatorSkipped;
+}
 
 /** Which step a notice belongs to, by its field. */
 export function stepForNotice(field) {
@@ -162,7 +203,7 @@ export function wizardPage(app, key, ways) {
       h('div',
         h('p.eyebrow', { text: `New ${app.rules.ruleset.shortName} character` }),
         h('h1.wizard-title', { text: 'Create a character' })),
-      h('a.hint', { href: ways.fullSheetHref, text: 'Skip to the full sheet' })),
+      h('button.btn.subtle.hint', { type: 'button', onclick: ways.skip, title: 'Steps not yet opened are flagged on the sheet until you come back to them.' }, 'Skip to the full sheet')),
     h('nav.wizard-progress', { 'aria-label': 'Steps' }, progress),
     h('div.wizard-layout',
       h('div.wizard-main',
@@ -302,7 +343,9 @@ function reviewStep(app, ways) {
     counts[key] = counts[key] || { error: 0, warn: 0, info: 0 };
     counts[key][n.level] += 1;
   }
+  const skipped = skippedSteps(app.character).filter((st) => st.key !== 'review');
   return h('div.wizard-body',
+    skipped.length ? h('p.wizard-skipped', { text: `Not opened yet: ${listed(skipped.map((st) => st.title))}. Finishing now flags ${skipped.length === 1 ? 'it' : 'them'} on the sheet.` }) : null,
     h('section.panel', h('div.panel-body',
       h('h3', { text: 'Step by step' }),
       h('ul.wizard-review', WIZARD_STEPS.filter((s) => s.key !== 'review').map((s) => {

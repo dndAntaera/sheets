@@ -52,6 +52,12 @@ export const TARGETS = {
   'save.will': 'Will',
 
   'skill.*': 'all skills',
+  'skills.ability.str': 'Strength-based skills',
+  'skills.ability.dex': 'Dexterity-based skills',
+  'skills.ability.con': 'Constitution-based skills',
+  'skills.ability.int': 'Intelligence-based skills',
+  'skills.ability.wis': 'Wisdom-based skills',
+  'skills.ability.cha': 'Charisma-based skills',
 
   'attack.all': 'all attacks',
   'attack.melee': 'melee attacks',
@@ -61,6 +67,8 @@ export const TARGETS = {
 
   initiative: 'initiative',
   speed: 'speed',
+  'speed.half': 'base land speed halved',
+  powerPoints: 'power points',
   hp: 'hit points',
   grapple: 'grapple',
   spellResistance: 'spell resistance',
@@ -69,15 +77,20 @@ export const TARGETS = {
   naturalReach: 'reach',
 };
 
-/** `skill.Hide` is legal for any skill, so targets are matched by prefix too. */
+/**
+ * `skill.Hide` is legal for any skill, and `weapon.attack.longsword` for any
+ * weapon, so targets are matched by prefix too.
+ */
 export function isKnownTarget(target) {
   if (TARGETS[target]) return true;
-  return typeof target === 'string' && target.startsWith('skill.');
+  return typeof target === 'string' && (target.startsWith('skill.') || /^weapon\.(attack|damage)\../.test(target));
 }
 
 export function describeTarget(target) {
   if (TARGETS[target]) return TARGETS[target];
   if (target?.startsWith('skill.')) return target.slice(6);
+  const weapon = String(target || '').match(/^weapon\.(attack|damage)\.(.+)$/);
+  if (weapon) return `${weapon[1]} with a ${weapon[2]}`;
   return target;
 }
 
@@ -204,9 +217,14 @@ export const bonusTo = (resolved, target) => resolved[target]?.total || 0;
 export const bonusToWithAll = (resolved, target, allTarget) =>
   bonusTo(resolved, target) + bonusTo(resolved, allTarget);
 
-/** Bonuses to one skill: its own, plus anything aimed at every skill. */
-export const bonusToSkill = (resolved, name) =>
-  bonusTo(resolved, `skill.${name}`) + bonusTo(resolved, 'skill.*');
+/**
+ * Bonuses to one skill: its own, anything aimed at its subject ("Knowledge
+ * (arcana)"), at every skill of its key ability, and at every skill.
+ */
+export const bonusToSkill = (resolved, name, label = null, ability = null) =>
+  bonusTo(resolved, `skill.${name}`) + bonusTo(resolved, 'skill.*')
+  + (label && label !== name ? bonusTo(resolved, `skill.${label}`) : 0)
+  + (ability ? bonusTo(resolved, `skills.ability.${ability}`) : 0);
 
 /** The conditional bonuses for one target, for the note beside it. */
 export function conditionsFor(resolved, ...targets) {
