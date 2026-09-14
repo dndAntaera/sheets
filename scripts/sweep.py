@@ -178,6 +178,9 @@ def sweep_code():
     # What the installable app points at is there.
     bad = []
     manifest = load(os.path.join(WEB, 'manifest.webmanifest'))
+    # The installed app opens where the website does: the landing page.
+    if manifest.get('start_url') not in ('./', '.'):
+        bad.append('manifest start_url is %s, not the landing page (./)' % manifest.get('start_url'))
     for icon in manifest.get('icons', []):
         if not os.path.exists(os.path.join(WEB, icon['src'])):
             bad.append('manifest icon %s' % icon['src'])

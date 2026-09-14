@@ -3,7 +3,7 @@
   "short_name": "3.5 Sheets",
   "description": "A character creator for Dungeons & Dragons 3.5: every total on the sheet worked out for you.",
   "id": "./",
-  "start_url": "./#/characters",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
