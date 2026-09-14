@@ -94,6 +94,8 @@ export function showLanding(main, app, ways) {
 
     h('section.hero',
       h('div.hero-copy',
+        // The logo on its white ground: the purple eyebrow and buttons sit right beside it.
+        h('img.hero-logo', { src: 'brand/logo-badge-320.png', alt: 'Antæra', width: 104, height: 104 }),
         h('p.eyebrow', { text: 'Dungeons & Dragons 3.5 edition' }),
         h('h1.hero-title', { text: 'Character sheets that do the math for you.' }),
         h('p.hero-lede', { text: 'A free character creator for the 3.5 System Reference Document. Choose your classes, spend your points, and every total on the sheet adds up as you go.' }),
@@ -116,6 +118,7 @@ export function showLanding(main, app, ways) {
         h('div', h('h3', { text: title }), h('p', { text: text })))))),
 
     h('section.landing-section.landing-closing',
+      h('img.closing-logo', { src: 'brand/logo-badge-320.png', alt: '', width: 88, height: 88 }),
       h('h2.section-title', { text: 'Playing in Antæra?' }),
       h('p.hero-lede', {},
         'Your GM will send you an invitation to the campaign. Until then, the ',

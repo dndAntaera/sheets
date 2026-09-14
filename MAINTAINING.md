@@ -513,6 +513,22 @@ Only `web/` is published. The repository must be named **`sheets`** in the
 `dndAntaera` organization for that URL, with *Settings → Pages* set to
 **GitHub Actions**.
 
+## Branding
+
+The Antæra logo is kept beside the repositories, in `antaera_Shared_Images`:
+`logo_Antaera.png` for icons, and `logo_Antaera_02.png` (transparent) for the
+logo on the site. `scripts/build-brand.py` makes every size the site uses from
+them - the tab icon, the app icons (one padded for Android's shaped icons), an
+iPhone's home-screen icon, and the logo images in `web/brand/` - so rerun it when
+the logo changes:
+
+    python scripts/build-brand.py
+
+On the dark sky the transparent logo is used: the header and the Legal page.
+Where purple text, buttons or glow sit close to it - the landing page - the
+white-ground version is used instead, as a rounded badge, so the logo's purple
+does not run into the site's.
+
 ## The mobile app
 
 The site is built to be a phone app as it stands, and to be wrapped as a native
@@ -521,7 +537,7 @@ one without changing how it works.
 **Installable now.** `web/manifest.webmanifest` and `web/sw.js` make the site a
 progressive web app: on Android, Chrome offers *Install app*; on an iPhone,
 Safari's *Share → Add to Home Screen*. It opens full screen with its own icon
-(`web/icons/`, drawn by `scripts/build-icons.py`). The service worker fetches
+(`web/icons/`, made by `scripts/build-brand.py` - see Branding below). The service worker fetches
 network first and keeps a copy of everything the site has loaded, so the app
 opens offline and a deploy is never held back by a stale cache. Characters
 edited offline are saved in the browser by the app itself and sent to the

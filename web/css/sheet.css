@@ -46,7 +46,8 @@ a { color: var(--sky-link); }
   margin: 0 auto;
 }
 
-.brand { text-decoration: none; color: var(--sky-ink); }
+.brand { display: inline-flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--sky-ink); }
+.brand-logo { width: 36px; height: 36px; flex: none; }
 .brand-name {
   font: 400 var(--text-panel-title)/1 var(--font-display);
   letter-spacing: .04em;
@@ -1792,3 +1793,12 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .feedback-contact { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); font-size: var(--text-small); }
 .feedback-message { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--leading); }
 .feedback-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); justify-content: flex-end; }
+
+/* The Antæra logo on the landing page and the Contact page. Where purple text,
+   buttons or glow sit beside it, it is the white-ground version, as a badge. */
+.hero-logo { display: block; width: 104px; height: 104px; margin: 0 0 var(--sp-4); border-radius: 24%; box-shadow: var(--shadow-card); }
+.closing-logo { display: block; width: 88px; height: 88px; margin: 0 auto var(--sp-3); border-radius: 24%; }
+.contact-head { display: flex; align-items: center; gap: var(--sp-3); }
+.contact-head h1 { margin: 0; }
+.contact-logo { width: 64px; height: 64px; flex: none; }
+@media (max-width: 48rem) { .brand-logo { width: 30px; height: 30px; } .hero-logo { width: 80px; height: 80px; } }

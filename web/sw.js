@@ -10,10 +10,10 @@
 // to the network, never through a cache: a sheet saved offline is saved in the
 // browser by the app itself (web/store.js), not here.
 
-const CACHE = 'sheets-v1';
+const CACHE = 'sheets-v2';
 
 // Enough to draw the app offline even on a first visit that stopped early.
-const SHELL = ['./', './index.html', './css/tokens.css', './css/sheet.css', './app.js', './config.js', './manifest.webmanifest', './icons/icon-192.png'];
+const SHELL = ['./', './index.html', './css/tokens.css', './css/sheet.css', './app.js', './config.js', './manifest.webmanifest', './icons/icon-192.png', './icons/favicon-48.png', './brand/logo-mark-96.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).catch(() => {}));

@@ -38,8 +38,9 @@ game mechanics taken from the 3.5 System Reference Document:
 - `web/data/srd/feat-rules.json` and `web/data/feat-effects.json` — the SRD's feat
   prerequisites and benefits, restated for the engine
 
-The app's code, the Antæra ruleset (`web/data/rulesets/antaera.json`) and the
-campaign's backgrounds are not Open Game Content; they are the owner's own.
+The app's code, the Antæra ruleset (`web/data/rulesets/antaera.json`), the
+campaign's backgrounds and the Antæra logo (`web/icons/`, `web/brand/`) are not
+Open Game Content; they are the owner's own.
 
 If content from another open source is ever added to the data files, add its
 Section 15 notice to the Antæra Wiki's legal page in the same change.

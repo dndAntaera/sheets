@@ -303,6 +303,7 @@ function header() {
 
   return h('header.top',
     h('a.brand', { href: '#/', title: config.tagline },
+      h('img.brand-logo', { src: 'brand/logo-mark-96.png', alt: '', width: 36, height: 36 }),
       h('span.brand-name', { text: config.title })),
     h('nav.top-nav',
       NAV.filter((item) => item.visible()).map((item) => h('a', { href: item.href, text: item.label, dataset: { nav: item.key } })),

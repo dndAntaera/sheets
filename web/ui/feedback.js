@@ -80,7 +80,9 @@ export function showContact(main, app) {
   h('div.row', sendButton));
 
   refill(main, h('div.roster.contact-page',
-    h('h1', { text: 'Contact Me' }),
+    h('div.contact-head',
+      h('img.contact-logo', { src: 'brand/logo-mark-256.png', alt: '', width: 64, height: 64 }),
+      h('h1', { text: 'Contact Me' })),
     h('p', { text: 'Feedback, a bug, a rule the sheet gets wrong, or an idea: send it here. The site is in alpha, and every report helps.' }),
     h('p.hint', {}, 'A name, Discord username or email is up to you - leave one if you would like a reply. Only the site’s admins see what you send; see the ', h('a', { href: 'legal/#privacy-policy', text: 'Privacy Policy' }), '.'),
     form));
