@@ -85,6 +85,13 @@ export function showLanding(main, app, ways) {
   };
 
   refill(main, h('div.landing',
+    // While the site is being tested, say so first.
+    h('aside.alpha-notice', { role: 'note', 'aria-label': 'Alpha testing' },
+      h('span.alpha-badge', { text: 'Alpha' }),
+      h('div.alpha-copy',
+        h('p.alpha-title', { text: 'This site is still in alpha testing.' }),
+        h('p.alpha-text', { text: 'Features are still arriving and may change, and some things will not work as they should yet. Export any character you would hate to lose.' }))),
+
     h('section.hero',
       h('div.hero-copy',
         h('p.eyebrow', { text: 'Dungeons & Dragons 3.5 edition' }),

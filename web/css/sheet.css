@@ -631,6 +631,34 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 }
 .landing a { color: var(--sky-link); }
 
+/* The alpha testing notice at the top of the landing page. */
+.alpha-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: var(--hair) solid var(--warn);
+  border-left-width: 4px;
+  border-radius: var(--radius-lg);
+  background: rgba(215, 220, 237, .06);
+  color: var(--sky-ink);
+}
+.alpha-badge {
+  flex: none;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  background: var(--warn);
+  color: var(--sky-far);
+  font-size: var(--text-tiny);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.alpha-copy p { margin: 0; }
+.alpha-title { font-weight: 600; }
+.alpha-text { margin-top: .2rem !important; color: var(--sky-ink-dim); font-size: var(--text-small); }
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
