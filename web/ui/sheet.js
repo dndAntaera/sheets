@@ -269,23 +269,16 @@ export function abilitiesPanel(app) {
 }
 
 /**
- * A base score: a dropdown wherever the choices are fixed - the scores point
- * buy allows, or the set rolled or the standard array, each score
- * placed once - and a number only when scores are entered by hand.
+ * A base score: a dropdown when the scores come as a set - rolled, or the
+ * standard array, each placed once - and typed in otherwise. Under point buy
+ * the Spent and Remaining totals change as a score is typed.
  */
 function baseScoreInput(app, key, method, placement, changed) {
   const c = app.character;
   const value = c.abilities?.base?.[key];
   if (method === 'pointBuy') {
     const pb = app.derived.pointBuy;
-    const scores = [];
-    for (let n = pb.min; n <= pb.max; n++) scores.push(n);
-    if (value !== undefined && value !== null && !scores.includes(Number(value))) scores.unshift(Number(value));
-    // Just the scores: the Spent and Remaining totals above change as one is chosen.
-    const el = select(`abilities.base.${key}`, value, scores.map((n) => [n, String(n)]), { className: 'base-score' });
-    el.dataset.kind = 'int';
-    el.setAttribute('aria-label', `${ABILITY_NAMES[key]} base score`);
-    return el;
+    return field(`abilities.base.${key}`, value, { type: 'int', min: pb.min, max: pb.max, title: `Point buy covers ${pb.min} to ${pb.max}.` });
   }
   if (method === 'array' || method === 'rolled') {
     if (!placement) return h('span.out.locked', { text: '-', title: 'Roll the scores first.' });
