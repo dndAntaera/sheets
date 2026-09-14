@@ -269,8 +269,8 @@ export function abilitiesPanel(app) {
 }
 
 /**
- * A base score: a dropdown wherever the choices are fixed - point buy's scores
- * with what each costs, or the set rolled or the standard array, each score
+ * A base score: a dropdown wherever the choices are fixed - the scores point
+ * buy allows, or the set rolled or the standard array, each score
  * placed once - and a number only when scores are entered by hand.
  */
 function baseScoreInput(app, key, method, placement, changed) {
@@ -278,11 +278,11 @@ function baseScoreInput(app, key, method, placement, changed) {
   const value = c.abilities?.base?.[key];
   if (method === 'pointBuy') {
     const pb = app.derived.pointBuy;
-    const costs = app.rules.core.pointBuyCosts;
     const scores = [];
     for (let n = pb.min; n <= pb.max; n++) scores.push(n);
     if (value !== undefined && value !== null && !scores.includes(Number(value))) scores.unshift(Number(value));
-    const el = select(`abilities.base.${key}`, value, scores.map((n) => [n, `${n} (${costs[String(n)] ?? '?'} pts)`]), { className: 'base-score' });
+    // Just the scores: the Spent and Remaining totals above change as one is chosen.
+    const el = select(`abilities.base.${key}`, value, scores.map((n) => [n, String(n)]), { className: 'base-score' });
     el.dataset.kind = 'int';
     el.setAttribute('aria-label', `${ABILITY_NAMES[key]} base score`);
     return el;
