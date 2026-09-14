@@ -33,7 +33,7 @@ function targetOptions(selected, skillNames) {
   // A target this list does not offer - a typo, or a skill from content not yet
   // loaded - is kept visible rather than silently replaced with the first option.
   if (selected && ![...el.options].some((o) => o.value === selected)) {
-    el.append(h('option', { value: selected, text: `${selected} (not recognised)`, selected: true }));
+    el.append(h('option', { value: selected, text: `${selected} (not recognized)`, selected: true }));
   }
   return el;
 }

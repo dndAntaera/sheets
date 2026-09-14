@@ -1,6 +1,6 @@
 # Maintaining the sheets
 
-The repository sits beside the Antæra wiki on the DM's machine:
+The repository sits beside the Antæra Wiki on the DM's machine:
 
     F:\! Antaera Claude\antaera_Wiki
     F:\! Antaera Claude\antaera_Sheets
@@ -57,10 +57,95 @@ two totals, where bonuses stack or do not — and on the line between rulesets,
 which must not leak: a test that an SRD character has no taint is as important
 as one that an Antæra character does.
 
-Bugs this suite has caught, worth remembering: an unrecognised class scoring as
+Bugs this suite has caught, worth remembering: an unrecognized class scoring as
 a poor progression instead of nothing; the attack routine built from the total
 bonus rather than the base, handing out second attacks early; and — in its own
 expectations — a halfling's Dexterity bonus counted as +2 from a 12.
+
+## Housekeeping
+
+The tests prove the arithmetic. `scripts/sweep.py` looks after everything else:
+
+    python scripts/sweep.py
+
+It needs only Python, prints OK or FAIL for each check, and exits non-zero on
+any failure. It checks:
+
+- **the code** - every import points at a file that exists, and every name
+  imported is one that module exports (following `export * from` chains). A
+  stale import loads fine in every other file and stops the whole app, which is
+  exactly what a browser test run on one page will not notice. Also: no
+  `debugger` or `console.log` left in `web/`; every panel a sheet page or
+  creator step names is in `PANELS`; the manifest's icons and the service
+  worker's offline shell are files that exist.
+- **the data** - every JSON file parses; every feat in `feat-effects.json` is an
+  SRD feat; every effect (feats, traits and flaws, races) aims at a target
+  `effects.js` knows, or a real skill; classes and races name real feats and
+  languages; `srd/feat-rules.json` is what `build-feat-rules.py` would write.
+- **the words** - 3.5's spellings (armor, color, favored, defense), not British
+  ones; the world's name with its ligature, Antæra, in anything a person reads
+  (identifiers stay `antaera`); the Antæra Wiki as a proper name.
+- **safety and the license** - no personal email committed (admin and GM
+  emails are Worker secrets); no secret set in `wrangler.toml`; every data file
+  identified in `LEGAL.md`.
+
+Run it after any change, and certainly after editing a data file by hand. **A
+new rule** is a `check(...)` in the right section: give it a name that says what
+should be true, and list what is not.
+
+## Safeguards
+
+GitHub Pages publishes whatever reaches `main`, and every player's sheet opens
+in whatever it publishes. Three things stand in the way of a bad commit.
+
+### 1. Pre-push guard
+
+`.githooks/pre-push` runs before anything leaves this machine and refuses the
+push if:
+
+- it would delete a branch on GitHub,
+- the number of files under `web/` would drop below 70% of what is published
+  (an accidental mass delete), or
+- the housekeeping sweep fails.
+
+A deliberate large change gets through with an explicit override:
+
+```bash
+ALLOW_DESTRUCTIVE=1 git push
+```
+
+Hooks are not carried by `git clone`, so on a fresh copy enable them once:
+
+```bash
+git config --local core.hooksPath .githooks
+```
+
+### 2. CI
+
+The deploy workflow runs the engine suite and the sweep before it builds; if
+either fails, nothing is published and the previous version stays live.
+
+### 3. Rolling back a bad deploy
+
+History is the backstop, so recovery is a revert rather than a repair:
+
+```bash
+git revert --no-edit <bad-sha>
+git push
+```
+
+The workflow republishes within a couple of minutes. A Worker change rolls back
+the same way; a database migration does not - write a new migration that undoes
+it. To find the commit that introduced a problem, `git log --oneline` and compare
+against the last run that was known good.
+
+If the working tree itself is damaged, discard it and take the published
+history instead:
+
+```bash
+git fetch origin
+git reset --hard origin/main
+```
 
 ## How the rules are layered
 
@@ -339,7 +424,7 @@ Rules page and a campaign's GM can set it for the table.
   like the others, noted where they apply, and open to their full text.
 - `web/ui/variants.js` draws them: the catalog on the Rules page, what the
   adventuring variants change on the Combat page, and the scores and tracks on
-  the Feats page. The SRD taint variant is `uaTaint`, separate from Antaera's
+  the Feats page. The SRD taint variant is `uaTaint`, separate from Antæra's
   corruption and depravity (`taint`).
 
 ### The character creator
@@ -391,7 +476,7 @@ comes back on the next sign-in.
 | The server (`worker/`) | Cloudflare Workers + D1 | the same workflow, if its secrets are set |
 
 Only `web/` is published. The repository must be named **`sheets`** in the
-`dndAntaera` organisation for that URL, with *Settings → Pages* set to
+`dndAntaera` organization for that URL, with *Settings → Pages* set to
 **GitHub Actions**.
 
 ## The mobile app
@@ -517,7 +602,7 @@ both reached from the account menu.
   copied when chosen; or one uploaded - the app cuts a 256-pixel square and
   sends it as a small WebP or JPEG data URL, and the server keeps only PNG, JPEG
   or WebP data of at most 200,000 characters; or none, when initials show.
-- **Appearance.** Theme, accent colour, text size and motion, described in
+- **Appearance.** Theme, accent color, text size and motion, described in
   `APPEARANCE` and applied by `web/ui/appearance.js` as attributes on `<html>`
   that the "Appearance" section of `css/sheet.css` answers. Kept in the browser,
   so a page is drawn right at once, and on the account, which wins at sign-in.
@@ -557,17 +642,17 @@ releases every character in it.
 that description: the server accepts only settings it lists and coerces their
 values; the app draws the settings form from it and applies the campaign's
 choices to each character's rules. Today there are the ruleset's variants the GM
-decides (all three SRD variants; Antaera's gestalt), a starting level, whether
+decides (all three SRD variants; Antæra's gestalt), a starting level, whether
 players see each other's characters, house rules, and a link.
 
 **Adding a campaign setting** is one entry in `GENERAL_SETTINGS` - it is then
 validated, drawn in the form, and saved. If the engine should act on it, read it
 in `applyCampaign`; if the server should enforce it, ask for it in `policy.js`.
 
-The Antaera campaign that existed implicitly before campaigns - every site GM
-seeing every Antaera character, one gestalt switch - was carried over by
+The Antæra campaign that existed implicitly before campaigns - every site GM
+seeing every Antæra character, one gestalt switch - was carried over by
 migration 0004 into a real campaign with the id `antaera`, owned by the
-longest-standing GM, with every site GM as a GM of it, every owner of an Antaera
+longest-standing GM, with every site GM as a GM of it, every owner of an Antæra
 character as a player, those characters in it, and gestalt as it was.
 
 ### One-time setup
@@ -575,7 +660,7 @@ character as a player, those characters in it, and gestalt as it was.
 1. **A database:** `npx wrangler d1 create antaera-sheets`, and paste the id into
    `worker/wrangler.toml`.
 2. **Google**, if wanted: in the Google Cloud console, create an OAuth client of
-   type *Web application*, with the authorised redirect URI
+   type *Web application*, with the authorized redirect URI
    `https://<your-worker>.workers.dev/auth/callback/google`. The scopes used are
    `openid`, `email` and `profile`. Set the consent screen to *External* and
    publish it, or only test users can sign in.
@@ -641,7 +726,7 @@ applied - and add a case that starts from the schema before it
   cookies; everyone signs in once more after it.
 - `0003_roles.sql` turns every existing DM into a GM, and everyone else into a
   player.
-- `0004_campaigns.sql` turns the implicit Antaera arrangement into a campaign.
+- `0004_campaigns.sql` turns the implicit Antæra arrangement into a campaign.
 - `0005_campaign_homebrew.sql` adds each campaign's homebrew library.
 - `0006_profiles.sql` adds chosen usernames and pictures, preferences, and each
   sign-in's own name and picture.
@@ -722,6 +807,6 @@ The engine never touches the page, and the interface does no arithmetic. An
 input, once drawn, is never redrawn while someone is typing in it: panels whose
 shape depends on a field are rebuilt on `change`, not on each keystroke.
 
-`web/css/tokens.css` holds every colour and spacing; `sheet.css` contains
+`web/css/tokens.css` holds every color and spacing; `sheet.css` contains
 neither. Data files are formatted with `python scripts/format-json.py`, which
 keeps short arrays on one line.

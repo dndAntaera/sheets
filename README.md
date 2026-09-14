@@ -111,7 +111,7 @@ Rules page, or set for everyone by a campaign's GM, and the sheet follows it.
 
 Each player has a **profile** and a **Settings** page: a username and profile
 picture of their own, and how the site looks to them - day or night, an accent
-colour, larger text, reduced motion - kept with their account.
+color, larger text, reduced motion - kept with their account.
 
 The server is a Cloudflare Worker with a D1 database.
 
@@ -133,13 +133,16 @@ Sheets print to something that can be carried to a table with no power.
 
     web/          the app, the engine and the data - everything published
       engine/     all the arithmetic, browser-free and tested
-      ui/         the panels, the content editor, the effects editor
-      data/       core 3.5 constants, SRD classes, skills and races
+      ui/         the panels, the creator, the content editor, the effects editor
+      data/       core 3.5 constants, SRD classes, skills, races, feat effects
+        srd/      the SRD reference: spells, powers, feats, classes, traits, languages...
         rulesets/ srd.json, antaera.json, and the campaign's backgrounds
-    worker/       the server: accounts, characters, homebrew
+      icons/      the installable app's icons
+    worker/       the server: accounts, characters, homebrew, campaigns
       migrations/ the database, one numbered change at a time
     test/         engine, server and account tests, run in a browser
-    scripts/      the dev server, the JSON formatter, the background sync
+    scripts/      the dev server, the data builders, the housekeeping sweep
+    .githooks/    the pre-push guard (enable with: git config core.hooksPath .githooks)
 
 Technical documentation is in [MAINTAINING.md](MAINTAINING.md).
 

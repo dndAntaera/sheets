@@ -152,7 +152,7 @@ async function start() {
 }
 
 const SIGN_IN_FAILURES = {
-  cancelled: 'Sign-in was cancelled.',
+  cancelled: 'Sign-in was canceled.',
   expired: 'That sign-in took too long. Please try again.',
   'already-linked': 'That account is already signed in to a different set of characters, so it cannot be added to this one.',
   'link-expired': 'Linking took too long. Please try again.',

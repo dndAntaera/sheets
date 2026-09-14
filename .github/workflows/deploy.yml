@@ -16,8 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The engine's arithmetic, on every push. The suite needs no dependencies -
-  # node:test and the four data files - so there is nothing to install.
+  # The engine's arithmetic and the housekeeping sweep, on every push. Neither
+  # needs dependencies - node:test and the data files; Python's standard
+  # library - so there is nothing to install.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -26,6 +27,8 @@ jobs:
         with:
           node-version: "22"
       - run: npm test
+      - name: Housekeeping sweep
+        run: python3 scripts/sweep.py
 
   # What GitHub Pages publishes is web/ alone: the sheet, the engine and the
   # data. The tests and the Worker are not part of the site.

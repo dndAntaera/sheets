@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Character sheets for the world of Antaera - a sister to the wiki.",
+  "description": "Character sheets for the world of Antæra - a sister to the wiki.",
   "scripts": {
     "test": "node --test test/engine.test.js"
   }

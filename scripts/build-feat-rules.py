@@ -54,7 +54,8 @@ def plain(html):
     return re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', html or '')).strip()
 
 
-def main():
+def build():
+    """The feat rules as they should be written. The housekeeping sweep compares them with the file."""
     feats = json.loads((SRD / 'feats.json').read_text(encoding='utf-8'))
     out = []
     for f in feats:
@@ -72,6 +73,11 @@ def main():
         if f['name'] in ALSO_FIGHTER or 'Fighter' in f['types'] or re.search(r'fighter may select .* as one of his fighter bonus feats', special, re.I):
             entry['fighterBonus'] = True
         out.append(entry)
+    return out
+
+
+def main():
+    out = build()
     path = SRD / 'feat-rules.json'
     path.write_text('[\n' + ',\n'.join(json.dumps(e, ensure_ascii=False, separators=(',', ':')) for e in out) + '\n]\n', encoding='utf-8')
     print(f'{len(out)} feats, {sum(1 for e in out if e.get("fighterBonus"))} fighter bonus feats -> {path}')
