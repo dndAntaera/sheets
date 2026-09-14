@@ -1552,9 +1552,9 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .notices-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
 .notices-fold > summary::-webkit-details-marker { display: none; }
 .notices-fold > summary .notices-title, .notices-fold > summary .notices-tally { margin: 0; }
-.notices-fold > summary::after { content: 'BE'; color: var(--ink-faint); }
+.notices-fold > summary::after { content: '\25BE'; color: var(--ink-faint); }
 .notices-fold[open] > summary { margin-bottom: var(--sp-2); }
-.notices-fold[open] > summary::after { content: 'B4'; }
+.notices-fold[open] > summary::after { content: '\25B4'; }
 
 @media (max-width: 48rem) {
   .toolbar { flex-wrap: wrap; row-gap: var(--sp-1); }
@@ -1664,4 +1664,81 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
     color: #000;
   }
   .out, .total { color: #000; }
+}
+
+/* ---------------------------------------------------------------------------
+   Inventory, equipment, shop and attack cards (ui/inventory.js)
+   --------------------------------------------------------------------------- */
+
+.inventory-table, .shop-table, .ac-table { width: 100%; border-collapse: collapse; font-size: var(--text-small); font-variant-numeric: tabular-nums; }
+.inventory-table th, .inventory-table td, .shop-table th, .shop-table td, .ac-table th, .ac-table td { padding: .3rem .45rem; border-bottom: var(--hair) solid var(--rule); text-align: left; vertical-align: middle; }
+.inventory-table thead th, .shop-table thead th, .ac-table thead th { color: var(--ink-soft); font-weight: 600; font-size: var(--text-tiny); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.inventory-table td.num, .shop-table td.num, .ac-table td.num { text-align: right; white-space: nowrap; }
+.inventory-table tfoot th, .inventory-table tfoot td { border-bottom: 0; font-weight: 600; }
+.inventory-order { white-space: nowrap; }
+.inventory-order .btn { padding: 0 .3rem; min-height: 0; }
+.inventory-name { min-width: 11rem; }
+.inventory-name .tag { margin-left: .3rem; }
+.inventory-toggle { font: inherit; font-weight: 600; color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.inventory-toggle:hover { color: var(--link); }
+.inventory-toggle[aria-expanded="true"]::after { content: ' \25B4'; color: var(--ink-faint); }
+.inventory-toggle[aria-expanded="false"]::after { content: ' \25BE'; color: var(--ink-faint); }
+.inventory-more td { background: var(--surface-sunk); }
+.inventory-details { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) 0; }
+.inventory-actions { white-space: nowrap; text-align: right; }
+.tag.is-equipped { color: var(--accent-dark); border-color: var(--accent-dark); }
+.ledger-row { align-items: center; }
+.custom-item > summary { list-style: none; display: inline-block; }
+.custom-item > summary::-webkit-details-marker { display: none; }
+.custom-item[open] { flex-basis: 100%; }
+.custom-item-body { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); padding: var(--sp-3); border: var(--hair) solid var(--rule); border-radius: var(--radius); background: var(--surface-sunk); }
+
+.equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); }
+.equip-slot { display: flex; flex-direction: column; gap: .3rem; padding: var(--sp-2); border: var(--hair) dashed var(--rule); border-radius: var(--radius); }
+.equip-slot.is-filled { border-style: solid; border-color: var(--surface-edge); background: var(--surface-sunk); }
+.equip-slot-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+.equip-slot-label { font-weight: 600; }
+.equip-stats { margin: 0; }
+
+.shop-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.shop-coins { font: 600 var(--text-panel-title)/1 var(--font-display); }
+.shop-tabs { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.shop-said { margin: 0; min-height: 1.2em; color: var(--pass); font-size: var(--text-small); }
+.shop-name { font-weight: 600; }
+.shop-actions { white-space: nowrap; text-align: right; }
+
+.ac-table th .ac-source { display: block; font-weight: 400; }
+.ac-table td.is-off { color: var(--ink-faint); }
+.ac-table .ac-total th, .ac-table .ac-total td { border-bottom: 0; border-top: 2px solid var(--rule); font-weight: 600; }
+.ac-table td.big { font-size: var(--text-panel-title); }
+
+.attack-options { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-3); padding-bottom: var(--sp-2); border-bottom: var(--hair) solid var(--rule); }
+.attack-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--sp-3); }
+.attack-card { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border: var(--hair) solid var(--surface-edge); border-radius: var(--radius-lg); background: var(--surface-sunk); }
+.attack-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.attack-card-head h3 { margin: 0 auto 0 0 !important; font-size: 1rem !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--ink) !important; }
+.attack-card-numbers { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.attack-card-working summary { cursor: pointer; font-size: var(--text-small); color: var(--link); }
+.attack-card-working ul, .attack-card-notes { margin: var(--sp-1) 0; padding-left: 1.1rem; font-size: var(--text-small); }
+@media print { .shop-tabs, .inventory-order, .inventory-actions, .custom-item, .attack-options { display: none; } }
+
+/* On a phone the inventory and the shop are cards, one an item, each value
+   labeled: nothing to scroll sideways to reach a Buy button. */
+@media (max-width: 40rem) {
+  .inventory-table, .shop-table, .inventory-table tbody, .shop-table tbody { display: block; }
+  .inventory-table thead, .shop-table thead, .inventory-table tfoot { display: none; }
+  .table-scroll:has(> .inventory-table), .table-scroll:has(> .shop-table) { overflow-x: visible; }
+  .inventory-row, .shop-table tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; padding: var(--sp-2) 0; border-bottom: var(--hair) solid var(--rule); }
+  .inventory-row td, .shop-table tbody td { display: block; border: 0; padding: 0; }
+  .inventory-name { order: -2; flex: 1 1 60%; min-width: 0; }
+  .inventory-order { order: -1; }
+  .inventory-actions { order: 10; flex: 1 1 100%; text-align: right; }
+  .inventory-table td[data-label], .shop-table td[data-label] { display: flex; flex-direction: column; gap: .1rem; text-align: left; }
+  .inventory-table td[data-label]::before, .shop-table td[data-label]::before { content: attr(data-label); font-size: var(--text-tiny); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); }
+  .inventory-more { display: block; }
+  .inventory-more[hidden] { display: none; }
+  .inventory-more td { display: block; }
+  .shop-table tbody td:first-child { flex: 1 1 100%; }
+  .shop-details { flex: 1 1 100%; order: 1; }
+  .shop-actions { order: 2; margin-left: auto; }
 }

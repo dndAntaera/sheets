@@ -17,6 +17,7 @@ import {
   mergeLibraries, fillMissing, applyCampaign, restedMagic, usesInSpecial, restedTrackers, VARIANT_MODULES,
   rollAbilityArray, newAbilityRolls, placeScore, parsePrerequisites, featRuleIndex, stateAtLevel, featEligibility,
   featOptions, languagePlan, featureKey, applyCampaign as campaignRules,
+  itemFromReference, inventoryTotals, carryingCapacity, attackFor, migrateInventory, slotChoices, usableContent, buyItem, removeItem,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -32,6 +33,14 @@ export function buildSuite(data) {
     return { ...c, ...extra };
   };
   const repeat = (pair, n) => Array.from({ length: n }, () => pair);
+  /** Put armor, a shield or a weapon in the inventory, and in its slot. */
+  const wear = (c, kind, stats, name) => {
+    const id = `t${c.wealth.items.length}`;
+    c.wealth.items.push({ id, name: name || kind, qty: 1, weight: 0, value: 0, category: { weapon: 'Weapon', shield: 'Shield' }[kind] || 'Armor', stats: { kind, ...stats } });
+    if (kind === 'weapon') c.equipment.weapons.push(id);
+    else c.equipment[kind] = id;
+    return id;
+  };
   const medium = srd.core.sizes.find((s) => s.name === 'Medium');
   const small = srd.core.sizes.find((s) => s.name === 'Small');
 
@@ -255,7 +264,7 @@ export function buildSuite(data) {
 
   test('armour check penalty reaches the skill line, doubled for Swim', (t) => {
     const c = characterWith(srd, repeat(['Fighter'], 3));
-    c.gear.armor = { name: 'Full plate', bonus: 8, maxDex: 1, acp: 6, asf: 35, speed: 20 };
+    wear(c, 'armor', { bonus: 8, maxDex: 1, acp: 6, asf: 35, speed30: 20 }, 'Full plate');
     c.skills = ['Climb', 'Swim', 'Spot'].map((name) => ({ name, subtype: '', ranks: 0, misc: 0 }));
     const d = derive(c, srd);
     const line = (name) => d.skills.lines.find((l) => l.name === name);
@@ -442,7 +451,7 @@ export function buildSuite(data) {
   test('a finished third-level Antaera gestalt sheet adds up end to end', (t) => {
     const c = characterWith(antaera, repeat(['Fighter', 'Rogue'], 3));
     c.abilities.base = { str: 16, dex: 14, con: 14, int: 12, wis: 10, cha: 8 };
-    c.gear.armor = { name: 'Chain shirt', bonus: 4, maxDex: 4, acp: 2, asf: 20, speed: null };
+    wear(c, 'armor', { bonus: 4, maxDex: 4, acp: 2, asf: 20 }, 'Chain shirt');
     c.background = { name: 'Soldier', item: '', notes: '' };
     c.skills = ['Climb', 'Hide', 'Move Silently', 'Spot', 'Listen'].map((name) => ({ name, subtype: '', ranks: 6, misc: 0 }));
     c.feats = [{ name: 'Power Attack' }, { name: 'Cleave' }];
@@ -620,7 +629,7 @@ export function buildSuite(data) {
     const c = characterWith(srd, [['Fighter']]);
     embed(c, 'skill', { name: 'Seamanship', ability: 'wis', acp: true });
     c.abilities.base.wis = 14;
-    c.gear.armor = { bonus: 4, acp: 3 };
+    wear(c, 'armor', { bonus: 4, acp: 3 });
     c.skills = [{ name: 'Seamanship', subtype: '', ranks: 2, misc: 0 }];
     const d = derive(c, srd);
     t.eq(d.skills.lines[0].total, 1, '+2 Wisdom + 2 ranks - 3 armour');
@@ -909,14 +918,14 @@ export function buildSuite(data) {
     const fighter = derive(withVariants('Fighter', 1, ['defenseBonus']), srd);
     t.eq([fighter.variants.defenseBonus, fighter.ac.total, fighter.ac.touch], [6, 16, 16], 'a 1st-level fighter: +6');
     const wizard = withVariants('Wizard', 3, ['defenseBonus']);
-    wizard.gear.armor = { name: 'Chain shirt', bonus: 4, maxDex: 4 };
+    wear(wizard, 'armor', { bonus: 4, maxDex: 4 }, 'Chain shirt');
     const d = derive(wizard, srd);
     t.eq([d.variants.defenseBonus, d.ac.total, d.ac.touch], [3, 14, 13], 'armor +4 beats defense +3; touch still gets +3');
   });
 
   test('armor as damage reduction trades half the armor bonus for DR, and combines with defense bonus', (t) => {
     const c = withVariants('Fighter', 5, ['armorAsDR']);
-    c.gear.armor = { name: 'Full plate', bonus: 8, maxDex: 1 };
+    wear(c, 'armor', { bonus: 8, maxDex: 1 }, 'Full plate');
     const d = derive(c, srd);
     t.eq([d.variants.damageReduction, d.ac.total], [4, 14], 'full plate: DR 4/-, +4 AC');
     c.options.defenseBonus = true;
@@ -1071,14 +1080,14 @@ export function buildSuite(data) {
 
   test('SRD feats bring their effects: Toughness, Skill Focus, Weapon Focus', (t) => {
     const c = characterWith(srd, repeat(['Fighter'], 1));
-    c.weapons = [{ name: 'Longsword', attackBonus: 0, damageDice: '1d8', damageBonus: 0 }];
+    wear(c, 'weapon', { hands: 'one-handed', damageMedium: '1d8', critical: '19-20/x2' }, 'Longsword');
     const before = derive(c, srd);
     c.feats = [{ name: 'Toughness' }, { name: 'Skill Focus', choice: 'Climb' }, { name: 'Weapon Focus', choice: 'Longsword' }];
     const d = derive(c, srd);
     t.eq(d.hp.total - before.hp.total, 3, 'Toughness: +3 hit points');
     const climb = (x) => x.skills.lines.find((l) => l.name === 'Climb').total;
     t.eq(climb(d) - climb(before), 3, 'Skill Focus (Climb): +3');
-    t.eq(d.weapons[0].attack - before.weapons[0].attack, 1, 'Weapon Focus (longsword): +1 with it');
+    t.eq(d.weapons[0].calc.attack - before.weapons[0].calc.attack, 1, 'Weapon Focus (longsword): +1 with it');
   });
 
   test('traits and flaws change the sheet, and flaws buy feats', (t) => {
@@ -1164,6 +1173,104 @@ export function buildSuite(data) {
     t.eq(line(d, 'Spellcraft').total - line(before, 'Spellcraft').total, 2, 'Knowledge (arcana) 5 ranks: +2 Spellcraft');
     c.skills.push({ name: 'Knowledge', subtype: 'history', ranks: 6, misc: 0 });
     t.ok(derive(c, srd).specialNotes.some((n) => n.kind === 'synergy' && /bardic knowledge/.test(n.text)), 'a synergy on something not a skill is a note');
+  });
+
+  /* === inventory, equipment, attacks ===================================== */
+
+  const LONGSWORD = { name: 'Longsword', family: 'Weapons', category: 'Martial Weapons', subcategory: 'One-Handed Melee Weapons', cost: '15 gp', weight: '4 lb.', damageSmall: '1d6', damageMedium: '1d8', critical: '19-20/x2', damageType: 'Slashing' };
+  const DAGGER = { name: 'Dagger', family: 'Weapons', category: 'Simple Weapons', subcategory: 'Light Melee Weapons', cost: '2 gp', weight: '1 lb.', damageSmall: '1d3', damageMedium: '1d4', critical: '19-20/x2', range: '10 ft.' };
+  const GREATSWORD = { name: 'Greatsword', family: 'Weapons', category: 'Martial Weapons', subcategory: 'Two-Handed Melee Weapons', cost: '50 gp', weight: '8 lb.', damageSmall: '1d10', damageMedium: '2d6', critical: '19-20/x2' };
+  const CHAIN_SHIRT = { name: 'Chain shirt', family: 'Armor and Shields', category: 'Armor', subcategory: 'Light armor', cost: '100 gp', weight: '25 lb.', armorBonus: 4, maxDex: 4, checkPenalty: -2, spellFailure: '20%', speed30: '30 ft.', speed20: '20 ft.' };
+
+  test('SRD equipment becomes inventory rows with its cost, weight and statistics', (t) => {
+    const sword = itemFromReference(LONGSWORD);
+    t.eq([sword.category, sword.value, sword.weight, sword.stats.hands, sword.stats.critical, sword.stats.finesse], ['Weapon', 15, 4, 'one-handed', '19-20/x2', false]);
+    const dagger = itemFromReference(DAGGER);
+    t.eq([dagger.stats.hands, dagger.stats.thrown, dagger.stats.finesse, dagger.stats.range], ['light', true, true, 10]);
+    const shirt = itemFromReference(CHAIN_SHIRT);
+    t.eq([shirt.category, shirt.stats.bonus, shirt.stats.maxDex, shirt.stats.acp, shirt.stats.asf, shirt.stats.armorType], ['Armor', 4, 4, 2, 20, 'light']);
+    t.eq(itemFromReference({ name: 'Dart', family: 'Weapons', subcategory: 'Ranged Weapons', cost: '5 sp', weight: '1/2 lb.', damageMedium: '1d4', critical: 'x2', range: '20 ft.' }).value, 0.5);
+  });
+
+  test('coins are starting wealth, less what was bought, plus what was gained', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    Object.assign(c.wealth, buyItem(c, itemFromReference(LONGSWORD), 2));
+    Object.assign(c.wealth, buyItem(c, itemFromReference(CHAIN_SHIRT), 1, { free: true }));
+    c.wealth.ledger.push({ id: 'l1', kind: 'other', label: 'Loot', amount: 40 });
+    let d = derive(c, srd);
+    t.eq([d.wealth.startingGold, d.inventory.spent, d.inventory.coins], [150, 30, 160], '150 - 30 bought + 40 found');
+    t.eq([d.inventory.itemsValue, d.inventory.total, d.inventory.itemsWeight], [130, 290, 33], 'the shirt was found, but is worth 100');
+    Object.assign(c.wealth, buyItem(c, itemFromReference(LONGSWORD), 1));
+    t.eq([c.wealth.items.length, c.wealth.items[0].qty], [2, 3], 'buying more of the same adds to its row');
+    const swordId = c.wealth.items[0].id;
+    c.wealth.items[0].qty = 1;
+    t.eq(derive(c, srd).inventory.coins, 145, 'using some up gives nothing back');
+    Object.assign(c, { equipment: { ...c.equipment, weapons: [swordId] } });
+    const sold = removeItem(c, swordId, 'sell');
+    t.eq([sold.ledger.at(-1).amount, sold.equipment.weapons], [7.5, [null]], 'sold for half, and out of its slot');
+    Object.assign(c.wealth, removeItem(c, swordId, 'refund'));
+    d = derive(c, srd);
+    t.eq(d.inventory.coins, 190, 'refunding undoes all 45 gp of its purchases');
+  });
+
+  test('carrying capacity and the load a character carries', (t) => {
+    t.eq(carryingCapacity(10), { light: 33, medium: 66, heavy: 100 });
+    t.eq(carryingCapacity(15, 'Small'), { light: 50, medium: 100, heavy: 150 });
+    t.eq(carryingCapacity(30).heavy, 1600, 'every 10 points past 20-29 multiplies by 4');
+    const c = characterWith(srd, [['Fighter']]);
+    c.abilities.base.str = 10;
+    c.abilities.base.dex = 18;
+    c.wealth.items = [{ id: 'rock', name: 'Stone', qty: 1, weight: 70, value: 0 }];
+    const d = derive(c, srd);
+    t.eq([d.inventory.load, d.ac.dex.applied, d.ac.acp], ['heavy', 1, 6], 'a heavy load caps Dexterity at +1 and gives a -6 check penalty');
+  });
+
+  test('armor and weapons count only from their slots, and a slot takes what the inventory holds', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    c.abilities.base.dex = 10;
+    const shirt = itemFromReference(CHAIN_SHIRT);
+    c.wealth.items = [shirt, { ...itemFromReference(DAGGER), qty: 2 }];
+    t.eq(derive(c, srd).ac.total, 10, 'carried, not worn');
+    c.equipment.armor = shirt.id;
+    t.eq(derive(c, srd).ac.total, 14, 'worn');
+    const daggerId = c.wealth.items[1].id;
+    c.equipment.weapons = [daggerId];
+    t.eq(slotChoices(c, 'weapon:1').map((x) => [x.item.name, x.free]), [['Dagger', 1]], 'a second dagger is left for a second slot');
+    c.equipment.weapons.push(daggerId);
+    t.eq(slotChoices(c, 'weapon:2').length, 0, 'and then none');
+    t.eq(slotChoices(c, 'armor').map((x) => x.item.name), ['Chain shirt']);
+  });
+
+  test('the attack calculator: finesse, two hands, two weapons, Power Attack', (t) => {
+    const ctx = { bab: 6, str: 3, dex: 4, sizeAttack: 0, meleeBonus: 0, rangedBonus: 0, damageMelee: 0, damageRanged: 0, feats: new Set(['power attack', 'weapon finesse', 'two-weapon fighting']), resolved: {} };
+    const sword = { name: 'Longsword', hands: 'one-handed', damageDice: '1d8', critical: '19-20/x2', enhancement: 1 };
+    const plain = attackFor(sword, ctx);
+    t.eq([plain.routine, plain.damage], ['+10/+5', '1d8+4'], 'BAB 6 + Str 3 + 1 enhancement; damage Str + 1');
+    const great = attackFor({ name: 'Greatsword', hands: 'two-handed', damageDice: '2d6', critical: '19-20/x2' }, ctx, { powerAttack: 3 });
+    t.eq([great.routine, great.damage], ['+6/+1', '2d6+10'], 'Power Attack 3: -3 to hit, +6 damage two-handed, +4 Str (1.5 x 3)');
+    const dagger = { name: 'Dagger', hands: 'light', finesse: true, damageDice: '1d4', critical: '19-20/x2' };
+    t.eq(attackFor(dagger, ctx).attack, 10, 'Weapon Finesse: Dexterity +4');
+    const main = attackFor(sword, ctx, { twoWeapon: 'primary', offHandLight: true });
+    const off = attackFor(dagger, ctx, { twoWeapon: 'off', offHandLight: true });
+    t.eq([main.attack, off.attacks.length, off.attack, off.damage], [8, 1, 8, '1d4+1'], 'feat and light off hand: -2 each; half Strength off hand');
+    t.ok(attackFor(dagger, ctx, { powerAttack: 2 }).notes.some((n) => /light weapon/.test(n)), 'no Power Attack damage with a light weapon');
+  });
+
+  test('an older sheet moves its armor, weapons and coins into the inventory', (t) => {
+    const old = { gear: { armor: { name: 'Chain shirt', bonus: 4, maxDex: 4, acp: 2 }, shield: { name: '', bonus: 0 } }, weapons: [{ name: 'Rapier', damageDice: '1d6', crit: '18-20/x2', finesse: true, attackBonus: 1 }], wealth: { gold: 37, items: [{ name: 'Rope', qty: 1 }] } };
+    const c = migrateInventory(structuredClone(old));
+    t.eq(c.wealth.items.map((i) => i.name), ['Rope', 'Chain shirt', 'Rapier']);
+    t.ok(c.equipment.armor && c.equipment.weapons.length === 1 && !c.equipment.shield, 'in their slots');
+    t.eq(c.wealth.legacyCoins, 37, 'the coins counted by hand carry on');
+    t.eq(JSON.stringify(migrateInventory(structuredClone(c)).wealth.items.length), '3', 'and doing it again changes nothing');
+  });
+
+  test('a player\u2019s custom inventory item counts in a campaign that allows no homebrew', (t) => {
+    const c = characterWith(srd, [['Fighter']]);
+    c.content.items = [{ name: 'Grandfather\u2019s axe', inventoryItem: true }, { name: 'Homebrew ring' }];
+    const rules = { ...srd, campaign: { id: 'c1', allowHomebrew: false, content: [] } };
+    const usable = usableContent(c, rules);
+    t.eq([usable.content.items.map((i) => i.name), usable.blocked.map((b) => b.name)], [['Grandfather\u2019s axe'], ['Homebrew ring']]);
   });
 
   return cases;

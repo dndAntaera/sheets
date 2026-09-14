@@ -9,7 +9,7 @@ import { resolveEffects, AC_OFF_TOUCH, AC_OFF_FLATFOOTED } from './effects.js';
  * Armor is the usual limit; a tower shield is the other one that matters.
  */
 function dexToAC(dexMod, gear) {
-  const caps = [gear.armor?.maxDex, gear.shield?.maxDex]
+  const caps = [gear.armor?.maxDex, gear.shield?.maxDex, gear.load?.maxDex]
     .map((c) => (c === '' || c === null || c === undefined ? null : Number(c)))
     .filter((c) => c !== null && Number.isFinite(c));
   if (!caps.length) return { applied: dexMod, cap: null, capped: false };
@@ -17,8 +17,9 @@ function dexToAC(dexMod, gear) {
   return { applied: Math.min(dexMod, cap), cap, capped: dexMod > cap };
 }
 
+/** Armor's and a shield's check penalties add; a heavy load's does not stack with them - the worse counts. */
 export function armorCheckPenalty(gear) {
-  return num(gear.armor?.acp) + num(gear.shield?.acp);
+  return Math.max(num(gear.armor?.acp) + num(gear.shield?.acp), num(gear.load?.acp));
 }
 
 /**

@@ -165,6 +165,16 @@ def sweep_code():
                 bad.append('%s:%d  %s' % (rel(path), i, line.strip()[:80]))
     check('no debugging left in the app', bad)
 
+    # A stray control character (an escape a script swallowed) reads as nothing in an editor.
+    bad = []
+    for path in tracked():
+        if not re.search(r'\.(js|css|html|json|md|py|toml|webmanifest)$', path):
+            continue
+        for i, line in enumerate(read(path).splitlines(), 1):
+            if re.search(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', line):
+                bad.append('%s:%d' % (rel(path), i))
+    check('no stray control characters', bad)
+
     # Panels named by the sheet's pages and the creator's steps are panels the app has.
     app = read(os.path.join(WEB, 'app.js'))
     block = re.search(r'const PANELS = \{(.*?)\n\};', app, re.S)

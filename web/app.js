@@ -18,9 +18,10 @@ import {
 } from './ui/wizard.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
-  houserulesPanel, wealthPanel, textPanel, trackersPanel, hitPointsPanel, startingWealthPanel,
-  effectsPanel, contentPanel, paintEffects, paintConditions, paintContent,
+  houserulesPanel, textPanel, trackersPanel, hitPointsPanel, startingWealthPanel,
+  effectsPanel, contentPanel, paintEffects, paintConditions, paintContent, paintAcTable,
 } from './ui/sheet.js';
+import { inventoryPanel, equipmentPanel, shopPanel, attackCardsPanel } from './ui/inventory.js';
 import { featsPanel, abilitiesListPanel, languagesPanel } from './ui/feats.js';
 import { showContent } from './ui/content.js';
 import { showAdmin, ROLE_LABELS } from './ui/admin.js';
@@ -46,6 +47,7 @@ const PANELS = {
   levels: levelsPanel,
   abilities: abilitiesPanel,
   combat: combatPanel,
+  attackCards: attackCardsPanel,
   skills: skillsPanel,
   feats: featsPanel,
   abilitiesList: abilitiesListPanel,
@@ -58,14 +60,16 @@ const PANELS = {
   variantRules: (a) => variantRulesPanel(a, { reopen }),
   variantCombat: variantCombatPanel,
   variantTracks: variantTracksPanel,
-  wealth: wealthPanel,
+  equipment: equipmentPanel,
+  inventory: inventoryPanel,
+  shop: shopPanel,
   effects: effectsPanel,
   content: contentPanel,
   text: textPanel,
 };
 
 /** Where a notice about a field sends the reader. */
-const NOTICE_PANEL = { hp: 'combat' };
+const NOTICE_PANEL = { hp: 'combat', wealth: 'inventory' };
 
 const app = {
   baseRules: null,   // every ruleset loaded; `rules` is the one in force
@@ -78,6 +82,19 @@ const app = {
   status: null,
   user: null,
   unbind: null,
+};
+
+/** The player's own custom inventory items, kept with their homebrew - offered in any campaign. */
+app.personalItems = () => library.list('item').filter((e) => e.inventoryItem);
+
+/** Keep a custom inventory item with the player's homebrew: a new entry, or the one of that name updated. */
+app.saveCustomItem = (entry) => {
+  const shelf = library.load();
+  const stamp = new Date().toISOString();
+  const at = shelf.items.findIndex((e) => e.name === entry.name);
+  if (at >= 0) shelf.items[at] = { ...shelf.items[at], ...entry, updated: stamp };
+  else shelf.items.push({ ...entry, id: newId(), created: stamp, updated: stamp });
+  library.save(shelf);
 };
 
 /** Homebrew entries of a kind on the shelves this character may use. */
@@ -421,9 +438,6 @@ function refreshDatalists() {
     'class-names': names(app.rules.classes.classes.filter((c) => !c.npcClass).map((c) => c.name), idx ? [...idx.classByName.values()].filter((c) => !c.npcClass).map((c) => c.name) : [], from('classes')),
     'race-names': names((app.rules.races?.races || []).map((r) => r.name), idx ? [...idx.raceByName.keys()] : [], from('races')),
     'feat-names': names(idx ? [...idx.featByName.keys()] : [], from('feats'), (referenceNow('feats')?.list || []).map((f) => f.name)),
-    'armor-names': names((referenceNow('equipment')?.list || []).filter((e) => e.category === 'Armor' && e.subcategory !== 'Shields' && e.subcategory !== 'Extras').map((e) => e.name)),
-    'shield-names': names((referenceNow('equipment')?.list || []).filter((e) => e.subcategory === 'Shields').map((e) => e.name)),
-    'weapon-names': names((referenceNow('equipment')?.list || []).filter((e) => e.family === 'Weapons' && e.subcategory !== 'Ammunition').map((e) => e.name)),
     'item-names': names(idx ? [...idx.itemByName.keys()] : [], from('items')),
     'template-names': names(idx ? [...idx.templateByName.keys()] : [], from('templates')),
     'feature-names': names(idx ? [...idx.featureByName.keys()] : [], from('features')),
@@ -803,7 +817,7 @@ async function openSheet(id, opts = {}) {
   app.page = page;
   // The full sheet is every panel but the creator's own: its hit points and
   // starting wealth are parts of Combat and Gear.
-  const keys = page.panels || Object.keys(PANELS).filter((k) => !['hitPoints', 'startingWealth'].includes(k));
+  const keys = page.panels || Object.keys(PANELS).filter((k) => !['hitPoints', 'startingWealth', 'shop'].includes(k));
   app.panels = {};
   const sheet = h('div.sheet');
   for (const key of keys) {
@@ -834,7 +848,7 @@ function restCharacter(per = 'day') {
   c.features = rested.features;
   if (c.wealth) c.wealth.items = rested.items;
   app.recompute();
-  for (const key of ['casting', 'trackers', 'feats', 'wealth']) if (app.panels[key]) app.rebuildPanel(key);
+  for (const key of ['casting', 'trackers', 'feats', 'inventory']) if (app.panels[key]) app.rebuildPanel(key);
 }
 
 /** Mark how many of a limited use are spent: on the row for a sheet row, in `trackers` otherwise. */
@@ -1041,7 +1055,8 @@ const RESHAPES = [
   [/^abilities\.(base|levelUps)\./, ['feats', 'languages']],
   [/^skills\.\d+\.ranks$/, ['languages', 'feats']],
   [/^options\./, ['feats']],
-  [/^wealth\.items\.\d+\.name$/, ['wealth', 'trackers']],
+  [/^wealth\.items\.\d+\.(name|qty)$/, ['equipment', 'trackers']],
+  [/^wealth\.items\.\d+\.stats\./, ['equipment', 'attackCards']],
   [/^(feats|features|wealth\.items)\.\d+\.uses$/, ['trackers', 'abilitiesList']],
   [/^levels\.\d+\.[ab]$/, ['casting']],
 ];
@@ -1064,14 +1079,6 @@ function onEdit(path, value, el, ev) {
     }
   }
 
-  // Armor, a shield or a weapon picked from the SRD brings its numbers with it.
-  if (ev.type === 'change' && fillFromEquipment(path, value)) {
-    recompute();
-    app.rebuildPanel('combat');
-    scheduleSave();
-    return;
-  }
-
   recompute();
   if (ev.type === 'change' || embedded) {
     const rebuild = new Set();
@@ -1083,43 +1090,6 @@ function onEdit(path, value, el, ev) {
   scheduleSave();
 }
 
-/**
- * When an armor, shield or weapon name is one the SRD has, fill in its numbers
- * from the reference - the same numbers, however it was typed. Returns whether
- * anything was filled.
- */
-function fillFromEquipment(path, value) {
-  const item = value ? lookUp('equipment', value) : null;
-  if (!item) return false;
-  const c = app.character;
-  const int = (text) => (text ? Number(String(text).match(/-?\d+/)?.[0]) || 0 : 0);
-  const armor = path.match(/^gear\.(armor|shield)\.name$/);
-  if (armor && item.category === 'Armor') {
-    const slot = c.gear[armor[1]] = { ...(c.gear[armor[1]] || {}) };
-    slot.name = item.name;
-    slot.category = item.subcategory || '';
-    slot.bonus = item.armorBonus ?? 0;
-    slot.maxDex = item.maxDex ?? null;
-    slot.acp = Math.abs(item.checkPenalty || 0);
-    slot.asf = int(item.spellFailure);
-    if (armor[1] === 'armor') slot.speed = item.speed30 ? int((app.derived?.race?.speed ?? 30) >= 30 ? item.speed30 : item.speed20) : null;
-    return true;
-  }
-  const weapon = path.match(/^weapons\.(\d+)\.name$/);
-  if (weapon && item.family === 'Weapons') {
-    const w = c.weapons[Number(weapon[1])];
-    const small = ['Small', 'Tiny', 'Diminutive', 'Fine'].includes(app.derived?.race?.size);
-    w.name = item.name;
-    w.damageDice = (small ? item.damageSmall : item.damageMedium) || w.damageDice;
-    w.crit = item.critical ? (item.critical.includes('/') ? item.critical : `20/${item.critical}`) : w.crit;
-    w.ranged = /Ranged/.test(item.subcategory || '');
-    w.thrown = Boolean(item.range) && (!w.ranged || /dart|javelin|shuriken|bolas|net/i.test(item.name));
-    if (w.thrown) w.ranged = /dart|javelin|shuriken/i.test(item.name) ? true : w.ranged;
-    return true;
-  }
-  return false;
-}
-
 function recompute() {
   app.derived = derive(app.character, app.rules, { overrides: app.overrides });
   const root = document.getElementById('main');
@@ -1127,6 +1097,7 @@ function recompute() {
   paintNotices();
   paintCasting();
   paintEffects(root, app.derived);
+  paintAcTable(root, app.derived);
   paintConditions(root, app.derived);
   paintContent(root, app, library);
   paintWizard(root, app);

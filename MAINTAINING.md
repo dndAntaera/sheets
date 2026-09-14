@@ -346,6 +346,40 @@ spent. `restedMagic` is a night's rest. Which classes cast is `casting` and
 `half`, `domains` and `disciplines`. The Spell or Powers Sheet is
 `web/ui/magic.js`.
 
+### Inventory, equipment, the shop and attacks
+
+`web/engine/inventory.js` and `web/ui/inventory.js`, over the sheet's Equipment,
+Inventory and Shop pages, and the attack cards on Combat.
+
+- **The inventory** is `character.wealth.items`: a row an item, with an `id`,
+  `qty`, `weight` and `value` each, `category`, and - for a weapon, armor or
+  shield - `stats` copied in when it is bought (`itemFromReference` reads an SRD
+  equipment entry), so the sheet never needs the reference to add up.
+- **Money is a ledger**, `character.wealth.ledger`: coins are the starting wealth
+  plus every entry. `buyItem` writes a `purchase` (negative, with its `itemId`)
+  as the item arrives, so using some up gives nothing back; `removeItem` can
+  `refund` that purchase, `sell` for half the value, or `discard`. A sheet from
+  before the ledger keeps its hand-counted coins as `legacyCoins`.
+- **Equipment** is `character.equipment`: `armor`, `shield`, `weapons` (any
+  number) and `slots` (the 3.5 body slots in `BODY_SLOTS`), each holding an item
+  id. `slotChoices` says what fits a slot and how many are free. derive() reads
+  armor and shield from their slots (`equippedGear`), and an item's effects
+  count while it is in a slot - or, on an older row with no statistics, unless
+  it is marked unworn.
+- **Load**: `carryingCapacity` and `inventoryTotals` weigh items and coins (50 to
+  the pound); a medium or heavy load caps Dexterity and sets a check penalty,
+  the worse of it and armor's (`defense.js`).
+- **Attacks**: `attackFor` works out one weapon's routine, damage and critical
+  with the choices on the Combat page - two-weapon fighting, Power Attack,
+  Combat Expertise, fighting defensively, charging, flanking, higher ground,
+  Rapid Shot, Point Blank Shot - kept in `character.combat.calculator`.
+- **Custom items** are asked for their values (a weapon's damage and critical,
+  armor's bonus and penalties) and saved to the player's own library with
+  `inventoryItem: true`. `usableContent` lets those count in a campaign that
+  allows no homebrew, and the shop's Your items tab offers them anywhere.
+- `migrateInventory` (run by `migrate()`) moves an older sheet's typed armor,
+  shield, weapons and coins into all of this, once.
+
 ### Feats, class features, languages and wealth
 
 - **Feats** (`web/engine/feats.js`). `featSlots` lists every slot a character

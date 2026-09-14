@@ -207,7 +207,7 @@ export function variantCombatPanel(app) {
   if (m.defenseBonus) blocks.push(h('div.variant-block', h('h3', 'Defense bonus'), row(total('Defense bonus', 'variants.defenseBonus', { format: 'signed' }), h('p.hint', { text: 'Used in place of your armor bonus when higher, and added to touch AC. Shown in the AC above.' }))));
   if (m.armorAsDR) blocks.push(h('div.variant-block', h('h3', 'Armor as damage reduction'), row(
     total('Damage reduction', 'variants.damageReduction'),
-    labelled('Armor enhancement', field('gear.armor.enhancement', app.character.gear?.armor?.enhancement, { type: 'int', width: '3.5rem', title: 'A magic armor’s enhancement adds to AC but not to its damage reduction.' })),
+    total('Armor enhancement', 'variants.armorEnhancement', { title: 'Set on the Equipment page. A magic armor’s enhancement adds to AC but not to its damage reduction.' }),
     h('p.hint', { text: 'Half of your armor’s bonus before enhancement, and a fifth of natural armor, become DR /-, and come off your AC.' }))));
   if (m.damageConversion && health.damageConversion) blocks.push(h('div.variant-block', h('h3', 'Damage conversion'), h('p', { text: `Your armor converts up to ${health.damageConversion.perHit} lethal damage a hit into nonlethal damage, and ignores ${health.damageConversion.ignoresNonlethal} nonlethal damage a hit.` })));
   if (health.vitality) blocks.push(h('div.variant-block', h('h3', 'Vitality and wound points'),

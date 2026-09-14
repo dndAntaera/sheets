@@ -17,7 +17,7 @@ import { h } from './dom.js';
  */
 export const SHEET_PAGES = [
   { key: 'character', label: 'Character', panels: ['identity', 'levels', 'abilities', 'languages'], notices: ['identity', 'levels', 'abilities', 'languages', 'creator'] },
-  { key: 'combat', label: 'Combat', panels: ['combat', 'variantCombat', 'effects'], notices: ['hp', 'effects'] },
+  { key: 'combat', label: 'Combat', panels: ['combat', 'attackCards', 'variantCombat', 'effects'], notices: ['hp', 'effects'] },
   { key: 'skills', label: 'Skills', panels: ['skills'], notices: ['skills'] },
   { key: 'feats', label: 'Feats & abilities', panels: ['trackers', 'variantTracks', 'abilitiesList', 'feats', 'houserules'], notices: ['feats', 'houserules', 'trackers'] },
   {
@@ -27,7 +27,9 @@ export const SHEET_PAGES = [
     notices: ['casting'],
     visible: (d) => (d.casting || []).length > 0,
   },
-  { key: 'gear', label: 'Gear & wealth', panels: ['wealth'], notices: ['wealth'] },
+  { key: 'equipment', label: 'Equipment', panels: ['equipment'], notices: ['equipment'] },
+  { key: 'inventory', label: 'Inventory', panels: ['inventory'], notices: ['inventory', 'wealth'] },
+  { key: 'shop', label: 'Shop', panels: ['shop'], notices: [] },
   { key: 'story', label: 'Story', panels: ['text'], notices: [] },
   { key: 'rules', label: 'Rules', panels: ['variants', 'variantRules', 'content'], notices: ['content', 'variants'] },
   { key: 'all', label: 'Full sheet', panels: null, notices: null },
@@ -40,7 +42,8 @@ export function magicLabel(d) {
   return kinds.has('manifesting') ? 'Powers' : 'Spells';
 }
 
-export const pageFor = (key) => SHEET_PAGES.find((p) => p.key === key) || SHEET_PAGES[0];
+// The Gear & wealth page became Equipment, Inventory and Shop; an old link still lands.
+export const pageFor = (key) => SHEET_PAGES.find((p) => p.key === (key === 'gear' ? 'inventory' : key)) || SHEET_PAGES[0];
 
 /** The page a notice is about, by its field. */
 export function pageForNotice(field) {

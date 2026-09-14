@@ -47,6 +47,13 @@ there. Changing rules never loses anything typed; it changes which rules read it
   spellbook and preparation, a cleric's domains, a psion's discipline
 - **Languages** — the race's, and as many more as Intelligence and Speak
   Language allow
+- **Inventory and money** — a shop of the SRD's equipment, an inventory with
+  weight and value, coins kept as a ledger of what was bought, sold and found,
+  and the load it all makes; custom items of your own
+- **Equipment slots** — armor, shield, as many weapons as you like, and the body
+  slots for magic items, filled from the inventory
+- **Armor Class as a table** of every source, and **attack cards** for each
+  weapon, with two-weapon fighting, Power Attack and the rest worked in
 - **Starting wealth** by level, or a figure of your own (a campaign's GMs set it
   for their table)
 - Under Antæra: action points, taint thresholds, wealth caps, level adjustment

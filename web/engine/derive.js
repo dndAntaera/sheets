@@ -27,7 +27,7 @@ import {
 import { skillPointBudget, skillTable } from './skills.js';
 import { hitPoints } from './hp.js';
 import { armorClass, initiative, armorCheckPenalty, gearEffects } from './defense.js';
-import { attacks, weaponLine } from './offense.js';
+import { attacks } from './offense.js';
 import { actionPoints, taint, wealth, levelAdjustment, featBudget, trainingTime } from './houserules.js';
 import {
   collectEffects, resolveEffects, bonusTo, bonusToWithAll, conditionsFor, allConditions,
@@ -46,6 +46,7 @@ import { classFeatures, featureEffects, domainClassSkills, domainFeats, domainTr
 import { languagePlan, languageNotices } from './languages.js';
 import { traitEntries, traitNotices } from './traits.js';
 import { synergiesFor } from './synergies.js';
+import { equippedGear, equippedIds, equippedWeapons, inventoryTotals, attackContext, attackFor } from './inventory.js';
 import { abilityMod, num } from './util.js';
 
 const SAVE_ABILITY = { fort: 'con', ref: 'dex', will: 'wis' };
@@ -112,14 +113,22 @@ export function derive(character, rules, options = {}) {
     ...featSlots(character, { summary, race, index, gestalt }, rules).granted,
     ...domainFeats(character, summary),
   ];
-  const entries = resolveEntries(character, index, granted);
+  // Armor, shield and weapons come from the equipment slots; an item's effects
+  // count while it is in a slot (or, on an older row, unless marked unworn).
+  const inSlot = equippedIds(character);
+  const view = {
+    ...character,
+    gear: equippedGear(character, race.speed),
+    wealth: { ...(character.wealth || {}), items: (character.wealth?.items || []).map((item) => ({ ...item, equipped: inSlot.has(item.id) || (item.equipped !== false && !item.stats) })) },
+  };
+  const entries = resolveEntries(view, index, granted);
   // Traits and flaws (Unearthed Arcana), with what the SRD says each one does.
   entries.other = modules.traitsFlaws
     ? [...traitEntries(character, rules, 'trait'), ...traitEntries(character, rules, 'flaw')]
     : [];
   const effects = [
     ...collectEffects(entries),
-    ...sheetEffects(character).map((e) => ({ condition: null, perLevel: false, note: null, ...e })),
+    ...sheetEffects(view).map((e) => ({ condition: null, perLevel: false, note: null, ...e })),
   ];
   // Taint (Unearthed Arcana) is a penalty to Constitution and Wisdom, not ability damage.
   if (modules.uaTaint && num(character.variants?.taint) > 0) {
@@ -137,11 +146,17 @@ export function derive(character, rules, options = {}) {
   // them touches an ability score, so the scores above stand.
   const featRuleNames = new Set((rules.featRules || []).map((f) => f.name.toLowerCase()));
   const features = classFeatures(character, summary, rules, featRuleNames);
-  effects.push(...featureEffects(character, summary, abilities, features));
+  effects.push(...featureEffects(view, summary, abilities, features));
   let resolved = resolveEffects(effects, summary.hitDiceCount);
 
   // --- 5. everything else ------------------------------------------------
-  const gear = character.gear || {};
+  // Money and weight: the load a character carries caps Dexterity and adds a
+  // check penalty, as armor does, and the worse of the two applies.
+  const money = wealth(character, summary.ecl, rules, index.classByName.get(character.levels?.[0]?.a) || null);
+  const inventory = inventoryTotals(character, money.startingGold, abilities.str.total, race.size);
+  money.held = inventory.total;
+  money.leftToSpend = inventory.coins;
+  const gear = { ...view.gear, load: inventory.loadEffects };
   const armorVariants = variantArmorClass(armorClass(gear, abilities.dex.mod, size.ac, resolved.ac), gear, summary, rules, modules);
   const ac = armorVariants.ac;
   const init = initiative(abilities.dex.mod, character.combat?.initiativeMisc, bonusTo(resolved, 'initiative'));
@@ -198,13 +213,11 @@ export function derive(character, rules, options = {}) {
     + (race.known ? 0 : num(character.race?.skillPointsPerLevel));
   const budget = skillPointBudget(summary, abilities.int.mod, extraSkillPoints);
 
-  const money = wealth(character, summary.ecl, rules, index.classByName.get(character.levels?.[0]?.a) || null);
   const la = levelAdjustment(summary.la, summary.ecl, rules);
   const feats = featBudget(character, summary, rules, {
     traitsFlaws: modules.traitsFlaws,
     bonusFromEffects: bonusTo(resolved, 'feats.bonus'),
   });
-  const weapons = (character.weapons || []).map((w) => weaponLine(w, attackSet, abilities, resolved));
 
   const derived = {
     ruleset: rules.ruleset.id,
@@ -229,7 +242,7 @@ export function derive(character, rules, options = {}) {
     ac,
     initiative: init,
     attacks: attackSet,
-    weapons,
+    inventory,
     saves,
     skills: { ...skills, budget, remaining: skillCtx.system ? 0 : budget.total - skills.spent, system: skillCtx.system },
     wealth: money,
@@ -288,6 +301,10 @@ export function derive(character, rules, options = {}) {
   derived.synergies = synergy.earned;
   if (derived.languages.illiterate) derived.specialNotes.push({ source: 'Barbarian', kind: 'class', text: 'Illiterate: cannot read or write until 2 skill points are spent, or a level is taken in another class.' });
   derived.traitsFlaws = entries.other;
+
+  // The weapons in the weapon slots, worked out with nothing chosen at the table.
+  derived.attackContext = attackContext(derived, character);
+  derived.weapons = equippedWeapons(character, race.size).map((w) => (w ? { ...w, calc: attackFor(w, derived.attackContext, {}) } : null));
   // What decides who may take which trait or flaw: scores before any flaw, speed before any trait.
   const startingScores = Object.fromEntries(ABILITIES.map((k) => [k, abilities[k].parts.base + abilities[k].parts.racial]));
   derived.traitContext = {
@@ -304,8 +321,9 @@ export function derive(character, rules, options = {}) {
   const highestSpell = Math.max(-1, ...derived.magic.classes.filter((m) => m.kind === 'casting').map((m) => m.highestCastable ?? -1));
   derived.variants = {
     defenseBonus: armorVariants.defenseBonus,
+    armorEnhancement: gear.armor?.enhancement || 0,
     damageReduction: armorVariants.damageReduction,
-    health: variantHealth(character, derived, summary, abilities, size, rules, modules),
+    health: variantHealth(view, derived, summary, abilities, size, rules, modules),
     scores: variantScores(character, derived, summary, abilities, rules, modules),
     magicRating: modules.magicRating ? magicRatingFor(summary, rules, Boolean(character.variants?.magicRatingSeparate)) : null,
     playersRoll: modules.playersRollDice ? {
@@ -546,6 +564,10 @@ function notices(character, d, rules) {
     add('warn', `No background chosen. ${rs.backgrounds.requiredNote || ''}`.trim(), 'identity');
   }
 
+  if (d.inventory.coins < 0) add('warn', `Spent ${Math.abs(d.inventory.coins).toLocaleString()} gp more than the character has.`, 'inventory');
+  if (d.inventory.load === 'heavy' || d.inventory.load === 'overloaded') {
+    add('warn', `Carrying ${d.inventory.carried.toLocaleString()} lb.: ${d.inventory.load === 'heavy' ? 'a heavy load' : `more than the heaviest load (${d.inventory.capacity.heavy} lb.)`}.`, 'inventory');
+  }
   if (d.wealth.enforced) {
     for (const item of d.wealth.overCapItems) {
       add('warn', `${item.name || 'An item'} is worth ${num(item.value).toLocaleString()} gp, over the ${Math.round(d.wealth.capFraction * 100)}% single-item cap of ${Math.round(d.wealth.cap).toLocaleString()} gp.`, 'wealth');

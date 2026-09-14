@@ -155,7 +155,8 @@ export const signedFormat = (n) => (n === null || n === undefined || Number.isNa
 
 const FORMATS = {
   signed: signedFormat,
-  gp: (n) => (n === null || n === undefined ? '-' : `${Math.round(Number(n)).toLocaleString()} gp`),
+  gp: (n) => (n === null || n === undefined ? '-' : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })} gp`),
+  lb: (n) => (n === null || n === undefined ? '-' : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })} lb.`),
   plain: (n) => (n === null || n === undefined || n === '' ? '-' : String(n)),
   // A class skill is shown as a filled dot rather than the word "true".
   dot: (v) => (v ? '●' : '○'),

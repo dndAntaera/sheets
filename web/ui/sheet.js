@@ -14,13 +14,11 @@ import {
   h, field, checkbox, select, textarea, labelled, out, total, panel, row,
   button, refill, frag,
 } from './dom.js';
-import { effectsEditor } from './effects-editor.js';
 import {
   ABILITIES, ABILITY_NAMES, abilityIncreaseLevels, newAbilityRolls, rollAbilityArray, placeScore,
 } from '../engine/abilities.js';
 import { describeTarget } from '../engine/effects.js';
 import { CONTENT_TYPES, CONTENT_KINDS, unusedContent } from '../engine/library.js';
-import { loadReference, referenceNow } from '../reference.js';
 
 const SAVES = [['fort', 'Fortitude'], ['ref', 'Reflex'], ['will', 'Will']];
 const METHOD_LABELS = {
@@ -435,59 +433,44 @@ export function hitPointsPanel(app) {
 
 export function combatPanel(app) {
   const c = app.character;
-  withReference(app, 'equipment', 'combat');
   const hpBlock = hitPointsBlock(app);
 
+  // Armor Class as a table: every source, and which of the three it counts in.
+  // The rows are painted after every recompute (paintAcTable).
   const acBlock = h('div.block',
-    h('h3', 'Armor class'),
-    row(
-      labelled('Armor', field('gear.armor.name', c.gear?.armor?.name, { placeholder: 'Chain shirt', list: 'armor-names', className: 'grow', title: 'Pick an SRD armor and its numbers fill in.' })),
-      labelled('Bonus', field('gear.armor.bonus', c.gear?.armor?.bonus, { type: 'int', width: '3.5rem' })),
-      labelled('Max Dex', field('gear.armor.maxDex', c.gear?.armor?.maxDex, { type: 'int', width: '3.5rem', placeholder: '-' })),
-      labelled('Check', field('gear.armor.acp', c.gear?.armor?.acp, { type: 'int', width: '3.5rem', title: 'As a positive number. The skill table subtracts it.' })),
-      labelled('Spell fail', field('gear.armor.asf', c.gear?.armor?.asf, { type: 'int', width: '3.5rem' })),
-      labelled('Speed', field('gear.armor.speed', c.gear?.armor?.speed, { type: 'int', width: '3.5rem', placeholder: '-' })),
-    ),
-    row(
-      labelled('Shield', field('gear.shield.name', c.gear?.shield?.name, { placeholder: 'Shield, heavy steel', list: 'shield-names', className: 'grow', title: 'Pick an SRD shield and its numbers fill in.' })),
-      labelled('Bonus', field('gear.shield.bonus', c.gear?.shield?.bonus, { type: 'int', width: '3.5rem' })),
-      labelled('Max Dex', field('gear.shield.maxDex', c.gear?.shield?.maxDex, { type: 'int', width: '3.5rem', placeholder: '-' })),
-      labelled('Check', field('gear.shield.acp', c.gear?.shield?.acp, { type: 'int', width: '3.5rem' })),
-      labelled('Spell fail', field('gear.shield.asf', c.gear?.shield?.asf, { type: 'int', width: '3.5rem' })),
-    ),
-    row(
-      labelled('Natural', field('gear.natural', c.gear?.natural, { type: 'int', width: '3.5rem' })),
-      labelled('Deflection', field('gear.deflection', c.gear?.deflection, { type: 'int', width: '3.5rem' })),
-      labelled('Dodge', field('gear.dodge', c.gear?.dodge, { type: 'int', width: '3.5rem' })),
-      labelled('Misc', field('gear.misc', c.gear?.misc, { type: 'int', width: '3.5rem' })),
-      labelled('Dex to AC', out('ac.parts.dex', { format: 'signed', title: 'Capped by the armor you are wearing.' })),
-      labelled('Check penalty', out('ac.acp')),
-      labelled('Spell failure', out('ac.arcaneSpellFailure')),
-    ),
-    h('p.hint', { text: 'Typed-in bonuses and bonuses from equipment follow the same stacking rules: two deflection bonuses give the better one, not both.' }),
+    h('h3', 'Armor Class'),
+    h('div.table-scroll', h('table.ac-table', { dataset: { acHost: '' } })),
+    h('p.hint', {}, 'Armor and shield are what is in their slots on the ', h('a', { href: `#/sheet/${c.id}/equipment`, text: 'Equipment page' }), '. Two bonuses of one type give the better one; dodge and untyped bonuses stack.'),
+    h('details.aside',
+      h('summary', 'Bonuses typed on the sheet'),
+      row(
+        labelled('Natural', field('gear.natural', c.gear?.natural, { type: 'int', width: '3.5rem' })),
+        labelled('Deflection', field('gear.deflection', c.gear?.deflection, { type: 'int', width: '3.5rem' })),
+        labelled('Dodge', field('gear.dodge', c.gear?.dodge, { type: 'int', width: '3.5rem' })),
+        labelled('Misc', field('gear.misc', c.gear?.misc, { type: 'int', width: '3.5rem' })),
+        labelled('Spell resistance', field('combat.spellResistance', c.combat?.spellResistance, { type: 'int', width: '3.5rem' })))),
     h('div.totals',
-      total('AC', 'ac.total', { big: true }),
-      total('Touch', 'ac.touch'),
-      total('Flat-footed', 'ac.flatFooted'),
+      total('Check penalty', 'ac.acp', { title: 'Armor and shield, or a heavy load: the worse.' }),
+      total('Spell failure', 'ac.arcaneSpellFailure'),
       total('Initiative', 'initiative.total', { format: 'signed' }),
       total('Speed', 'speed'),
       total('Spell resistance', 'spellResistance')),
     h('ul.conditions', { dataset: { conditionsFor: 'ac' } }));
 
   const attackBlock = h('div.block',
-    h('h3', 'Attacks'),
+    h('h3', 'Attack bonuses'),
     row(
       labelled('Melee misc', field('combat.misc.melee', c.combat?.misc?.melee, { type: 'int', width: '3.5rem' })),
       labelled('Ranged misc', field('combat.misc.ranged', c.combat?.misc?.ranged, { type: 'int', width: '3.5rem' })),
       labelled('Grapple misc', field('combat.misc.grapple', c.combat?.misc?.grapple, { type: 'int', width: '3.5rem' })),
       labelled('Initiative misc', field('combat.initiativeMisc', c.combat?.initiativeMisc, { type: 'int', width: '3.5rem' })),
-      labelled('Spell resistance', field('combat.spellResistance', c.combat?.spellResistance, { type: 'int', width: '3.5rem' })),
     ),
     h('div.totals',
       total('Melee', 'attacks.melee.routine'),
       total('Ranged', 'attacks.ranged.routine'),
       total('Grapple', 'attacks.grapple.total', { format: 'signed' }),
       total('Bull rush / trip', 'attacks.bullRush', { format: 'signed', title: 'An opposed Strength check, with the size modifier.' })),
+    h('p.hint', { text: 'With a weapon: see its attack card below.' }),
     h('ul.conditions', { dataset: { conditionsFor: 'attack' } }));
 
   const saveBlock = h('div.block',
@@ -510,35 +493,55 @@ export function combatPanel(app) {
         out(`saves.${key}.total`, { big: true, format: 'signed' })))),
     h('ul.conditions', { dataset: { conditionsFor: 'save' } }));
 
-  const weaponHost = h('div.weapons');
-  const rebuildWeapons = () => refill(weaponHost, (c.weapons || []).map((w, i) => h('div.weapon-row',
-    field(`weapons.${i}.name`, w.name, { placeholder: 'Weapon', list: 'weapon-names', className: 'grow', title: 'Pick an SRD weapon and its damage and critical fill in.' }),
-    labelled('Atk', field(`weapons.${i}.attackBonus`, w.attackBonus, { type: 'int', width: '3.5rem', title: 'The weapon’s own enhancement, masterwork included.' })),
-    labelled('Damage', field(`weapons.${i}.damageDice`, w.damageDice, { placeholder: '1d8', width: '5rem' })),
-    labelled('Dmg +', field(`weapons.${i}.damageBonus`, w.damageBonus, { type: 'int', width: '3.5rem' })),
-    labelled('Crit', field(`weapons.${i}.crit`, w.crit, { placeholder: '20/x2', width: '5rem' })),
-    checkbox(`weapons.${i}.ranged`, w.ranged, 'Ranged'),
-    checkbox(`weapons.${i}.thrown`, w.thrown, 'Thrown'),
-    checkbox(`weapons.${i}.finesse`, w.finesse, 'Finesse'),
-    labelled('Attack', out(`weapons.${i}.routine`)),
-    labelled('Damage', out(`weapons.${i}.damage`)),
-    button('Remove', () => {
-      c.weapons.splice(i, 1);
-      rebuildWeapons();
-      app.recompute();
-    }, { subtle: true, danger: true }))));
-  rebuildWeapons();
+  return panel('combat', 'Combat', hpBlock, acBlock, attackBlock, saveBlock);
+}
 
-  const weaponBlock = h('div.block',
-    h('h3', 'Weapons'),
-    weaponHost,
-    button('Add a weapon', () => {
-      c.weapons.push({ name: '', attackBonus: 0, damageDice: '', damageBonus: 0, crit: '', ranged: false, thrown: false, finesse: false });
-      rebuildWeapons();
-      app.recompute();
-    }));
+const AC_TYPE_LABELS = {
+  armor: 'Armor', shield: 'Shield', natural: 'Natural armor', deflection: 'Deflection', dodge: 'Dodge',
+  luck: 'Luck', insight: 'Insight', sacred: 'Sacred', profane: 'Profane', morale: 'Morale', competence: 'Competence',
+  enhancement: 'Enhancement', size: 'Size bonus', circumstance: 'Circumstance', alchemical: 'Alchemical', resistance: 'Resistance', untyped: 'Other',
+};
 
-  return panel('combat', 'Combat', hpBlock, acBlock, attackBlock, saveBlock, weaponBlock);
+/** The Armor Class table: its rows drawn from the derived sheet, after every recompute. */
+export function paintAcTable(root, derived) {
+  const host = root.querySelector('[data-ac-host]');
+  if (!host) return;
+  const ac = derived.ac;
+  const parts = ac.parts || {};
+  const sign = (n) => (n < 0 ? String(n) : `+${n}`);
+  const cell = (value, counts = true) => h(`td.num${counts ? '' : '.is-off'}`, { text: counts ? (value ? sign(value) : '+0') : '-', title: counts ? '' : 'Does not count here' });
+  const sources = (type) => (ac.applied || []).filter((e) => (e.type || 'untyped') === type)
+    .map((e) => `${e.source} ${sign(e.value)}`).join(', ');
+  const suppressed = (type) => (ac.suppressed || []).filter((e) => e.type === type).map((e) => `${e.source} ${sign(e.value)} (does not stack)`).join(', ');
+  const rows = [];
+  const add = (label, source, value, { touch = true, flat = true, flatValue = value } = {}) => {
+    rows.push(h('tr', h('th', { scope: 'row' }, h('span', { text: label }), source ? h('span.hint.ac-source', { text: source }) : null),
+      cell(value), cell(value, touch), cell(flatValue, flat)));
+  };
+
+  add('Base', '', 10);
+  if (parts.size) add('Size', derived.size?.name || '', parts.size);
+  add('Dexterity', ac.dex?.capped ? `capped at +${ac.dex.cap} by armor, shield or load` : '', parts.dex, { flat: parts.dex < 0, flatValue: Math.min(0, parts.dex) });
+  const byType = ac.byType || {};
+  const shown = new Set(['armor', 'shield', 'natural', 'deflection', 'dodge']);
+  if (byType.armor || parts.armor) add('Armor', [sources('armor'), suppressed('armor')].filter(Boolean).join('; '), parts.armor, { touch: false });
+  if (byType.shield) add('Shield', [sources('shield'), suppressed('shield')].filter(Boolean).join('; '), parts.shield, { touch: false });
+  if (byType.natural || parts.natural) add('Natural armor', sources('natural'), parts.natural, { touch: false });
+  if (byType.deflection) add('Deflection', [sources('deflection'), suppressed('deflection')].filter(Boolean).join('; '), parts.deflection);
+  if (byType.dodge) add('Dodge', sources('dodge'), parts.dodge, { flat: false });
+  for (const [type, value] of Object.entries(byType)) {
+    if (shown.has(type) || !value) continue;
+    add(AC_TYPE_LABELS[type] || type, [sources(type), suppressed(type)].filter(Boolean).join('; '), value);
+  }
+  if (parts.defense) rows.push(h('tr', h('th', { scope: 'row' }, h('span', { text: 'Defense bonus' }), h('span.hint.ac-source', { text: 'the variant rule: over armor, and full against touch' })),
+    cell(parts.defense), cell(derived.variants?.defenseBonus || 0), cell(parts.defense)));
+  if (derived.variants?.damageReduction) rows.push(h('tr', h('th', { scope: 'row' }, h('span', { text: 'Armor as damage reduction' }), h('span.hint.ac-source', { text: `DR ${derived.variants.damageReduction}/-, taken from the armor above` })), h('td'), h('td'), h('td')));
+
+  refill(host,
+    h('thead', h('tr', h('th', { text: 'Source' }), h('th', { text: 'AC' }), h('th', { text: 'Touch' }), h('th', { text: 'Flat-footed' }))),
+    h('tbody', rows),
+    h('tfoot', h('tr.ac-total', h('th', { scope: 'row', text: 'Total' }),
+      h('td.num.big', { text: String(ac.total) }), h('td.num.big', { text: String(ac.touch) }), h('td.num.big', { text: String(ac.flatFooted) }))));
 }
 
 /* ==========================================================================
@@ -628,21 +631,7 @@ function skillRows(app) {
    Feats, features, traits and flaws
    ========================================================================== */
 
-/** A row's uses per day: a number, and whether they come back daily or weekly. */
-function usesField(path, entry, fromContent) {
-  return labelled('Uses', field(`${path}.uses`, entry.uses, {
-    type: 'int',
-    width: '3.5rem',
-    placeholder: fromContent?.uses ? String(fromContent.uses) : '-',
-    title: 'Uses per day, for something that can be used only so many times. Leave empty otherwise; the Feats page tracks it.',
-  }));
-}
 
-/** Load a reference once, then draw a panel again so its rows can use it. */
-function withReference(app, kind, panelKey) {
-  if (referenceNow(kind)) return;
-  loadReference(kind).then(() => app.rebuildPanel?.(panelKey)).catch(() => {});
-}
 
 /* ==========================================================================
    Campaign systems: action points and taint
@@ -703,64 +692,6 @@ export function houserulesPanel(app) {
    Equipment and wealth
    ========================================================================== */
 
-export function wealthPanel(app) {
-  const c = app.character;
-  const d = app.derived;
-  const host = h('div.list');
-
-  const rebuild = () => refill(host, (c.wealth?.items || []).map((item, i) => {
-    const fromContent = app.derived.index.itemByName.get(item.name);
-    const fx = item.effects || [];
-    const contentFx = fromContent?.effects?.length || 0;
-    return h('div.effect-list-row',
-      h('div.list-row.item-row',
-        checkbox(`wealth.items.${i}.equipped`, item.equipped !== false, 'Worn', { title: 'An item’s effects apply only while it is worn or held.' }),
-        field(`wealth.items.${i}.name`, item.name, { list: 'item-names', placeholder: 'Item', className: 'grow' }),
-        labelled('Qty', field(`wealth.items.${i}.qty`, item.qty, { type: 'int', width: '3.5rem' })),
-        labelled('Value each', field(`wealth.items.${i}.value`, item.value, { type: 'int', width: '6rem' })),
-        usesField(`wealth.items.${i}`, item, fromContent),
-        labelled('Line', out(`wealth.items.${i}.lineValue`, { format: 'gp' })),
-        d.wealth.enforced ? h('span.flag', { dataset: { out: `wealth.items.${i}.overCap`, format: 'cap' }, text: '' }) : null,
-        button('x', () => {
-          c.wealth.items.splice(i, 1);
-          rebuild();
-          app.recompute();
-        }, { subtle: true, danger: true })),
-      h('details.row-effects', { open: fx.length > 0 },
-        h('summary', contentFx
-          ? `${contentFx} effect${contentFx === 1 ? '' : 's'} from your content${fx.length ? `, ${fx.length} added here` : ''}`
-          : fx.length ? `${fx.length} effect${fx.length === 1 ? '' : 's'}` : 'Effects'),
-        effectsEditor(`wealth.items.${i}.effects`, () => (c.wealth.items[i].effects = c.wealth.items[i].effects || []), {
-          skillNames: skillNamesFor(app),
-          emptyText: 'None. A cloak of resistance +1, say, is all saving throws / resistance / +1.',
-          onShapeChange: () => app.recompute(),
-        })));
-  }));
-
-  rebuild();
-  return panel('wealth', 'Equipment and wealth',
-    h('div.summary-strip',
-      total('Expected at this level', 'wealth.expected', { format: 'gp' }),
-      total('Held', 'wealth.held', { format: 'gp' }),
-      d.wealth.enforced ? total('Single item cap', 'wealth.cap', { format: 'gp' }) : null,
-      h('span.hint', { text: d.wealth.enforced
-        ? 'Wealth by level, and the campaign’s cap on any one item.'
-        : 'Wealth by level is guidance: what a character of this level usually carries.' })),
-    startingWealthRow(app),
-    row(
-      labelled('Coin in hand', field('wealth.gold', c.wealth?.gold, { type: 'int', width: '7rem' })),
-      total('Gear bought', 'wealth.itemsValue', { format: 'gp' }),
-      total('Left to spend', 'wealth.leftToSpend', { format: 'gp', title: 'Starting wealth less the value of the gear listed.' })),
-    host,
-    row(
-      button('Add an item', () => {
-        c.wealth.items.push({ name: '', qty: 1, value: 0, equipped: true, effects: [] });
-        rebuild();
-        app.recompute();
-      }),
-      h('a.hint', { href: '#/content/item', text: 'Write an item of your own' })));
-}
-
 const WEALTH_SOURCES = {
   campaign: 'set by the campaign',
   custom: 'your own figure',
@@ -793,7 +724,7 @@ function startingWealthRow(app) {
 export function startingWealthPanel(app) {
   return panel('startingWealth', 'Starting wealth',
     startingWealthRow(app),
-    h('p.hint', { text: 'Equipment is bought after the character is made, on the Gear & wealth page of the sheet.' }));
+    h('p.hint', { text: 'Equipment is bought after the character is made, in the sheet’s Shop, and kept on its Inventory page.' }));
 }
 
 /* ==========================================================================

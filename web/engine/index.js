@@ -36,6 +36,7 @@ export * from './features.js';
 export * from './languages.js';
 export * from './traits.js';
 export * from './synergies.js';
+export * from './inventory.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 

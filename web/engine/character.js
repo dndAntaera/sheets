@@ -5,6 +5,8 @@
 // is left out on purpose and computed by derive(). A sheet that stores its own
 // totals is a sheet whose totals eventually disagree with its parts.
 
+import { migrateInventory } from './inventory.js';
+
 export const SCHEMA = 2;
 
 /** What a new character is built under, unless someone chooses otherwise. */
@@ -103,7 +105,9 @@ export function blankCharacter(rules, overrides = {}) {
     actionPoints: { spent: 0, bonus: 0 },
     taint: { corruption: 0, depravity: 0, pureSoul: false, exaltedFeats: 0, notes: '' },
 
-    wealth: { startingGold: null, gold: 0, items: [] },
+    // The inventory, and what paid for it (engine/inventory.js).
+    wealth: { startingGold: null, items: [], ledger: [] },
+    equipment: { armor: null, shield: null, weapons: [], slots: {} },
 
     // Homebrew this character uses, embedded so the sheet is whole on its own.
     content: { races: [], classes: [], feats: [], skills: [], items: [], templates: [], features: [] },
@@ -148,6 +152,7 @@ export function migrate(character) {
   c.templates = c.templates || [];
   c.features = c.features || [];
   c.content = { races: [], classes: [], feats: [], skills: [], items: [], templates: [], features: [], ...(c.content || {}) };
+  migrateInventory(c);
   c.schema = SCHEMA;
   return c;
 }

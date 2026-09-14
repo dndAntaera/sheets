@@ -97,7 +97,7 @@ export const WIZARD_STEPS = [
     title: 'Hit points & wealth',
     intro: [
       'Hit points are maximum at 1st level and average after, unless you roll.',
-      'Starting wealth is wealth by level: at 1st level, the average of your class’s starting gold. Equipment is bought once the character is made, on the sheet’s Gear & wealth page.',
+      'Starting wealth is wealth by level: at 1st level, the average of your class’s starting gold. Equipment is bought once the character is made, in the sheet’s Shop.',
     ],
     panels: ['hitPoints', 'startingWealth'],
     notices: ['hp', 'wealth'],

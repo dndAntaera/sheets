@@ -403,11 +403,13 @@ export function usableContent(character, rules) {
     names.forEach((n) => campaignNames.add(n));
 
     const rest = own.filter((e) => !names.has(e.name) && e.campaign !== campaign.id);
+    // Items made for the inventory (a player's own gear) count wherever the character goes.
+    const inventoryItems = rest.filter((e) => e.inventoryItem);
     if (campaign.allowHomebrew) {
       content[plural] = [...rest, ...theirs];
     } else {
-      content[plural] = theirs;
-      for (const e of rest) blocked.push({ kind, name: e.name });
+      content[plural] = [...inventoryItems, ...theirs];
+      for (const e of rest) if (!e.inventoryItem) blocked.push({ kind, name: e.name });
     }
   }
   return { content, blocked, campaignNames };
