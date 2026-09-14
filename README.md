@@ -94,9 +94,14 @@ out, the site shows its front page.
 
 **New characters are made in a creator** that walks through 3.5 creation a step
 at a time - concept, race, class, ability scores, skills, feats, hit points and
-gear, details - with a running summary beside it and the sheet's own checks at
-each step. A character left half-made is a draft that picks up where it stopped;
-finishing opens the full sheet.
+wealth, spells, languages and story - with a running summary beside it and the
+sheet's own checks at each step. A character left half-made is a draft that
+picks up where it stopped; finishing opens the full sheet, where equipment is
+bought and uses are tracked in play.
+
+**On a phone** the site works as an app: install it from the browser (*Install
+app* on Android, *Add to Home Screen* on an iPhone) and it opens full screen,
+with its own icon, even offline.
 
 **Every variant rule in the SRD** - defense bonus, armor as damage reduction,
 vitality and wound points, spell points, recharge magic, magic rating, the

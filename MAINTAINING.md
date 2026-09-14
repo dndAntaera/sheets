@@ -357,6 +357,11 @@ its own. **Adding a step** is an entry there. A character in the creator carries
 `meta.wizard.step`, which the character list reports as `draftStep` so a draft
 reopens where it was left; Finish removes it and opens the sheet.
 
+The race is one box that narrows a list as it is typed. The creator builds a
+character rather than plays it: uses per day, spell slots and power points show
+their maximums, but nothing is cast, spent or rested until the sheet (panels
+check `app.wizard`).
+
 Every step opened is added to `meta.creatorVisited`. Finishing - or "Skip to the
 full sheet" - with steps never opened keeps them in `meta.creatorSkipped`: the
 sheet then shows a warning for each, and a link back, until the step is opened.
@@ -388,6 +393,47 @@ comes back on the next sign-in.
 Only `web/` is published. The repository must be named **`sheets`** in the
 `dndAntaera` organisation for that URL, with *Settings → Pages* set to
 **GitHub Actions**.
+
+## The mobile app
+
+The site is built to be a phone app as it stands, and to be wrapped as a native
+one without changing how it works.
+
+**Installable now.** `web/manifest.webmanifest` and `web/sw.js` make the site a
+progressive web app: on Android, Chrome offers *Install app*; on an iPhone,
+Safari's *Share → Add to Home Screen*. It opens full screen with its own icon
+(`web/icons/`, drawn by `scripts/build-icons.py`). The service worker fetches
+network first and keeps a copy of everything the site has loaded, so the app
+opens offline and a deploy is never held back by a stale cache. Characters
+edited offline are saved in the browser by the app itself and sent to the
+account when it is back online, as they always were.
+
+**Built for a phone.** The layout is one column below 62rem; the header puts the
+links on a row that scrolls sideways; the sheet's page tabs stay at the top
+while scrolling; the notices fold to a single line; controls are larger and
+fields are 16px on touch screens (so a phone does not zoom in on them); and the
+header and content keep clear of a notch (`viewport-fit=cover` and the
+safe-area insets). Anything wide - a class table - scrolls inside its own box.
+Check a change at 375px wide: nothing but those boxes should scroll sideways.
+
+**Wrapping as a native app** (Capacitor, or any web-view shell). Everything the
+app needs is static files in `web/` and one server address, so a shell can load
+`web/` as it is:
+
+1. Create the shell project around `web/` as its web directory
+   (Capacitor: `webDir: "web"`). Routes are in the address's hash, so no server
+   rewriting is needed.
+2. Give the shell a link scheme of its own (for example `antaerasheets://`) and
+   set `appReturnUrl` in `web/config.js` - in the shell's copy - to the address
+   sign-in should come back to, such as `antaerasheets://app/`.
+3. On the Worker, add the web view's origins to `APP_ORIGINS` (Capacitor:
+   `capacitor://localhost,https://localhost`) and that return address, exactly,
+   to `APP_RETURN_URLS`. The Worker refuses any return address not listed.
+4. Google does not allow sign-in inside a web view: the shell opens
+   `/auth/start` in the system browser (`remote.signIn` takes a `navigate`
+   function for this), and when its link scheme is opened with
+   `#/signed-in/<code>`, hands that hash to the web view, which finishes the
+   sign-in as the website does.
 
 The legal notices live on the wiki's Disclaimer & Legal page, and the app's
 footer links there (`legalUrl` in `web/config.js`). If that page moves, update the

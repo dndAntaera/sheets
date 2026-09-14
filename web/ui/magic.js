@@ -53,10 +53,13 @@ export function magicPanel(app, ways) {
     return app.character.magic[name];
   };
 
+  // In the character creator the sheet is being built, not played: the numbers
+  // show, but nothing is cast, spent or rested.
+  const building = Boolean(app.wizard);
   refill(body,
     h('div.magic-top',
-      magic.powerPoints ? powerPool(app, magic.powerPoints, changed) : null,
-      h('div.magic-rest',
+      magic.powerPoints ? powerPool(app, magic.powerPoints, changed, building) : null,
+      building ? null : h('div.magic-rest',
         button('Rest', () => {
           if (!confirm('Rest for the night? Every spell slot and power point comes back, uses per day reset, and prepared spells stay prepared.')) return;
           ways.rest();
@@ -87,10 +90,10 @@ function casterBlock(app, m, state, changed) {
         m.type ? `${m.type} ${m.spontaneous ? 'spontaneous' : 'prepared'}` : null,
       ].filter(Boolean).join(' - ') })),
     options(app, m, state, changed),
-    m.spellPoints ? spellPointPool(m, state, changed) : null,
+    m.spellPoints ? spellPointPool(m, state, changed, Boolean(app.wizard)) : null,
     m.levels.length
       ? h('div.table-scroll', h('table.magic-slots',
-        h('thead', h('tr', ['Level', m.spellPoints ? 'Cost' : 'Per day', m.spontaneous ? 'Known' : m.spellbook ? 'In spellbook' : 'Prepared', m.spellPoints ? 'Cast' : m.recharge ? 'Recharge' : m.spontaneous ? 'Cast today' : 'Left today', 'Save DC'].map((c) => h('th', { text: c })))),
+        h('thead', h('tr', ['Level', m.spellPoints ? 'Cost' : 'Per day', m.spontaneous ? 'Known' : m.spellbook ? 'In spellbook' : 'Prepared', app.wizard ? null : m.spellPoints ? 'Cast' : m.recharge ? 'Recharge' : m.spontaneous ? 'Cast today' : 'Left today', 'Save DC'].filter(Boolean).map((c) => h('th', { text: c })))),
         h('tbody', m.levels.map((l) => h(`tr${l.castable ? '' : '.is-closed'}`,
           h('th', { text: ordinal(l.level) }),
           h('td', { title: m.spellPoints ? 'Spell points to cast one' : perDayTitle(l), text: !l.castable ? `needs ${m.ability.toUpperCase()} ${10 + l.level}` : m.spellPoints ? (l.level === 0 ? `free (${m.spellPoints.cantripsPerDay} a day)` : `${m.spellPoints.cost[l.level]} pts`) : String(l.perDay) }),
@@ -99,7 +102,7 @@ function casterBlock(app, m, state, changed) {
             : m.spellbook
               ? (l.level === 0 ? 'all' : String(l.knownCount))
               : `${l.preparedCount + l.preparedExtra} / ${l.perDay}` }),
-          h('td', m.spellPoints
+          app.wizard ? null : h('td', m.spellPoints
             ? (l.castable && l.level > 0 ? button(`Cast (${m.spellPoints.cost[l.level]})`, () => { state.spellPointsUsed = (Number(state.spellPointsUsed) || 0) + m.spellPoints.cost[l.level]; changed(); }, { subtle: true }) : h('span.hint', { text: l.level === 0 ? 'free' : '-' }))
             : m.recharge
               ? h('label.check', { title: `After casting a spell of this level, ${m.recharge[l.level] || '0'} before the next.` },
@@ -115,8 +118,9 @@ function casterBlock(app, m, state, changed) {
 }
 
 /** Spell points (Unearthed Arcana): a class's daily pool, spent a spell at a time. */
-function spellPointPool(m, state, changed) {
+function spellPointPool(m, state, changed, building = false) {
   const p = m.spellPoints;
+  if (building) return h('div.magic-pool', h('div.magic-pool-numbers', h('span.magic-pool-left', { text: String(p.total) }), h('span.hint', { text: `spell points a day (${p.base} from class, ${p.bonus} bonus). 0-level spells are free, ${p.cantripsPerDay} a day.` })));
   const amount = h('input.field.narrow', { type: 'number', min: 0, value: 1, 'aria-label': 'Spell points' });
   const set = (used) => { state.spellPointsUsed = Math.max(0, used); changed(); };
   return h('div.magic-pool',
@@ -322,8 +326,8 @@ function preparedLists(app, m, state, levels, changed) {
         if (entry?.name && !source.some((p) => p.name === entry.name)) groups.unshift({ label: 'Prepared', options: [{ value: entry.name, text: `${entry.name} (not available)` }] });
         const prepared = entry ? source.find((p) => p.name === entry.name) : null;
         const tooHigh = prepared && !fits(prepared);
-        rows.push(h(`li.magic-slot${entry?.used ? '.is-used' : ''}`,
-          h('label.check', { title: 'Cast' }, h('input', {
+        rows.push(h(`li.magic-slot${entry?.used && !app.wizard ? '.is-used' : ''}`,
+          app.wizard ? null : h('label.check', { title: 'Cast' }, h('input', {
             type: 'checkbox',
             checked: Boolean(entry?.used),
             disabled: !entry,
@@ -357,7 +361,7 @@ function preparedLists(app, m, state, levels, changed) {
       return h('div.magic-level',
         h('div.magic-level-head',
           h('span.magic-level-name', { text: levelName(l.level) }),
-          h('span.hint', { text: `${l.remaining} left of ${l.preparedCount + l.preparedExtra} prepared` })),
+          h('span.hint', { text: app.wizard ? `${l.preparedCount + l.preparedExtra} of ${l.perDay} prepared` : `${l.remaining} left of ${l.preparedCount + l.preparedExtra} prepared` })),
         h('ul.magic-spells', rows),
         extra.length ? h('p.hint.is-error', { text: `${extra.length} more prepared than there are slots: ${extra.map((p) => p.name).join(', ')}.` }) : null);
     }));
@@ -367,7 +371,12 @@ function preparedLists(app, m, state, levels, changed) {
    Manifesters
    ========================================================================== */
 
-function powerPool(app, pool, changed) {
+function powerPool(app, pool, changed, building = false) {
+  if (building) {
+    return h('div.magic-pool', h('div.magic-pool-numbers',
+      h('span.magic-pool-left', { text: String(pool.total) }),
+      h('span.hint', { text: `power points a day (${pool.base} from class, ${pool.bonus} bonus)` })));
+  }
   const set = (used) => { app.character.magic.powerPointsUsed = Math.max(0, used); changed(); };
   const amount = h('input.field.narrow', { type: 'number', min: 0, value: 1, 'aria-label': 'Power points' });
   return h('div.magic-pool',
@@ -412,7 +421,8 @@ function manifesterBlock(app, m, state, changed) {
         const cost = power?.powerPoints ?? null;
         return spellRow(k.name, 'powers', [
           h('span.tag', { text: `${ordinal(Number(k.level) || 0)}` }),
-          cost !== null ? button(`Manifest (${cost} pp)`, () => spend(cost), { subtle: true, title: 'Spend its base cost. Augmenting costs more: spend the extra from the pool.' }) : null,
+          cost !== null && app.wizard ? h('span.hint', { text: `${cost} pp` }) : null,
+          cost !== null && !app.wizard ? button(`Manifest (${cost} pp)`, () => spend(cost), { subtle: true, title: 'Spend its base cost. Augmenting costs more: spend the extra from the pool.' }) : null,
           button('x', () => { state.known.splice(i, 1); changed(); }, { subtle: true, danger: true, title: 'Forget this power' }),
         ], m, state);
       })),

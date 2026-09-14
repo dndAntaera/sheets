@@ -58,7 +58,8 @@ function allowedOrigin(request, env) {
   const origin = request.headers.get('origin');
   if (!origin) return null;
   const isLocal = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  return list(env.SITE_ORIGIN).includes(origin) || isLocal ? origin : null;
+  // APP_ORIGINS: the origins of the app wrapped for a phone (capacitor://localhost, say).
+  return list(env.SITE_ORIGIN).includes(origin) || list(env.APP_ORIGINS).includes(origin) || isLocal ? origin : null;
 }
 
 export function withCors(response, request, env) {

@@ -44,7 +44,7 @@ export const WIZARD_STEPS = [
     key: 'race',
     title: 'Race',
     intro: [
-      'Your race adjusts your ability scores and sets your size, speed and a handful of traits. Pick one to see what it gives.',
+      'Your race adjusts your ability scores and sets your size, speed and a handful of traits. Type to narrow the list, and choose one to see what it gives.',
       'A race the sheet does not know can be typed in instead, or written up under Content so its traits count.',
     ],
     panels: [],
@@ -285,24 +285,40 @@ function conceptStep(app, ways) {
 function raceStep(app, ways) {
   const chosen = app.character.race?.name || '';
   const choices = ways.raceChoices();
-  const known = choices.some((r) => r.name === chosen);
-  const adjust = (a = {}) => Object.entries(a).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k.toUpperCase()}`).join(', ') || 'No adjustments';
+  const adjust = (a = {}) => Object.entries(a).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k.toUpperCase()}`).join(', ') || 'no adjustments';
+  const picked = choices.find((r) => r.name === chosen);
+
+  // One box: typing narrows the list of races, and choosing one (or leaving
+  // the box) takes it. A race not on the list can be typed in all the same.
+  const listId = 'wizard-race-names';
+  const input = h('input.field.grow.wizard-race-field', {
+    type: 'text',
+    value: chosen,
+    list: listId,
+    placeholder: 'Start typing a race',
+    autocomplete: 'off',
+    'aria-label': 'Race',
+    dataset: { unbound: '' },
+  });
+  input.setAttribute('list', listId);
+  input.addEventListener('change', () => {
+    const typed = input.value.trim();
+    const match = choices.find((r) => r.name.toLowerCase() === typed.toLowerCase());
+    const name = match ? match.name : typed;
+    if (name !== chosen) ways.choose('race.name', name);
+  });
 
   return h('div.wizard-body',
-    h('div.choice-cards', choices.map((r) => h(`button.choice-card${r.name === chosen ? '.is-chosen' : ''}`, {
-      type: 'button',
-      'aria-pressed': String(r.name === chosen),
-      onclick: () => ways.choose('race.name', r.name),
-    },
-    h('span.choice-card-title', { text: r.name }),
-    r.custom ? h('span.tag', { text: 'homebrew' }) : null,
-    h('span.choice-card-line', { text: adjust(r.abilityAdjust) }),
-    h('span.choice-card-line.hint', { text: [r.size, `${r.speed ?? 30} ft.`, r.la ? `LA +${r.la}` : '', r.favoredClass ? `favors ${r.favoredClass}` : ''].filter(Boolean).join(' - ') })))),
     h('section.panel', h('div.panel-body',
-      row(labelled('Or type a race', field('race.name', known ? '' : chosen, { list: 'race-names', placeholder: 'Any race', className: 'grow' }), { wide: true })),
+      h('label.cell.wide', h('span.label', { text: 'Race' }), input),
+      h('datalist', { id: listId }, choices.map((r) => h('option', {
+        value: r.name,
+        label: [adjust(r.abilityAdjust), r.la ? `LA +${r.la}` : '', r.custom ? 'homebrew' : ''].filter(Boolean).join(' - '),
+      }))),
       chosen
         ? (app.derived.race.known
           ? h('div.race-facts',
+            picked ? h('p.race-adjust', { text: `Ability adjustments: ${adjust(picked.abilityAdjust)}` }) : null,
             total('Size', 'race.size'),
             total('Speed', 'speed'),
             total('Level adj.', 'race.la', { format: 'signed' }),

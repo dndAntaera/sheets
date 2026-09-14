@@ -152,7 +152,13 @@ export function signInSetup(env) {
 const callbackUrl = (url, provider) => new URL(`/auth/callback/${provider}`, url.origin).toString();
 
 /** Send the player back to the app with a reason, instead of a bare error page. */
-const failBack = (env, reason) => redirect(`${siteUrl(env)}#/sign-in-failed/${encodeURIComponent(reason)}`);
+/**
+ * Where a sign-in goes back to: the site, or - for the app wrapped for a phone -
+ * an address named exactly in APP_RETURN_URLS, which a sign-in may ask for.
+ * Anything else asked for is refused, so a sign-in can never be sent elsewhere.
+ */
+const appReturn = (env, asked) => (asked && list(env.APP_RETURN_URLS).includes(asked) ? asked : null);
+const failBack = (env, reason, returnTo = null) => redirect(`${returnTo || siteUrl(env)}#/sign-in-failed/${encodeURIComponent(reason)}`);
 
 /* -------------------------------------------------------------------------
    Accounts and identities
@@ -221,6 +227,9 @@ async function start({ env, url }) {
 
   const nonce = url.searchParams.get('nonce') || '';
   if (!/^[a-f0-9]{32,128}$/.test(nonce)) return failBack(env, 'bad-request');
+  const asked = url.searchParams.get('return');
+  const returnTo = appReturn(env, asked);
+  if (asked && !returnTo) return failBack(env, 'bad-request');
 
   let linkUserId = null;
   const linkCode = url.searchParams.get('link');
@@ -231,7 +240,7 @@ async function start({ env, url }) {
   }
 
   await sweepCodes(env);
-  const state = await issueCode(env, 'state', { provider: providerName, nonce, linkUserId });
+  const state = await issueCode(env, 'state', { provider: providerName, nonce, linkUserId, returnTo });
 
   const authorize = new URL(provider.authorize);
   authorize.searchParams.set('client_id', provider.clientId(env));
@@ -251,9 +260,11 @@ async function callback({ env, url, params }) {
 
   const request = await takeCode(env, 'state', url.searchParams.get('state'));
   if (!request || request.provider !== providerName) return failBack(env, 'expired');
+  // Checked again: the list may have changed since the sign-in began.
+  const back = appReturn(env, request.returnTo);
 
   const code = url.searchParams.get('code');
-  if (!code) return failBack(env, 'cancelled');
+  if (!code) return failBack(env, 'cancelled', back);
 
   const tokenRes = await fetch(provider.token, {
     method: 'POST',
@@ -266,9 +277,9 @@ async function callback({ env, url, params }) {
       redirect_uri: callbackUrl(url, providerName),
     }),
   });
-  if (!tokenRes.ok) return failBack(env, 'provider-refused');
+  if (!tokenRes.ok) return failBack(env, 'provider-refused', back);
   const { access_token: accessToken } = await tokenRes.json();
-  if (!accessToken) return failBack(env, 'provider-refused');
+  if (!accessToken) return failBack(env, 'provider-refused', back);
 
   const profile = await provider.profile(accessToken, env);
 
@@ -276,13 +287,13 @@ async function callback({ env, url, params }) {
   try {
     userId = await attachIdentity(env, providerName, profile, request.linkUserId);
   } catch (err) {
-    if (err.reason) return failBack(env, err.reason);
+    if (err.reason) return failBack(env, err.reason, back);
     throw err;
   }
 
   const token = await createSession(env, userId);
   const exchange = await issueCode(env, 'code', { token, nonce: request.nonce, linked: Boolean(request.linkUserId) });
-  return redirect(`${siteUrl(env)}#/signed-in/${exchange}`);
+  return redirect(`${back || siteUrl(env)}#/signed-in/${exchange}`);
 }
 
 async function exchange({ env, body }) {

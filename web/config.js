@@ -28,4 +28,8 @@ export const config = {
 
   // The ruleset a new character is built under when nobody has chosen.
   defaultRuleset: 'srd',
+
+  // Only for the app wrapped for a phone: where sign-in sends it back to. Must
+  // be named in the Worker's APP_RETURN_URLS. Null on the website.
+  appReturnUrl: null,
 };

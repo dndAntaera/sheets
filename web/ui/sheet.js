@@ -657,8 +657,9 @@ export function houserulesPanel(app) {
     h('h3', 'Action points'),
     row(
       total('Pool', 'actionPoints.earned'),
-      labelled('Spent', field('actionPoints.spent', c.actionPoints?.spent, { type: 'int', width: '4rem' })),
-      total('Remaining', 'actionPoints.remaining', { big: true }),
+      // Spent in play, not while the character is being made.
+      app.wizard ? null : labelled('Spent', field('actionPoints.spent', c.actionPoints?.spent, { type: 'int', width: '4rem' })),
+      app.wizard ? null : total('Remaining', 'actionPoints.remaining', { big: true }),
       labelled('Bonus', field('actionPoints.bonus', c.actionPoints?.bonus, { type: 'int', width: '4rem' })),
       total('One point rolls', 'actionPoints.roll'),
     ),

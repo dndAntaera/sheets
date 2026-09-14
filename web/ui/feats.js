@@ -368,7 +368,11 @@ export function abilitiesListPanel(app) {
         h('span.ability-row-name', { text: f.name }),
         step && !f.domain ? h('span.tag', { text: step.replace(new RegExp(`^${f.key}\\s*`, 'i'), '') || step }) : null,
         h('span.hint', { text: f.domain ? 'granted power' : `from ${f.className} ${f.gained}` }),
-        tracker ? h('span.tag', { text: `${tracker.remaining} of ${tracker.max}${tracker.unit ? ` ${tracker.unit}` : ''} left today`, title: 'Tracked under Limited uses.' }) : null),
+        tracker
+          ? h('span.tag', app.wizard
+            ? { text: `${tracker.max}${tracker.unit ? ` ${tracker.unit}` : ''} a ${tracker.per}` }
+            : { text: `${tracker.remaining} of ${tracker.max}${tracker.unit ? ` ${tracker.unit}` : ''} left today`, title: 'Tracked under Limited uses.' })
+          : null),
       f.domain ? h('p.hint', { text: f.text }) : null,
       details);
   };

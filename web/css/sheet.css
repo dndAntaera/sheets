@@ -474,7 +474,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   position: absolute;
   right: 0;
   top: calc(100% + var(--sp-1));
-  z-index: 1;
+  z-index: 20;
   width: 16rem;
   display: flex;
   flex-direction: column;
@@ -1508,6 +1508,69 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 @media (max-width: 62rem) {
   .sheet-layout { grid-template-columns: minmax(0, 1fr); }
   .notices { position: static; max-height: none; order: -1; }
+}
+
+/* The header on a phone: the brand and the account on one line, the links on a
+   second that scrolls sideways under a thumb rather than pushing the page wide.
+   The safe-area insets keep it clear of a notch when installed as an app. */
+@media (max-width: 48rem) {
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--sp-2) var(--sp-3);
+    padding: calc(var(--sp-2) + env(safe-area-inset-top, 0px)) max(var(--sp-3), env(safe-area-inset-right, 0px)) var(--sp-2) max(var(--sp-3), env(safe-area-inset-left, 0px));
+  }
+  .brand { grid-column: 1; grid-row: 1; align-self: center; min-width: 0; }
+  .top-right { grid-column: 2; grid-row: 1; margin-left: 0; gap: var(--sp-2); min-width: 0; }
+  .top-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    gap: var(--sp-1);
+    margin: 0 calc(-1 * var(--sp-3));
+    padding: 0 var(--sp-3);
+  }
+  .top-nav::-webkit-scrollbar { display: none; }
+  .top-nav a { flex: none; white-space: nowrap; padding: var(--sp-2) var(--sp-2); border-radius: var(--radius); }
+  .top-nav a.is-active { color: var(--sky-ink); background: rgba(215, 220, 237, .08); }
+  .top > .banner { grid-column: 1 / -1; }
+  .account-name > span:not(.avatar) { display: none; }
+  .status { min-width: 0; }
+  .account-pop { max-width: calc(100vw - 2 * var(--sp-3)); }
+}
+
+/* The notices, folded to their tally above the sheet (paintNotices in app.js). */
+.notices-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.notices-fold > summary::-webkit-details-marker { display: none; }
+.notices-fold > summary .notices-title, .notices-fold > summary .notices-tally { margin: 0; }
+.notices-fold > summary::after { content: 'BE'; color: var(--ink-faint); }
+.notices-fold[open] > summary { margin-bottom: var(--sp-2); }
+.notices-fold[open] > summary::after { content: 'B4'; }
+
+@media (max-width: 48rem) {
+  .toolbar { flex-wrap: wrap; row-gap: var(--sp-1); }
+  .toolbar .btn { white-space: nowrap; }
+  .toolbar .grow { flex-basis: 0; }
+  /* The pages of a sheet stay in reach while scrolling a long one. */
+  .sheet-tabs { position: sticky; top: 0; z-index: 5; background: var(--sky-far); margin-left: calc(-1 * var(--sp-2)); margin-right: calc(-1 * var(--sp-2)); padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  .roster { padding: var(--pad-y-sm) var(--pad-x-sm) var(--sp-4); border-radius: 0; border-left: 0; border-right: 0; }
+  .roster-row { flex-wrap: wrap; row-gap: var(--sp-1); }
+  .roster-link { flex-basis: 100%; }
+  .roster-row .btn { margin-left: auto; }
+  .wizard-top { flex-wrap: wrap; }
+}
+
+/* Fingers, not a mouse: controls big enough to hit, and text in fields large
+   enough that a phone does not zoom in when one is tapped. */
+@media (pointer: coarse) {
+  .btn, .field, .sheet-tab, .top-nav a { min-height: 2.5rem; }
+  .btn { padding-top: .45rem; padding-bottom: .45rem; }
+  .field { font-size: max(16px, 1em); }
+  .pip { width: 1.6rem; height: 1.6rem; }
+  .check input { width: 1.2rem; height: 1.2rem; }
 }
 
 @media (max-width: 40rem) {

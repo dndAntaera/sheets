@@ -24,6 +24,14 @@ migrations_dir = "migrations"
 SITE_ORIGIN = "https://dndantaera.github.io"
 SITE_PATH = "/sheets/"
 
+# The app wrapped for a phone (see MAINTAINING.md, "The mobile app"). Leave
+# both empty until there is one. APP_ORIGINS are the origins its web view
+# calls from, comma separated (Capacitor: "capacitor://localhost,https://localhost").
+# APP_RETURN_URLS are the exact addresses a sign-in may send it back to (its
+# own link scheme, say "antaerasheets://app/"); anything else is refused.
+APP_ORIGINS = ""
+APP_RETURN_URLS = ""
+
 # Which sign-in providers to offer, comma separated: "google", "discord", or
 # "google,discord". A provider also needs its secrets (below) to appear.
 SIGN_IN_WITH = "google,discord"

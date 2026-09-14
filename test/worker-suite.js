@@ -162,6 +162,22 @@ export function buildWorkerSuite() {
     }
   });
 
+  test('a sign-in returns to the app only at an address the Worker names', async (t) => {
+    env.APP_RETURN_URLS = 'antaerasheets://app/';
+    try {
+      const refused = await call('GET', `/auth/start?provider=discord&nonce=${nonce()}&return=${encodeURIComponent('https://evil.example/')}`);
+      t.ok(refused.location.startsWith(`${env.SITE_ORIGIN}`) && refused.location.endsWith('#/sign-in-failed/bad-request'), 'an address not on the list is refused, at the site');
+      const mine = nonce();
+      const start = await call('GET', `/auth/start?provider=discord&nonce=${mine}&return=${encodeURIComponent('antaerasheets://app/')}`);
+      people.discord = discorder('d-app', 'App Player');
+      const state = new URL(start.location).searchParams.get('state');
+      const back = await call('GET', `/auth/callback/discord?code=abc&state=${state}`);
+      t.ok(back.location.startsWith('antaerasheets://app/#/signed-in/'), 'a listed address gets the code');
+    } finally {
+      delete env.APP_RETURN_URLS;
+    }
+  });
+
   test('/health names what sign-in is missing, and never a secret', async (t) => {
     const saved = env.GOOGLE_CLIENT_SECRET;
     env.GOOGLE_CLIENT_SECRET = '  ';

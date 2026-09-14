@@ -100,9 +100,20 @@ app.adopt = (kind, name) => {
    Start
    ========================================================================= */
 
+/**
+ * Offline and installable (web/sw.js). Only on the app's own page - the one
+ * carrying the manifest - so the test pages, which load this file too, never
+ * install a worker over themselves.
+ */
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || !document.querySelector('link[rel="manifest"]')) return;
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
 async function start() {
   // How this player likes the site to look, before anything is drawn.
   applyAppearance();
+  registerServiceWorker();
   app.baseRules = await loadRules('./data/');
   app.rules = app.baseRules;
 
@@ -1121,6 +1132,14 @@ function recompute() {
 }
 
 /**
+ * On a phone the notices sit above the sheet, so they fold to one line - the
+ * tally - until tapped. Whether they are open is kept while the sheet repaints.
+ */
+let noticesOpen = false;
+const narrowScreen = () => window.matchMedia?.('(max-width: 62rem)').matches;
+window.matchMedia?.('(max-width: 62rem)').addEventListener?.('change', () => { if (app.derived && document.getElementById('notices')) paintNotices(); });
+
+/**
  * The notices rail: what the sheet thinks is wrong, in severity order, each
  * one a link to the panel it is about.
  */
@@ -1137,15 +1156,15 @@ function paintNotices() {
   const elsewhere = stepFields ? all.length - notices.length : 0;
   const counts = notices.reduce((acc, n) => ({ ...acc, [n.level]: (acc[n.level] || 0) + 1 }), {});
 
-  refill(rail,
-    h('h2.notices-title', { text: app.wizard ? (stepFields ? 'This step' : 'Still to do') : stepFields ? 'On this page' : 'The sheet says' }),
-    h('p.notices-tally', { text: notices.length
-      ? [
-        counts.error ? `${counts.error} to fix` : null,
-        counts.warn ? `${counts.warn} to check` : null,
-        counts.info ? `${counts.info} to finish` : null,
-      ].filter(Boolean).join(', ')
-      : 'Nothing outstanding.' }),
+  const title = h('h2.notices-title', { text: app.wizard ? (stepFields ? 'This step' : 'Still to do') : stepFields ? 'On this page' : 'The sheet says' });
+  const tally = h('p.notices-tally', { text: notices.length
+    ? [
+      counts.error ? `${counts.error} to fix` : null,
+      counts.warn ? `${counts.warn} to check` : null,
+      counts.info ? `${counts.info} to finish` : null,
+    ].filter(Boolean).join(', ')
+    : 'Nothing outstanding.' });
+  const body = [
     elsewhere
       ? h('p.hint', app.wizard
         ? { text: `${elsewhere} more for other steps; the review lists them all.` }
@@ -1175,7 +1194,18 @@ function paintNotices() {
           target.classList.add('flash');
           setTimeout(() => target.classList.remove('flash'), 1200);
         },
-      })))));
+      })))),
+  ];
+
+  if (!narrowScreen()) {
+    refill(rail, title, tally, body);
+    return;
+  }
+  const fold = h('details.notices-fold', { open: noticesOpen && notices.length > 0 },
+    h('summary.notices-summary', title, tally),
+    body);
+  fold.addEventListener('toggle', () => { noticesOpen = fold.open; });
+  refill(rail, fold);
 }
 
 /** The casting block is a list, so it is rebuilt rather than painted. */

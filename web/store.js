@@ -354,6 +354,8 @@ export const remote = {
     write(nonceKey, nonce, sessionStorage);
     const params = new URLSearchParams({ provider, nonce });
     if (link) params.set('link', link);
+    // The app wrapped for a phone asks to be sent back to itself (config.appReturnUrl).
+    if (config.appReturnUrl) params.set('return', config.appReturnUrl);
     navigate(`${config.apiBase}/auth/start?${params}`);
   },
 
