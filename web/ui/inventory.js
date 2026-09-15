@@ -329,7 +329,7 @@ export function equipmentPanel(app) {
         dataset: { unbound: '' },
         onchange: (ev) => put(key, ev.target.value),
       },
-      h('option', { value: '', text: choices.length ? '- empty -' : '- nothing in the inventory fits -', selected: !now }),
+      h('option', { value: '', text: choices.length ? '- empty -' : '—', selected: !now }),
       choices.map((x) => h('option', { value: x.item.id, text: `${x.item.name}${x.free > 1 ? ` (${x.free} free)` : ''}`, selected: x.item.id === now }))),
       held ? h('span.hint.equip-stats', { text: statsLine(held.item) }) : null,
       held && held.item.stats ? row(

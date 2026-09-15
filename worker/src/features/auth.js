@@ -232,15 +232,18 @@ async function start({ env, url }) {
   if (asked && !returnTo) return failBack(env, 'bad-request');
 
   let linkUserId = null;
+  let replace = null;
   const linkCode = url.searchParams.get('link');
   if (linkCode) {
     const link = await takeCode(env, 'link', linkCode);
     if (!link) return failBack(env, 'link-expired');
     linkUserId = link.userId;
+    // A replacement is only ever for the provider being signed in with.
+    replace = link.replace === providerName ? providerName : null;
   }
 
   await sweepCodes(env);
-  const state = await issueCode(env, 'state', { provider: providerName, nonce, linkUserId, returnTo });
+  const state = await issueCode(env, 'state', { provider: providerName, nonce, linkUserId, replace, returnTo });
 
   const authorize = new URL(provider.authorize);
   authorize.searchParams.set('client_id', provider.clientId(env));
@@ -290,6 +293,11 @@ async function callback({ env, url, params }) {
     if (err.reason) return failBack(env, err.reason, back);
     throw err;
   }
+  // Moving to a different account at the same provider: the old sign-in goes.
+  if (request.linkUserId && request.replace === providerName) {
+    await env.DB.prepare('DELETE FROM identities WHERE user_id = ? AND provider = ? AND subject != ?')
+      .bind(userId, providerName, profile.subject).run();
+  }
 
   const token = await createSession(env, userId);
   const exchange = await issueCode(env, 'code', { token, nonce: request.nonce, linked: Boolean(request.linkUserId) });
@@ -303,8 +311,30 @@ async function exchange({ env, body }) {
   return json({ token: grant.token, linked: grant.linked });
 }
 
-async function link({ env, user }) {
-  return json({ link: await issueCode(env, 'link', { userId: user.id }) });
+/**
+ * Permission to attach a sign-in to this account. With `{ replace: provider }`,
+ * the sign-in that completes it takes the place of the account's current one at
+ * that provider - how a player moves to a different Google or Discord account.
+ */
+async function link({ env, user, request, body }) {
+  const input = request.headers.get('content-type')?.includes('json') ? await body(1024) : {};
+  const replace = typeof input.replace === 'string' && Object.hasOwn(PROVIDERS, input.replace) ? input.replace : null;
+  return json({ link: await issueCode(env, 'link', { userId: user.id, replace }) });
+}
+
+/**
+ * Remove a way of signing in. An account always keeps at least one, so its
+ * player can always get back in.
+ */
+async function unlink({ env, user, params }) {
+  const rows = (await env.DB.prepare('SELECT provider FROM identities WHERE user_id = ?').bind(user.id).all()).results || [];
+  if (!rows.some((r) => r.provider === params.provider)) throw fail(404, 'you do not sign in with that');
+  if (!rows.some((r) => r.provider !== params.provider)) {
+    throw fail(409, 'an account needs at least one way to sign in: link another before removing this one');
+  }
+  await env.DB.prepare('DELETE FROM identities WHERE user_id = ? AND provider = ?').bind(user.id, params.provider).run();
+  const left = (await env.DB.prepare('SELECT provider FROM identities WHERE user_id = ? ORDER BY provider').bind(user.id).all()).results || [];
+  return json({ providers: left.map((r) => r.provider) });
 }
 
 async function signOut({ env, request }) {
@@ -330,6 +360,7 @@ export const routes = [
   { method: 'GET', path: '/auth/callback/:provider', auth: 'none', handler: callback },
   { method: 'POST', path: '/auth/exchange', auth: 'none', handler: exchange },
   { method: 'POST', path: '/auth/link', auth: 'user', handler: link },
+  { method: 'DELETE', path: '/auth/identities/:provider', auth: 'user', handler: unlink },
   { method: 'POST', path: '/auth/signout', auth: 'none', handler: signOut },
   { method: 'GET', path: '/api/me', auth: 'user', handler: me },
 ];

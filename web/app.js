@@ -535,7 +535,13 @@ function route() {
 function settingsWays() {
   return {
     linkable: Object.entries(app.providers || {}).filter(([, ready]) => ready).map(([name]) => name),
-    link: (name) => remote.link(name).catch((err) => alert(`Could not start linking: ${err.message}`)),
+    link: (name, opts = {}) => remote.link(name, opts).catch((err) => alert(`Could not start linking: ${err.message}`)),
+    unlink: async (name) => {
+      const result = await remote.unlink(name);
+      app.user = { ...app.user, providers: result.providers };
+      refreshHeader();
+      return result;
+    },
     onAccountChanged: (profile) => {
       app.user = { ...app.user, name: profile.name, avatar: profile.avatar };
       refreshHeader();

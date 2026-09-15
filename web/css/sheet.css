@@ -1800,3 +1800,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .contact-head h1 { margin: 0; }
 .contact-logo { width: 64px; height: 64px; flex: none; }
 @media (max-width: 48rem) { .brand-logo { width: 30px; height: 30px; } .hero-logo { width: 80px; height: 80px; } }
+
+/* Settings: each sign-in's own actions, at the end of its line. */
+.profile-signins li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.signin-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-left: auto; }

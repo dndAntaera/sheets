@@ -347,6 +347,43 @@ export function buildWorkerSuite() {
     t.ok(bogus.location.endsWith('sign-in-failed/link-expired'));
   });
 
+  test('a sign-in can be unlinked, but never the last one', async (t) => {
+    people.google = googler('g-400', 'Dara', 'dara@example.com');
+    const g = await signIn('google');
+    const alone = await call('DELETE', '/auth/identities/google', { token: g.token });
+    t.eq(alone.status, 409, 'the only sign-in stays');
+    t.eq((await call('DELETE', '/auth/identities/discord', { token: g.token })).status, 404, 'nor can one it does not have be removed');
+
+    const link = await call('POST', '/auth/link', { token: g.token });
+    people.discord = discorder('d-400', 'dara');
+    await signIn('discord', { link: link.data.link });
+    const gone = await call('DELETE', '/auth/identities/google', { token: g.token });
+    t.eq(gone.status, 200);
+    t.eq(gone.data.providers, ['discord']);
+
+    people.google = googler('g-400', 'Dara', 'dara@example.com');
+    const again = await signIn('google');
+    const meAgain = await call('GET', '/api/me', { token: again.token });
+    t.ok(meAgain.data.id !== (await call('GET', '/api/me', { token: g.token })).data.id, 'the unlinked Google account no longer reaches it');
+    t.eq((await call('DELETE', '/auth/identities/discord', { token: g.token })).status, 409, 'and the Discord sign-in left is now the last');
+  });
+
+  test('a sign-in can be moved to a different account at the same provider', async (t) => {
+    people.google = googler('g-500', 'Eli', 'eli@example.com');
+    const old = await signIn('google');
+    const link = await call('POST', '/auth/link', { token: old.token, body: { replace: 'google' } });
+    t.eq(link.status, 200);
+    people.google = googler('g-501', 'Eli (new)', 'eli.new@example.com');
+    const moved = await signIn('google', { link: link.data.link });
+    const me = await call('GET', '/api/me', { token: moved.token });
+    t.eq(me.data.id, (await call('GET', '/api/me', { token: old.token })).data.id, 'the same account');
+    t.eq(me.data.providers, ['google'], 'with one Google sign-in, not two');
+
+    people.google = googler('g-500', 'Eli', 'eli@example.com');
+    const stale = await signIn('google');
+    t.ok((await call('GET', '/api/me', { token: stale.token })).data.id !== me.data.id, 'the old Google account no longer reaches it');
+  });
+
   test('signing out ends the session', async (t) => {
     people.google = googler('g-100', 'Ada', 'ada@example.com');
     const s = await signIn('google');

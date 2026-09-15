@@ -96,7 +96,7 @@ export async function showProfile(main, app, id) {
    ========================================================================== */
 
 /**
- * @param ways  from app.js: { signInLabels, linkable: [provider], onAccountChanged(profile), signOut() }
+ * @param ways  from app.js: { linkable: [provider], link(provider, { replace }), unlink(provider), onAccountChanged(profile), signOut() }
  */
 export async function showSettings(main, app, ways) {
   refill(main, h('div.roster', h('p.empty', { text: 'Opening your settings…' })));
@@ -116,7 +116,7 @@ export async function showSettings(main, app, ways) {
       h('a.hint', { href: '#/profile', text: 'View your profile' })),
     profileSection(p, ways, redraw),
     appearanceSection(app),
-    signInSection(p, ways),
+    signInSection(p, ways, redraw),
     h('section.campaign-section',
       h('h2', { text: 'Signing out' }),
       h('p.hint', { text: 'Your characters, homebrew and settings stay with your account.' }),
@@ -240,14 +240,50 @@ function appearanceSection(app) {
     groups);
 }
 
-function signInSection(p, ways) {
-  const have = p.signIns.map((s) => s.provider);
+/**
+ * The ways this account signs in. Each can be moved to a different account at
+ * the same provider, or removed - but never the last one, so there is always a
+ * way back in.
+ */
+function signInSection(p, ways, redraw) {
+  const { line, say } = messenger();
+  const have = [...new Set(p.signIns.map((s) => s.provider))];
+  const onlyOne = have.length < 2;
   return h('section.campaign-section',
     h('h2', { text: 'Sign-in' }),
-    h('ul.profile-signins', p.signIns.map((s) => h('li',
-      h('span', { text: PROVIDER_LABELS[s.provider] || s.provider }),
-      s.name ? h('span.hint', { text: `as ${s.name}` }) : null,
-      h('span.hint', { text: `since ${since(s.since)}` })))),
+    line,
+    h('ul.profile-signins', p.signIns.map((s) => {
+      const label = PROVIDER_LABELS[s.provider] || s.provider;
+      const actions = h('span.signin-actions');
+      const normal = () => refill(actions,
+        ways.linkable.includes(s.provider)
+          ? button(`Use a different ${label} account`, () => ways.link(s.provider, { replace: true }), { subtle: true, title: `Sign in with another ${label} account; it takes this one’s place.` })
+          : null,
+        button('Unlink', () => refill(actions,
+          h('span.hint', { text: `Stop signing in with ${label}?` }),
+          button('Unlink', async () => {
+            try {
+              await ways.unlink(s.provider);
+              redraw();
+            } catch (err) {
+              say('fail', `${err.message}.`);
+              normal();
+            }
+          }, { subtle: true, danger: true }),
+          button('Cancel', normal, { subtle: true })), {
+          subtle: true,
+          danger: true,
+          disabled: onlyOne,
+          title: onlyOne ? 'Your only way of signing in. Link another first.' : `Stop signing in with ${label}.`,
+        }));
+      normal();
+      return h('li',
+        h('span', { text: label }),
+        s.name ? h('span.hint', { text: `as ${s.name}` }) : null,
+        h('span.hint', { text: `since ${since(s.since)}` }),
+        actions);
+    })),
+    onlyOne ? h('p.hint', { text: 'An account always keeps at least one way to sign in. Link another to be able to unlink this one.' }) : null,
     ways.linkable.filter((name) => !have.includes(name)).map((name) => button(`Also sign in with ${PROVIDER_LABELS[name]}`,
       () => ways.link(name), { subtle: true, title: `Reach this same account by signing in with ${PROVIDER_LABELS[name]} too.` })));
 }

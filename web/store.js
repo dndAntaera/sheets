@@ -369,11 +369,17 @@ export const remote = {
     return result;
   },
 
-  /** Add the other provider to the signed-in account. */
+  /**
+   * Add a provider to the signed-in account - or, with `replace`, move the
+   * account's sign-in at that provider to a different account there.
+   */
   async link(provider, opts = {}) {
-    const { link } = await api('/auth/link', { method: 'POST' });
+    const { link } = await api('/auth/link', { method: 'POST', body: JSON.stringify(opts.replace ? { replace: provider } : {}) });
     this.signIn(provider, { ...opts, link });
   },
+
+  /** Stop signing in with a provider. The server keeps at least one. */
+  unlink: (provider) => api(`/auth/identities/${encodeURIComponent(provider)}`, { method: 'DELETE' }),
 
   async signOut() {
     await flushLibrarySync().catch(() => {});
