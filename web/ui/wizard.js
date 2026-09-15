@@ -4,8 +4,7 @@
 // It is not a second sheet. Each step draws the same panels the sheet does -
 // the abilities panel, the skills panel - bound to the same character, so every
 // number, notice and rule is the sheet's own. What the wizard adds is order,
-// words saying what each step is for, and cards for the two choices that are
-// easiest to make by comparing: race and class.
+// words saying what each step is for, and a box to find a race in.
 //
 // A character in the wizard carries `meta.wizard.step`; finishing removes it.
 // app.js draws a step with openSheet(id, { wizard: key }). Every step opened is
@@ -15,7 +14,6 @@
 import { h, field, select, labelled, row, total, out, button } from './dom.js';
 import { ABILITIES, ABILITY_NAMES } from '../engine/abilities.js';
 
-const PROGRESSION = { good: 'good', average: 'average', poor: 'poor' };
 const ALIGNMENTS = [
   ['', '- choose -'],
   ['LG', 'Lawful good'], ['NG', 'Neutral good'], ['CG', 'Chaotic good'],
@@ -56,11 +54,10 @@ export const WIZARD_STEPS = [
     title: 'Class',
     intro: [
       'Your class decides your hit die, how fast your attack bonus and saves grow, and how many skill points you get.',
-      'Type to narrow the list and choose a class for your first level. If you start above 1st level, fill in the rest below - a different class on a row is multiclassing.',
+      'Choose a class for each level - typing narrows the list. A different class on a row is multiclassing. With gestalt switched on (under Concept), every level takes a second class as well.',
     ],
     panels: ['levels'],
     notices: ['levels'],
-    body: classStep,
   },
   {
     key: 'abilities',
@@ -178,7 +175,7 @@ export function stepForNotice(field) {
  * @param ways   from app.js: {
  *                 panels: { key: build(app) }, hrefFor(step), fullSheetHref,
  *                 go(step), finish(), choose(path, value),
- *                 variants(), raceChoices(), classChoices()
+ *                 variants(), raceChoices()
  *               }
  * @returns { root, panels } - the page, and the panels drawn in it by key
  */
@@ -337,45 +334,6 @@ function raceStep(app, ways) {
             h('p.hint.race-traits', { text: app.derived.race.traits }))
           : h('p.hint', { text: `${chosen} is not a race the sheet knows. Its size, speed and adjustments can be entered on the full sheet, or written up under Content.` }))
         : h('p.hint', { text: 'No race chosen yet.' }))));
-}
-
-function classStep(app, ways) {
-  const chosen = app.character.levels?.[0]?.a || '';
-  const choices = ways.classChoices();
-  const goodSaves = (s = {}) => Object.entries(s).filter(([, v]) => v === 'good').map(([k]) => ({ fort: 'Fortitude', ref: 'Reflex', will: 'Will' }[k] || k)).join(', ') || 'none';
-  const kind = (k) => [k.psionic ? 'psionic' : '', k.custom ? 'homebrew' : ''].filter(Boolean).join(', ');
-  const picked = app.derived.index.classByName.get(chosen) || choices.find((k) => k.name === chosen);
-
-  const facts = (k) => {
-    const casting = k.casting?.ability ? `${k.casting.type || ''} spells from ${k.casting.ability.toUpperCase()}${k.casting.spontaneous ? ', cast without preparing' : k.casting.spellbook ? ', prepared from a spellbook' : ', prepared'}`
-      : k.manifesting?.ability ? `psionic powers from ${k.manifesting.ability.toUpperCase()}` : null;
-    const skills = Array.isArray(k.classSkills) ? k.classSkills.join(', ') : k.classSkills;
-    return h('div.class-facts',
-      h('div.row',
-        h('div.total', h('span.label', { text: 'Hit die' }), h('span.out', { text: k.hd ? `d${k.hd}` : '?' })),
-        h('div.total', h('span.label', { text: 'Attack' }), h('span.out', { text: PROGRESSION[k.bab] || k.bab || '?' })),
-        h('div.total', h('span.label', { text: 'Skill points' }), h('span.out', { text: k.skillPoints !== undefined ? `${k.skillPoints} + Int` : '?' })),
-        k.startingGold ? h('div.total', h('span.label', { text: 'Starting gold' }), h('span.out', { text: `${k.startingGold.average} gp` })) : null),
-      h('p', { text: `Good saves: ${goodSaves(k.saves)}.` }),
-      casting ? h('p', { text: `Casts ${casting}.` }) : null,
-      skills ? h('p.hint', { text: `Class skills: ${skills}.` }) : null);
-  };
-
-  return h('div.wizard-body',
-    h('section.panel', h('div.panel-body',
-      pickerBox({
-        label: '1st-level class',
-        listId: 'wizard-class-names',
-        value: chosen,
-        placeholder: 'Start typing a class',
-        choices: choices.map((k) => ({ name: k.name, note: [`d${k.hd} hit die`, `${k.skillPoints ?? '?'} skill points`, kind(k)].filter(Boolean).join(' - ') })),
-        onPick: (name) => ways.choose('levels.0.a', name),
-      }),
-      chosen
-        ? (picked && !picked.missing
-          ? facts(picked)
-          : h('p.hint', { text: `${chosen} is not a class the sheet knows. Write it up under Content so its numbers count.` }))
-        : h('p.hint', { text: 'No class chosen yet.' }))));
 }
 
 function reviewStep(app, ways) {

@@ -914,13 +914,6 @@ function wizardWays() {
       app.rules.races?.races || [],
       shelvesFor(app.character).map((s) => s.shelf.list('race').map((r) => ({ ...r, custom: true }))),
     ]),
-    // NPC classes (adept, aristocrat, commoner, expert, warrior) are kept in the
-    // data for later use, but are not for building a player character.
-    classChoices: () => byName([
-      app.rules.classes.classes.filter((k) => !k.npcClass),
-      [...(app.derived?.index?.classByName?.values() || [])].filter((k) => k.variant && !k.classVariant && !k.npcClass),
-      shelvesFor(app.character).map((s) => s.shelf.list('class').map((k) => ({ ...k, custom: true }))),
-    ]),
   };
 }
 
