@@ -13,8 +13,11 @@ No one picks a campaign from a list.
 
 - **SRD** — public, and the default. The 3.5 SRD as published: every SRD class, skill and
   core race, 1st-level start, point buy at the budget you pick, and no campaign
-  restrictions. The Unearthed Arcana variants — gestalt, action points, traits
-  and flaws — are there for tables that use them, off until a player ticks them.
+  restrictions. Unearthed Arcana's races, classes and feats — aquatic dwarves,
+  bardic sages, prestige paladins, spelltouched feats — are simply in the lists;
+  its rules — gestalt, traits and flaws, defense bonus, spell points and the rest —
+  are there for tables that use them, off until a player switches them on in the
+  creator.
 - **Antæra** — campaigns only. The campaign documented in the
   [Antæra Wiki](https://dndantaera.github.io/antaera-wiki/). 3rd-level start,
   30-point buy, gestalt set by the campaign's GM, action points, taint,
@@ -50,6 +53,11 @@ there. Changing rules never loses anything typed; it changes which rules read it
 - **Inventory and money** — a shop of the SRD's equipment, an inventory with
   weight and value, coins kept as a ledger of what was bought, sold and found,
   and the load it all makes; custom items of your own
+- **Held choices** — once a character is finished, its race, classes,
+  scores, skills, feats, spells known and languages are changed in the creator,
+  and every change is kept in the sheet's history; a campaign's GMs are told
+- **Rolling in Discord** — `/roll hide`, `/roll longsword`, `/roll 2d6+3` from
+  your sheet, once the bot is set up (see MAINTAINING.md)
 - **Equipment slots** — armor, shield, as many weapons as you like, and the body
   slots for magic items, filled from the inventory
 - **Armor Class as a table** of every source, and **attack cards** for each

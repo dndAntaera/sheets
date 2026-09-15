@@ -7,12 +7,16 @@
 // words saying what each step is for, and a box to find a race in.
 //
 // A character in the wizard carries `meta.wizard.step`; finishing removes it.
+// A finished character opened in the creator again carries `meta.wizard.revision`
+// too: a copy of its held choices from before (engine/locks.js), so leaving can
+// say what changed - and record it - or put everything back.
 // app.js draws a step with openSheet(id, { wizard: key }). Every step opened is
 // remembered in `meta.creatorVisited`; finishing with steps never opened keeps
 // them in `meta.creatorSkipped`, and the sheet flags them until they are.
 
 import { h, field, select, labelled, row, total, out, button } from './dom.js';
 import { ABILITIES, ABILITY_NAMES } from '../engine/abilities.js';
+import { lockedParts, lockChanges, restoreLocked, historyEntry, withHistory } from '../engine/locks.js';
 
 const ALIGNMENTS = [
   ['', '- choose -'],
@@ -31,8 +35,8 @@ export const WIZARD_STEPS = [
     key: 'concept',
     title: 'Concept',
     intro: [
-      'Start with who this is. A name and a rough idea are enough - everything here can change later.',
-      'Below that are the optional rules this character uses. Leave them off unless your table plays with them.',
+      'Start with who this is. A name and a rough idea are enough.',
+      'Below that are the optional rules that change how this character is built - two classes a level, a different way of buying skills. Leave them off unless your table plays with them.',
     ],
     panels: [],
     notices: [],
@@ -56,7 +60,7 @@ export const WIZARD_STEPS = [
       'Your class decides your hit die, how fast your attack bonus and saves grow, and how many skill points you get.',
       'Choose a class for each level - typing narrows the list. A different class on a row is multiclassing. With gestalt switched on (under Concept), every level takes a second class as well.',
     ],
-    panels: ['levels'],
+    panels: ['levels', 'classChoices'],
     notices: ['levels'],
   },
   {
@@ -109,11 +113,21 @@ export const WIZARD_STEPS = [
     notices: ['casting', 'languages', 'content'],
   },
   {
+    key: 'advanced',
+    title: 'Advanced',
+    intro: [
+      'Optional rules that change how the character plays at the table rather than how it is made: defense bonus, vitality and wound points, spell points, honor and the rest.',
+      'Leave them all off unless your table uses them.',
+    ],
+    panels: ['advancedRules'],
+    notices: ['variants'],
+  },
+  {
     key: 'review',
     title: 'Review',
     intro: [
       'Here is the character as it stands. Anything the sheet thinks is wrong or unfinished is listed; each step link takes you back to fix it.',
-      'Finish to open the full sheet, where everything stays editable.',
+      'Finish to open the full sheet. What the character is built of - race, classes, scores, skills, feats, spells known, languages - is then changed only here, and every change is kept in its history.',
     ],
     panels: [],
     notices: null,
@@ -137,7 +151,7 @@ export function visitStep(character, key) {
   if (!meta.creatorVisited && meta.wizard?.step) {
     meta.creatorVisited = WIZARD_STEPS.slice(0, stepIndex(meta.wizard.step)).map((s) => s.key);
   }
-  if (meta.wizard?.step !== key) { meta.wizard = { step: key }; changed = true; }
+  if (meta.wizard?.step !== key) { meta.wizard = { ...(meta.wizard || {}), step: key }; changed = true; }
   const visited = new Set(meta.creatorVisited || []);
   if (!visited.has(key)) { visited.add(key); meta.creatorVisited = [...visited]; changed = true; }
   if ((meta.creatorSkipped || []).some((s) => s.key === key)) {
@@ -154,12 +168,51 @@ export function skippedSteps(character) {
   return WIZARD_STEPS.filter((s) => s.key !== 'review' && !visited.has(s.key)).map((s) => ({ key: s.key, title: s.title }));
 }
 
-/** Leave the creator: the draft is done, and any skipped steps are kept to be flagged. */
-export function finishCreator(character, skipped) {
+/**
+ * Open a finished character in the creator again. Its held choices are copied
+ * first, so leaving can tell what changed - or throw the changes away.
+ */
+export function beginRevision(character, step) {
   character.meta = character.meta || {};
+  character.meta.wizard = { step, revision: { started: new Date().toISOString(), before: lockedParts(character) } };
+}
+
+export const inRevision = (character) => Boolean(character?.meta?.wizard?.revision);
+
+/** What a character in the creator again has changed so far. */
+export function revisionChanges(character) {
+  const revision = character?.meta?.wizard?.revision;
+  return revision ? lockChanges(revision.before, character) : [];
+}
+
+/**
+ * Leave the creator. A draft is done, and any skipped steps are kept to be
+ * flagged. A finished character's changes are returned - and written into its
+ * history when `record` is set, which is for a sheet no server will record them
+ * for (the server writes them itself, trusting no sheet's own history).
+ *
+ * @param opts { record, by: { id, name } }
+ * @returns the changes: [{ area, label, step, text }]
+ */
+export function finishCreator(character, skipped, opts = {}) {
+  character.meta = character.meta || {};
+  const revision = character.meta.wizard?.revision;
   delete character.meta.wizard;
   if (skipped.length) character.meta.creatorSkipped = skipped;
   else delete character.meta.creatorSkipped;
+  character.meta.finished = character.meta.finished || new Date().toISOString();
+  if (!revision) return [];
+  const changes = lockChanges(revision.before, character);
+  if (opts.record) character.history = withHistory(character.history, historyEntry(changes, { by: opts.by || null }));
+  return changes;
+}
+
+/** Leave the creator with a finished character as it was: every held choice put back. */
+export function discardRevision(character) {
+  const revision = character?.meta?.wizard?.revision;
+  if (!revision) return;
+  restoreLocked(character, revision.before);
+  delete character.meta.wizard;
 }
 
 /** Which step a notice belongs to, by its field. */
@@ -174,8 +227,8 @@ export function stepForNotice(field) {
  * @param key    the step
  * @param ways   from app.js: {
  *                 panels: { key: build(app) }, hrefFor(step), fullSheetHref,
- *                 go(step), finish(), choose(path, value),
- *                 variants(), raceChoices()
+ *                 go(step), finish(), skip(), discard(), choose(path, value),
+ *                 variants(), raceChoices(), campaignName
  *               }
  * @returns { root, panels } - the page, and the panels drawn in it by key
  */
@@ -195,12 +248,15 @@ export function wizardPage(app, key, ways) {
       h('span.wizard-step-number', { text: String(i + 1) }),
       h('span.wizard-step-title', { text: s.title })))));
 
+  const revising = inRevision(app.character);
   const root = h('div.wizard',
     h('div.wizard-top',
       h('div',
-        h('p.eyebrow', { text: `New ${app.rules.ruleset.shortName} character` }),
-        h('h1.wizard-title', { text: 'Create a character' })),
-      h('button.btn.subtle.hint', { type: 'button', onclick: ways.skip, title: 'Steps not yet opened are flagged on the sheet until you come back to them.' }, 'Skip to the full sheet')),
+        h('p.eyebrow', { text: revising ? 'Changing a finished character' : `New ${app.rules.ruleset.shortName} character` }),
+        h('h1.wizard-title', { text: revising ? `Change ${app.character.name || 'this character'}` : 'Create a character' })),
+      revising
+        ? h('button.btn.subtle.hint', { type: 'button', onclick: ways.discard, title: 'Put every choice back as it was, and return to the sheet.' }, 'Discard changes')
+        : h('button.btn.subtle.hint', { type: 'button', onclick: ways.skip, title: 'Steps not yet opened are flagged on the sheet until you come back to them.' }, 'Skip to the full sheet')),
     h('nav.wizard-progress', { 'aria-label': 'Steps' }, progress),
     h('div.wizard-layout',
       h('div.wizard-main',
@@ -215,7 +271,7 @@ export function wizardPage(app, key, ways) {
           h('p.wizard-nav-note', { dataset: { wizardNote: '' } }),
           next
             ? h('button.btn.primary', { type: 'button', onclick: () => ways.go(next.key) }, `Next: ${next.title}`)
-            : h('button.btn.primary', { type: 'button', onclick: ways.finish }, 'Finish and open the sheet'))),
+            : h('button.btn.primary', { type: 'button', onclick: ways.finish }, revising ? 'Save the changes' : 'Finish and open the sheet'))),
       h('aside.wizard-side',
         summaryCard(app),
         h('aside#notices.notices'))));
@@ -274,9 +330,9 @@ function conceptStep(app, ways) {
         row(small('Gender', 'gender'), small('Age', 'age'), small('Height', 'height'), small('Weight', 'weight')),
         row(small('Eyes', 'eyes'), small('Hair', 'hair'), small('Skin', 'skin'))))),
     h('section.panel', h('div.panel-body',
-      h('h3', { text: 'Rules for this character' }),
+      h('h3', { text: 'Rules for building this character' }),
       ways.variants(),
-      h('p.hint', { text: 'Every other variant rule in the SRD - defense bonus, spell points, vitality and wound points and the rest - can be switched on from the sheet\u2019s Rules page.' }))));
+      h('p.hint', { text: 'The variant races, classes and feats - aquatic dwarves, bardic sages, spelltouched feats - are in the lists as you go. Rules of play, like defense bonus and spell points, come in the Advanced step.' }))));
 }
 
 /**
@@ -344,8 +400,16 @@ function reviewStep(app, ways) {
     counts[key][n.level] += 1;
   }
   const skipped = skippedSteps(app.character).filter((st) => st.key !== 'review');
+  const revising = inRevision(app.character);
+  const changes = revising ? revisionChanges(app.character) : [];
   return h('div.wizard-body',
-    skipped.length ? h('p.wizard-skipped', { text: `Not opened yet: ${listed(skipped.map((st) => st.title))}. Finishing now flags ${skipped.length === 1 ? 'it' : 'them'} on the sheet.` }) : null,
+    revising ? h('section.panel.wizard-changes', h('div.panel-body',
+      h('h3', { text: 'What changes' }),
+      changes.length
+        ? h('ul.history-changes', changes.map((ch) => h('li', h('span.label', { text: ch.label }), ' ', h('span', { text: ch.text }))))
+        : h('p.hint', { text: 'Nothing the character is built of has changed yet.' }),
+      h('p.hint', { text: `Saving keeps these in the character’s history${ways.campaignName ? `, and tells the GMs of ${ways.campaignName}` : ''}. Discarding puts every choice back as it was.` }))) : null,
+    !revising && skipped.length ? h('p.wizard-skipped', { text: `Not opened yet: ${listed(skipped.map((st) => st.title))}. Finishing now flags ${skipped.length === 1 ? 'it' : 'them'} on the sheet.` }) : null,
     h('section.panel', h('div.panel-body',
       h('h3', { text: 'Step by step' }),
       h('ul.wizard-review', WIZARD_STEPS.filter((s) => s.key !== 'review').map((s) => {

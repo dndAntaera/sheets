@@ -9,13 +9,16 @@
 // out which numbers a change affects - is where sheets get their wrong totals.
 
 import {
-  loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS,
-  moduleState, MODULES, VARIANT_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic, restedTrackers,
+  loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS, rollSheet,
+  moduleState, MODULES, BUILD_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic, restedTrackers,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
 import {
   wizardPage, paintWizard, WIZARD_STEPS, stepForNotice, skippedSteps, finishCreator, visitStep, listed,
+  beginRevision, inRevision, discardRevision,
 } from './ui/wizard.js';
+import { historyPanel } from './ui/history.js';
+import { isHeld, isLockedPath, lockedParts, restoreLocked } from './engine/locks.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
   houserulesPanel, textPanel, trackersPanel, hitPointsPanel, startingWealthPanel,
@@ -30,7 +33,7 @@ import { showLanding } from './ui/landing.js';
 import { showReference } from './ui/reference.js';
 import { showContact, showFeedback } from './ui/feedback.js';
 import { magicPanel } from './ui/magic.js';
-import { variantRulesPanel, variantCombatPanel, variantTracksPanel } from './ui/variants.js';
+import { advancedRulesPanel, classChoicesPanel, rulesInPlayPanel, variantCombatPanel, variantTracksPanel } from './ui/variants.js';
 import { referenceNow, lookUp } from './reference.js';
 import { SHEET_PAGES, pageFor, pageForNotice, sheetTabs } from './ui/sheet-pages.js';
 import { showProfile, showSettings, avatarFor } from './ui/profile.js';
@@ -58,7 +61,9 @@ const PANELS = {
   houserules: houserulesPanel,
   casting: (a) => magicPanel(a, { rest: restCharacter }),
   trackers: (a) => trackersPanel(a, { rest: restCharacter, newWeek: () => restCharacter('week'), setUsed: setTrackerUsed }),
-  variantRules: (a) => variantRulesPanel(a, { reopen }),
+  advancedRules: (a) => advancedRulesPanel(a, { reopen }),
+  classChoices: classChoicesPanel,
+  rulesInPlay: (a) => rulesInPlayPanel(a, { creatorHref: (step) => `#/create/${a.character.id}/${step}`, campaign: campaignOf(a.character) }),
   variantCombat: variantCombatPanel,
   variantTracks: variantTracksPanel,
   equipment: equipmentPanel,
@@ -67,6 +72,7 @@ const PANELS = {
   effects: effectsPanel,
   content: contentPanel,
   text: textPanel,
+  history: historyPanel,
 };
 
 /** Where a notice about a field sends the reader. */
@@ -113,6 +119,8 @@ app.adopt = (kind, name) => {
   }
   return false;
 };
+
+app.refreshHeader = () => refreshHeader();
 
 /* =========================================================================
    Start
@@ -306,7 +314,10 @@ function header() {
       h('img.brand-logo', { src: 'brand/logo-mark-96.png', alt: '', width: 36, height: 36 }),
       h('span.brand-name', { text: config.title })),
     h('nav.top-nav',
-      NAV.filter((item) => item.visible()).map((item) => h('a', { href: item.href, text: item.label, dataset: { nav: item.key } })),
+      NAV.filter((item) => item.visible()).map((item) => {
+        const count = item.badge?.() || 0;
+        return h('a', { href: item.href, dataset: { nav: item.key } }, item.label, count ? h('span.nav-badge', { text: String(count), title: `${count} change${count === 1 ? '' : 's'} to characters you have not seen` }) : null);
+      }),
       h('a', { href: config.wikiUrl, target: '_blank', rel: 'noopener', text: 'Wiki' })),
     h('div.top-right',
       app.status,
@@ -504,7 +515,7 @@ const VIEWS = [
 
 const NAV = [
   { key: 'roster', label: 'Characters', href: '#/characters', visible: () => signedIn() },
-  { key: 'campaigns', label: 'Campaigns', href: '#/campaigns', visible: () => Boolean(app.user) },
+  { key: 'campaigns', label: 'Campaigns', href: '#/campaigns', visible: () => Boolean(app.user), badge: () => (app.campaigns || []).reduce((n, c) => n + (c.unseenChanges || 0), 0) },
   { key: 'content', label: 'Content', href: '#/content', visible: () => signedIn() },
   { key: 'reference', label: 'Reference', href: '#/reference', visible: () => signedIn() },
   { key: 'admin', label: 'Accounts', href: '#/admin', visible: () => Boolean(app.user?.admin) },
@@ -710,7 +721,9 @@ function rosterRow(row) {
     h('a.roster-link', { href: row.draftStep ? `#/create/${row.id}/${row.draftStep}` : `#/sheet/${row.id}` },
       h('span.roster-name', { text: row.name || 'Unnamed' }),
       h('span.roster-meta', { text: [row.player, row.build || `level ${row.level || '?'}`].filter(Boolean).join(' - ') })),
-    row.draftStep ? h('span.badge.draft', { text: 'draft', title: 'Still in the character creator. Open it to carry on where you left off.' }) : null,
+    row.draftStep ? h('span.badge.draft', row.revising
+      ? { text: 'changing', title: 'Back in the creator with changes not yet saved. Open it to finish or discard them.' }
+      : { text: 'draft', title: 'Still in the character creator. Open it to carry on where you left off.' }) : null,
     row.hereOnly ? h('span.badge.here-only', { text: 'this browser', title: 'Not on your account yet. Open it and it is saved there.' }) : null,
     row.ownerName && app.user && row.owner !== app.user.id ? h('span.badge', { text: row.ownerName, title: 'Another player\u2019s character, in a campaign you run.' }) : null,
     row.campaignName ? h('a.badge.campaign-badge', { href: `#/campaign/${row.campaignId}`, text: row.campaignName, title: 'The campaign this character is in.' }) : null,
@@ -814,6 +827,13 @@ async function openSheet(id, opts = {}) {
       : WIZARD_STEPS.some((s) => s.key === saved) ? saved : WIZARD_STEPS[0].key;
     if (opts.wizard !== step) history.replaceState(null, '', `${location.pathname}${location.search}#/create/${app.character.id}/${step}`);
     app.wizard = { step };
+    // A finished character opened in the creator again: its choices are copied first, to tell what changes.
+    // Saved as it stands first, so the server holds the choices to compare the changes with.
+    if (isHeld(app.character) && canEdit()) {
+      await saveEverywhere(app.character).catch(() => {});
+      beginRevision(app.character, step);
+      scheduleSave();
+    }
     if (visitStep(app.character, step)) scheduleSave();
     const page = wizardPage(app, step, wizardWays());
     app.panels = page.panels;
@@ -824,13 +844,15 @@ async function openSheet(id, opts = {}) {
     return;
   }
   app.wizard = null;
+  // A finished character's held choices, as they stand: what the sheet puts back if one is changed here.
+  app.lockBaseline = isHeld(app.character) ? lockedParts(app.character) : null;
 
   // One page of the sheet: its panels, and the tabs to the others.
   const page = pageFor(opts.page);
   app.page = page;
   // The full sheet is every panel but the creator's own: its hit points and
   // starting wealth are parts of Combat and Gear.
-  const keys = page.panels || Object.keys(PANELS).filter((k) => !['hitPoints', 'startingWealth', 'shop'].includes(k));
+  const keys = page.panels || Object.keys(PANELS).filter((k) => !['hitPoints', 'startingWealth', 'shop', 'variants', 'advancedRules', 'history'].includes(k));
   app.panels = {};
   const sheet = h('div.sheet');
   for (const key of keys) {
@@ -843,7 +865,7 @@ async function openSheet(id, opts = {}) {
 
   refill(main,
     h('div.sheet-layout',
-      h('div.sheet-main', sheetToolbar(), sheetTabs(app.character.id, page.key, app.derived), sheet),
+      h('div.sheet-main', sheetToolbar(), sheetTabs(app.character.id, page.key, app.derived, app.character), sheet),
       h('aside#notices.notices')));
 
   app.unbind = bindForm(main, () => app.character, onEdit);
@@ -898,17 +920,26 @@ function wizardWays() {
       location.hash = `#/create/${id}/${step}`;
     },
     skip: async () => {
-      finishCreator(app.character, skippedSteps(app.character));
+      finishCreator(app.character, skippedSteps(app.character), recording());
       await flush();
       location.hash = `#/sheet/${id}`;
     },
     finish: async () => {
-      const skipped = skippedSteps(app.character);
-      if (skipped.length && !confirm(`You skipped ${listed(skipped.map((s) => s.title))}. Finish anyway? The sheet will flag ${skipped.length === 1 ? 'it' : 'them'} until you go back.`)) return;
-      finishCreator(app.character, skipped);
+      const revising = inRevision(app.character);
+      const skipped = revising ? (app.character.meta?.creatorSkipped || []) : skippedSteps(app.character);
+      if (!revising && skipped.length && !confirm(`You skipped ${listed(skipped.map((s) => s.title))}. Finish anyway? The sheet will flag ${skipped.length === 1 ? 'it' : 'them'} until you go back.`)) return;
+      const changes = finishCreator(app.character, skipped, recording());
+      await flush();
+      // Changes saved: straight to the history that now holds them.
+      location.hash = `#/sheet/${id}${revising && changes.length ? '/history' : ''}`;
+    },
+    discard: async () => {
+      if (!confirm('Put every choice back as it was before the creator was opened? Nothing is recorded.')) return;
+      discardRevision(app.character);
       await flush();
       location.hash = `#/sheet/${id}`;
     },
+    campaignName: campaignOf(app.character)?.name || null,
     /** A choice made by clicking a card: set as though it were typed, then drawn again. */
     choose: async (path, value) => {
       setPath(app.character, path, value);
@@ -917,18 +948,38 @@ function wizardWays() {
     },
     variants: () => variantsStrip(),
     raceChoices: () => byName([
+      // The core races, then the variant rules' (aquatic, arctic, desert, jungle, elemental), unless withheld.
       app.rules.races?.races || [],
+      (app.rules.variantContent?.races || []).filter((r) => app.derived.modules[r.variant]),
       shelvesFor(app.character).map((s) => s.shelf.list('race').map((r) => ({ ...r, custom: true }))),
     ]),
   };
 }
+
+/** Whether this person may change the open character: its owner, or a GM of its campaign. */
+const canEdit = () => !app.character?.access || app.character.access === 'owner' || app.character.access === 'gm';
+
+/**
+ * How leaving the creator records changes: the server writes a signed-in
+ * sheet's history itself, so the sheet writes its own only when nothing else will.
+ */
+const recording = () => ({
+  record: !(remote.enabled() && app.user),
+  by: app.user ? { id: app.user.id, name: app.user.name } : null,
+});
 
 function sheetToolbar() {
   const rs = app.rules.ruleset;
   const draft = app.character.meta?.wizard?.step;
   return h('div.toolbar',
     h('a.back', { href: '#/characters', text: 'All characters' }),
-    draft ? h('a.btn.primary', { href: `#/create/${app.character.id}/${draft}` }, 'Continue in the creator') : null,
+    draft ? h('a.btn.primary', { href: `#/create/${app.character.id}/${draft}` }, inRevision(app.character) ? 'Finish changing in the creator' : 'Continue in the creator') : null,
+    !draft && canEdit()
+      ? h('a.btn.subtle', {
+        href: `#/create/${app.character.id}/review`,
+        title: `Race, classes, scores, skills, feats, spells known and languages are changed in the creator, and each change is kept in the character\u2019s history${campaignOf(app.character) ? ' for its GMs to see' : ''}.`,
+      }, 'Change in the creator')
+      : null,
     !draft && (app.character.meta?.creatorSkipped || []).length
       ? h('span.toolbar-flag', { title: 'Steps of the character creator this character skipped.' },
         'Skipped: ',
@@ -972,7 +1023,7 @@ function variantsStrip() {
     reopen();
   };
 
-  const modules = MODULES.filter((name) => !VARIANT_MODULES.includes(name)).map((name) => {
+  const modules = MODULES.filter((name) => BUILD_MODULES.includes(name)).map((name) => {
     const state = moduleState(app.rules, c, name, app.overrides);
     if (!state.available) return null;
     if (state.choosable) {
@@ -1064,10 +1115,16 @@ const RESHAPES = [
   [/^wealth\.items\.\d+\.(name|qty)$/, ['equipment', 'trackers']],
   [/^wealth\.items\.\d+\.stats\./, ['equipment', 'attackCards']],
   [/^(feats|features|wealth\.items)\.\d+\.uses$/, ['trackers', 'abilitiesList']],
-  [/^levels\.\d+\.[ab]$/, ['casting']],
+  [/^levels\.\d+\.[ab]$/, ['casting', 'classChoices', 'skills']],
 ];
 
 function onEdit(path, value, el, ev) {
+  // A finished character's held choices change only in the creator: anything that slips through is put back.
+  if (!app.wizard && app.lockBaseline && isLockedPath(path)) {
+    restoreLocked(app.character, app.lockBaseline);
+    reopen();
+    return;
+  }
   if (path === 'abilities.method' && app.character.abilities) delete app.character.abilities.placed;
   // Adopt library content the name points at, before recomputing.
   let embedded = false;
@@ -1107,8 +1164,49 @@ function recompute() {
   paintConditions(root, app.derived);
   paintContent(root, app, library);
   paintWizard(root, app);
+  holdChoices(root);
   refreshDatalists();
   document.title = `${app.character.name || 'Unnamed'} - ${config.title}`;
+}
+
+/** The panels that show a finished character's held choices, and what each says about them. */
+const HELD_PANELS = {
+  levels: ['class', 'Classes are chosen in the creator.'],
+  classChoices: ['class', 'Chosen in the creator.'],
+  abilities: ['abilities', 'Base scores and level increases are chosen in the creator.'],
+  skills: ['skills', 'Skill ranks are chosen in the creator.'],
+  feats: ['feats', 'Feats, traits and flaws are chosen in the creator.'],
+  languages: ['details', 'Languages are chosen in the creator.'],
+  casting: ['details', 'Spells and powers known are chosen in the creator; preparing and casting happen here.'],
+};
+// Controls, not bound to a path, that change held choices.
+const HELD_CONTROLS = '[data-lock], .roller, .base-score, .magic-adder, .magic-options';
+const WHOLLY_HELD = ['feats', 'languages', 'classChoices'];
+
+/**
+ * On the sheet, a finished character's held choices are shown but not changed:
+ * their fields and buttons are disabled, and each panel says where they are
+ * changed. In the creator, and for a draft, everything stays open.
+ */
+function holdChoices(root) {
+  if (!root || app.wizard || !app.character || !isHeld(app.character)) return;
+  const hold = (el) => {
+    if (el.disabled) return;
+    el.disabled = true;
+    el.classList.add('is-held');
+    if (!el.title) el.title = 'Chosen in the creator. Change it there.';
+  };
+  const controls = (el) => (el.matches('input, select, textarea, button') ? [el] : [...el.querySelectorAll('input, select, textarea, button')]);
+  for (const el of root.querySelectorAll('[data-field]')) if (isLockedPath(el.dataset.field)) hold(el);
+  for (const el of root.querySelectorAll(HELD_CONTROLS)) controls(el).forEach(hold);
+  for (const key of WHOLLY_HELD) if (app.panels[key]) controls(app.panels[key]).forEach(hold);
+  for (const [key, [step, words]] of Object.entries(HELD_PANELS)) {
+    const panel = app.panels[key];
+    if (!panel || panel.hidden || panel.querySelector('.held-note')) continue;
+    const note = h('p.held-note', `${words} `, canEdit() ? h('a', { href: `#/create/${app.character.id}/${step}`, text: 'Change in the creator' }) : null);
+    const title = panel.querySelector('.panel-title');
+    if (title) title.after(note); else panel.prepend(note);
+  }
 }
 
 /**
@@ -1247,6 +1345,8 @@ async function flush() {
   clearTimeout(saveTimer);
   if (!app.character) return;
   app.character.meta = { ...app.character.meta, build: app.derived?.summary.label || '' };
+  // What a roll needs, for the Discord bot, which runs no engine of its own.
+  if (app.derived) app.character.rolls = rollSheet(app.derived, app.character);
   const result = await saveEverywhere(app.character);
   if (!app.status) return;
   // Signed out is a normal way to use the app, not a failure: "saved" either

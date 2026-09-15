@@ -7,11 +7,13 @@
 // the numbers the sheet has already worked out, it returns what the variant
 // changes or adds.
 //
-// A player's choices within a variant - a class's variant, a generic class's
-// good saves, massive damage's threshold, what has been spent - are kept on the
+// A class variant is a class of its own name - "Cloistered cleric" on a level
+// row - read back to the class it varies (classVariantView). A player's other
+// choices within a variant - a generic class's good saves, a feature traded
+// away, massive damage's threshold, what has been spent - are kept on the
 // character under `variants`:
 //
-//   variants.classVariant[className]   'cloisteredCleric', 'battleSorcerer', ...
+//   variants.featureVariants[className] { familiar, bonusFeats, schoolSlot, wildShape }: the variant taken in each's place
 //   variants.genericSaves[className]   ['fort'] or ['ref', 'will']
 //   variants.chosenSkills[className]   the class skills a generic or human paragon class picks
 //   variants.casterAbility[className]  a generic spellcaster's 'int', 'cha' or 'wis'
@@ -56,9 +58,12 @@ export const CLASS_VARIANTS = {
   },
   Cleric: {
     cloisteredCleric: { name: 'Cloistered cleric', hd: 6, bab: 'poor', skillPoints: 6, skills: { add: ['Decipher Script', 'Speak Language', 'Knowledge'] } },
+    // Spontaneous divine casters: spells known, one more spell a day at each level, no domain slot.
+    spontaneousCleric: { name: 'Spontaneous cleric', module: 'spontaneousDivine', casting: { spontaneous: true, spontaneousDivine: true, knownBonus: 2 } },
   },
   Druid: {
     druidicAvenger: { name: 'Druidic avenger', skills: { add: ['Intimidate'], remove: ['Diplomacy'] } },
+    spontaneousDruid: { name: 'Spontaneous druid', module: 'spontaneousDivine', casting: { spontaneous: true, spontaneousDivine: true, knownBonus: 1 } },
   },
   Fighter: {
     thug: { name: 'Thug', skillPoints: 4, skills: { add: ['Bluff', 'Gather Information', 'Knowledge (local)', 'Sleight of Hand'] } },
@@ -102,10 +107,30 @@ const progressionFromTable = (table, key, levels) => {
   return (table[0]?.[key] ?? 0) >= 2 ? 'good' : 'poor';
 };
 
+/** A class variant as a class of its own: the class it varies, changed to match. */
+function variantClass(base, className, variantKey, variant) {
+  const skills = new Set(Array.isArray(base.classSkills) ? base.classSkills : String(base.classSkills || '').split(',').map((s) => s.trim()));
+  for (const s of variant.skills?.remove || []) skills.delete(s);
+  for (const s of variant.skills?.add || []) skills.add(s);
+  return {
+    ...base,
+    name: variant.name,
+    baseClass: className,
+    hd: variant.hd ?? base.hd,
+    bab: variant.bab ?? base.bab,
+    saves: variant.saves ? { ...base.saves, ...variant.saves } : base.saves,
+    skillPoints: variant.skillPoints ?? base.skillPoints,
+    classSkills: [...skills].filter(Boolean),
+    casting: base.casting && variant.casting ? { ...base.casting, ...variant.casting } : base.casting,
+    classVariant: { key: variantKey, name: variant.name, note: variant.note || null },
+    variant: variant.module || 'classVariants',
+  };
+}
+
 /**
- * The class list a character's variants make: every class it already has, the
- * generic and paragon classes when those variants are on, and each class the
- * character plays a variant of, changed to match.
+ * The class list the variant rules make: the generic, paragon and prestigious
+ * classes, and every class variant under its own name - "Bardic sage",
+ * "Spontaneous cleric" - each offered unless its variant is off.
  *
  * @param classByName  the Map from contentIndex
  * @returns a new Map; the one passed in is not changed
@@ -114,6 +139,8 @@ export function variantClassIndex(classByName, character, rules, modules) {
   const index = new Map(classByName);
   const state = character.variants || {};
   const chosen = (name) => (state.chosenSkills?.[name] || []).filter(Boolean);
+  // Homebrew of the same name, carried by the character, wins.
+  const offer = (name, def) => { if (!classByName.get(name)?.custom) index.set(name, def); };
 
   if (modules.genericClasses) {
     const slots = rules.variants?.tables?.genericSpellcasterSlots || [];
@@ -122,7 +149,7 @@ export function variantClassIndex(classByName, character, rules, modules) {
       const defaults = g.goodSaves === 2 ? ['ref', 'will'] : g.spellcaster ? ['will'] : ['fort'];
       const goodSaves = good.length ? good : defaults;
       const ability = state.casterAbility?.[g.name] || 'cha';
-      index.set(g.name, {
+      offer(g.name, {
         name: g.name,
         hd: g.hd,
         bab: g.bab,
@@ -142,7 +169,7 @@ export function variantClassIndex(classByName, character, rules, modules) {
 
   if (modules.paragonClasses) {
     for (const p of rules.variants?.paragonClasses || []) {
-      index.set(p.name, {
+      offer(p.name, {
         name: p.name,
         hd: p.hd,
         bab: progressionFromTable(p.table, 'bab'),
@@ -158,38 +185,164 @@ export function variantClassIndex(classByName, character, rules, modules) {
     }
   }
 
-  if (modules.classVariants) {
-    for (const [className, variantKey] of Object.entries(state.classVariant || {})) {
-      const variant = CLASS_VARIANTS[className]?.[variantKey];
-      const base = index.get(className);
-      if (!variant || !base) continue;
-      const skills = new Set(Array.isArray(base.classSkills) ? base.classSkills : String(base.classSkills || '').split(',').map((s) => s.trim()));
-      for (const s of variant.skills?.remove || []) skills.delete(s);
-      for (const s of variant.skills?.add || []) skills.add(s);
-      index.set(className, {
-        ...base,
-        hd: variant.hd ?? base.hd,
-        bab: variant.bab ?? base.bab,
-        saves: variant.saves ? { ...base.saves, ...variant.saves } : base.saves,
-        skillPoints: variant.skillPoints ?? base.skillPoints,
-        classSkills: [...skills].filter(Boolean),
-        casting: base.casting && variant.casting ? { ...base.casting, ...variant.casting } : base.casting,
-        classVariant: { key: variantKey, name: variant.name, note: variant.note || null },
+  // Prestigious character classes: the bard, paladin and ranger as prestige classes.
+  if (modules.prestigiousClasses) {
+    for (const p of rules.variantContent?.classes || []) {
+      offer(p.name, {
+        name: p.name,
+        hd: p.hd,
+        bab: progressionFromTable(p.table, 'bab'),
+        saves: Object.fromEntries(SAVES.map((s) => [s, progressionFromTable(p.table, s)])),
+        skillPoints: p.skillPoints,
+        classSkills: [...p.classSkills],
+        maxLevel: p.maxLevel,
+        prestige: true,
+        requires: p.requires,
+        note: p.note,
+        castingAdvance: p.castingAdvance,
+        variant: 'prestigiousClasses',
+        progression: { special: p.table.map((r) => r.special) },
       });
     }
   }
 
-  if (modules.spontaneousDivine) {
-    for (const className of ['Cleric', 'Druid']) {
-      const base = index.get(className);
-      if (!base?.casting) continue;
-      index.set(className, {
-        ...base,
-        casting: { ...base.casting, spontaneous: true, spontaneousDivine: true, knownBonus: className === 'Cleric' ? 2 : 1 },
-      });
+  for (const [className, options] of Object.entries(CLASS_VARIANTS)) {
+    const base = classByName.get(className);
+    if (!base) continue;
+    for (const [variantKey, variant] of Object.entries(options)) {
+      if (!modules[variant.module || 'classVariants']) continue;
+      offer(variant.name, variantClass(base, className, variantKey, variant));
     }
   }
   return index;
+}
+
+/**
+ * A character read with its class variants as the classes they vary.
+ *
+ * A level row may say "Cloistered cleric"; everything that knows clerics - the
+ * class table, domains, spells, class features - knows them as "Cleric". So the
+ * rows are read back to the class they vary, and the class list's "Cleric" is
+ * the cloistered cleric for this character. One character plays one version of
+ * a class: a second is reported, and counted as a class of its own.
+ *
+ * @returns { character, classByName, conflicts: [{ base, names }] } - a view; the stored character is not changed
+ */
+export function classVariantView(character, classByName) {
+  const played = new Map();
+  const conflicts = [];
+  const rows = character.levels || [];
+  const names = [...rows.flatMap((r) => [r.a, r.b]), character.nextLevel?.a, character.nextLevel?.b].filter(Boolean);
+  for (const name of names) {
+    const def = classByName.get(name);
+    const base = def?.baseClass || (def && CLASS_VARIANTS[name] ? name : null);
+    if (!base) continue;
+    if (!played.has(base)) played.set(base, name);
+    else if (played.get(base) !== name && !conflicts.some((c) => c.base === base)) conflicts.push({ base, names: [played.get(base), name] });
+  }
+  const variants = [...played].filter(([base, name]) => base !== name);
+  if (!variants.length) return { character, classByName, conflicts };
+
+  const index = new Map(classByName);
+  for (const [base, name] of variants) index.set(base, { ...classByName.get(name), name: base, displayName: name });
+  const readBack = (name) => {
+    const base = name ? classByName.get(name)?.baseClass : null;
+    return base && played.get(base) === name ? base : name;
+  };
+  const view = {
+    ...character,
+    levels: rows.map((r) => ({ ...r, a: readBack(r.a), b: readBack(r.b) })),
+    nextLevel: character.nextLevel ? { ...character.nextLevel, a: readBack(character.nextLevel.a), b: readBack(character.nextLevel.b) } : character.nextLevel,
+  };
+  return { character: view, classByName: index, conflicts };
+}
+
+/** The races the variant rules add - aquatic dwarves, fire elves and the rest - unless their variant is off. */
+export function variantRaceIndex(raceByName, rules, modules) {
+  const offered = (rules.variantContent?.races || []).filter((r) => modules[r.variant]);
+  if (!offered.length) return raceByName;
+  const index = new Map(raceByName);
+  for (const race of offered) if (!index.has(race.name)) index.set(race.name, race);
+  return index;
+}
+
+/* ==========================================================================
+   Class feature variants: a specialist wizard's, a druid's aspect of nature
+   ========================================================================== */
+
+/** The feature a variant takes the place of, in words. */
+export const REPLACED_FEATURES = {
+  familiar: 'Familiar',
+  bonusFeats: 'Bonus feats',
+  schoolSlot: 'Extra spell of the specialty school',
+  wildShape: 'Wild shape',
+};
+
+/**
+ * The class feature variants open to a class, grouped by what they replace.
+ * A specialist wizard's depend on the school: pass it, or get none.
+ *
+ * @returns { [replaces]: [option] }
+ */
+export function featureVariantOptions(className, rules, modules, school = null) {
+  const all = rules.variantContent?.featureVariants || {};
+  const out = {};
+  for (const option of all[className] || []) {
+    if (!modules[option.variant || all.variant]) continue;
+    if (option.school && option.school !== school) continue;
+    (out[option.replaces] = out[option.replaces] || []).push(option);
+  }
+  return out;
+}
+
+const listOf = (skills) => (Array.isArray(skills) ? skills : String(skills || '').split(',').map((s) => s.trim()).filter(Boolean));
+
+/**
+ * The class list with the feature variants a character took: a wizard who
+ * gave up bonus feats has none, a specialist who gave up the school's extra
+ * spell has no such slot, and a variant that adds class skills adds them.
+ *
+ * @returns { classByName, taken: [option + className], problems: [{ className, option, text }] }
+ */
+export function applyFeatureVariants(classByName, character, rules, modules) {
+  const all = rules.variantContent?.featureVariants || {};
+  const state = character.variants?.featureVariants || {};
+  const taken = [];
+  const problems = [];
+  let index = classByName;
+  for (const [className, picks] of Object.entries(state)) {
+    const def = index.get(className);
+    if (!def || !picks) continue;
+    const school = character.magic?.[className]?.specialty || null;
+    let next = def;
+    for (const [replaces, key] of Object.entries(picks)) {
+      if (!key) continue;
+      const option = (all[className] || []).find((o) => o.key === key && o.replaces === replaces);
+      if (!option || !modules[option.variant || all.variant]) continue;
+      if (option.school && option.school !== school) {
+        problems.push({ className, option, text: `${option.name} is for ${option.school.toLowerCase()} specialists${school ? `, and this ${className.toLowerCase()} specializes in ${school.toLowerCase()}` : ', and no specialty school is chosen'}.` });
+        continue;
+      }
+      taken.push({ ...option, className });
+      if (replaces === 'bonusFeats') {
+        next = {
+          ...next,
+          bonusFeats: null,
+          // A conjurer's enhanced summoning brings Augmented Summoning in place of Scribe Scroll.
+          grantedFeats: key === 'enhancedSummoning'
+            ? (next.grantedFeats || []).map((g) => (g.name === 'Scribe Scroll' ? { ...g, name: 'Augmented Summoning' } : g))
+            : next.grantedFeats,
+        };
+      }
+      if (replaces === 'schoolSlot' && next.casting) next = { ...next, casting: { ...next.casting, noSchoolSlot: true } };
+      if (option.classSkills) next = { ...next, classSkills: [...new Set([...listOf(next.classSkills), ...option.classSkills])] };
+    }
+    if (next !== def) {
+      if (index === classByName) index = new Map(classByName);
+      index.set(className, next);
+    }
+  }
+  return { classByName: index, taken, problems };
 }
 
 /* ==========================================================================
@@ -500,6 +653,16 @@ export function variantNotices(d, modules, add) {
     add('error', `${v.skills.known} skills known, but only ${v.skills.allowed} allowed.`, 'skills');
   }
   for (const [name, def] of v.classesChosing || []) {
-    add('info', `${name}: choose ${def.chooseSkills} class skills on the Rules page.`, 'variants');
+    add('info', `${name}: choose ${def.chooseSkills} class skills under Class choices.`, 'levels');
+  }
+  for (const c of v.classConflicts || []) {
+    add('error', `${c.names[0]} and ${c.names[1]} are versions of the same class; a character plays one of them.`, 'levels');
+  }
+  for (const p of v.featureProblems || []) add('warn', p.text, 'levels');
+  for (const f of v.featureVariants || []) {
+    if (f.levels < f.level) add('info', `${f.name} (${f.className}) comes at ${f.level}${f.level === 1 ? 'st' : 'th'} level.`, 'levels');
+  }
+  for (const c of v.prestige || []) {
+    add('info', `${c.name} is a prestige class. Before its first level a character needs: ${c.requires}`, 'levels');
   }
 }

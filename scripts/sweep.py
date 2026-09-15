@@ -284,6 +284,12 @@ def sweep_data():
     stale = module.build() != load(os.path.join(DATA, 'srd', 'feat-rules.json'))
     check('feat-rules.json is what its script builds', ['rerun: python scripts/build-feat-rules.py'] if stale else [])
 
+    spec = importlib.util.spec_from_file_location('build_variant_content', os.path.join(ROOT, 'scripts', 'build-variant-content.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    stale = module.build() != load(os.path.join(DATA, 'srd', 'variant-content.json'))
+    check('variant-content.json is what its script builds', ['rerun: python scripts/build-variant-content.py'] if stale else [])
+
 
 # ---------------------------------------------------------------------------
 #   The words

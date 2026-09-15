@@ -66,6 +66,16 @@ export function magicFor(character, summary, abilities, rules, options = {}) {
   const seen = new Set();
   let pool = null;
 
+  // A prestige class that adds to spellcasting (the prestige bard, paladin and
+  // ranger of Unearthed Arcana) raises the first spellcasting class of its kind.
+  const advance = { arcane: 0, divine: 0 };
+  for (const side of summary.sides) {
+    for (const c of side.classes) {
+      const adv = c.def?.castingAdvance;
+      if (adv) advance[adv.type] = (advance[adv.type] || 0) + (adv.levels || []).filter((l) => l <= c.levels).length;
+    }
+  }
+
   for (const side of summary.sides) {
     for (const c of side.classes) {
       if (seen.has(c.name)) continue;
@@ -75,7 +85,10 @@ export function magicFor(character, summary, abilities, rules, options = {}) {
       seen.add(c.name);
 
       const progression = rules.progression?.[c.name] || c.def.progression || {};
-      const level = Math.min(c.levels, MAX_LEVEL);
+      const kind = casting?.type === 'divine' ? 'divine' : 'arcane';
+      const raised = casting && !c.def.castingAdvance ? advance[kind] : 0;
+      if (raised) advance[kind] = 0;
+      const level = Math.min(c.levels + raised, MAX_LEVEL);
       const at = (column) => progression[column]?.[level - 1];
       const ability = (casting || manifesting).ability;
       const { total: score, mod } = abilities[ability];
@@ -111,7 +124,8 @@ function spellcaster(c, casting, level, at, ability, score, mod, state, extra = 
   const classCasterLevel = casting.half ? (level >= 4 ? Math.floor(level / 2) : 0) : level;
   // Magic rating (Unearthed Arcana): caster level is the character's total rating.
   const casterLevel = extra.rating ? extra.rating.casterLevelOf(c.name, c.def) : classCasterLevel;
-  const specialist = spellbook && state.specialty ? 1 : 0;
+  // A specialist's extra spell of the school - unless a specialist variant took its place.
+  const specialist = spellbook && state.specialty && !casting.noSchoolSlot ? 1 : 0;
   // Spontaneous divine casters (Unearthed Arcana) learn from their own table.
   const divineKnown = casting.spontaneousDivine ? extra.rules?.variants?.tables?.spontaneousDivineKnown?.[String(level)] : null;
   const knownRow = divineKnown ? divineKnown.map((n) => (n === null ? null : String(n))) : at('known') || [];

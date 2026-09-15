@@ -1804,3 +1804,19 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 /* Settings: each sign-in's own actions, at the end of its line. */
 .profile-signins li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
 .signin-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-left: auto; }
+
+/* A finished character's held choices: shown, not changed, on the sheet. */
+.held-note { margin: 0 var(--sp-4) var(--sp-2); font-size: var(--text-small); color: var(--ink-dim, inherit); }
+.held-note a { margin-left: var(--sp-1); }
+.is-held { cursor: not-allowed; }
+input.is-held, select.is-held, textarea.is-held { opacity: .85; }
+
+/* Change history, on the sheet and the campaign page. */
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.history-entry { border-left: 3px solid var(--rule); padding: var(--sp-1) 0 var(--sp-1) var(--sp-3); }
+.history-entry.is-unseen { border-left-color: var(--accent, currentColor); }
+.history-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.history-changes { margin: var(--sp-1) 0 0; padding-left: var(--sp-4); }
+.history-changes .label { margin-right: var(--sp-1); }
+.nav-badge { display: inline-block; min-width: 1.2em; margin-left: .35em; padding: 0 .35em; border-radius: 999px; background: var(--accent, #7c5cff); color: #fff; font-size: .75em; line-height: 1.5; text-align: center; vertical-align: .1em; }
+.badge.unseen { background: var(--accent, #7c5cff); color: #fff; }

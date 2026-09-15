@@ -30,16 +30,17 @@ import * as campaigns from './features/campaigns.js';
 import * as campaignContent from './features/campaign-content.js';
 import * as profile from './features/profile.js';
 import * as feedback from './features/feedback.js';
+import * as discord from './features/discord.js';
 
 const health = {
   routes: [
     { method: 'GET', path: '/', auth: 'none', handler: () => json({ ok: true, service: 'sheets', now: now() }) },
     // With what sign-in is missing, by setting name, so a deploy can be checked from a browser.
-    { method: 'GET', path: '/health', auth: 'none', handler: ({ env }) => json({ ok: true, service: 'sheets', now: now(), signIn: signInSetup(env) }) },
+    { method: 'GET', path: '/health', auth: 'none', handler: ({ env }) => json({ ok: true, service: 'sheets', now: now(), signIn: signInSetup(env), discordBot: Boolean(env.DISCORD_PUBLIC_KEY) }) },
   ],
 };
 
-export const FEATURES = [health, auth, accounts, characters, content, campaigns, campaignContent, profile, feedback];
+export const FEATURES = [health, auth, accounts, characters, content, campaigns, campaignContent, profile, feedback, discord];
 
 const route = createRouter(FEATURES);
 

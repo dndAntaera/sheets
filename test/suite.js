@@ -18,6 +18,8 @@ import {
   rollAbilityArray, newAbilityRolls, placeScore, parsePrerequisites, featRuleIndex, stateAtLevel, featEligibility,
   featOptions, languagePlan, featureKey, applyCampaign as campaignRules,
   itemFromReference, inventoryTotals, carryingCapacity, attackFor, migrateInventory, slotChoices, usableContent, buyItem, removeItem,
+  lockedParts, lockChanges, restoreLocked, isLockedPath, lockedSummary,
+  parseDice, rollDice, rollSheet, findRoll, rollFor, rollChoices,
 } from '../web/engine/index.js';
 
 export function buildSuite(data) {
@@ -980,32 +982,166 @@ export function buildSuite(data) {
   });
 
   test('spontaneous divine casters: spells known from their table, and a spell more a day', (t) => {
-    const m = derive(withVariants('Cleric', 3, ['spontaneousDivine'], { abilities: { wis: 15 } }), srd).magic.classes[0];
+    const m = derive(withVariants('Spontaneous cleric', 3, [], { abilities: { wis: 15 } }), srd).magic.classes[0];
+    t.eq(m.name, 'Cleric', 'a spontaneous cleric is a cleric to everything that knows clerics');
     t.eq(m.spontaneous, true);
     t.eq(m.levels.map((l) => l.knownAllowed), [5, 5, 2], 'table 5/3/0, plus two domain spells at 1st and 2nd');
     t.eq(m.levels.map((l) => l.perDay), [5, 4, 3], 'table + 1 + bonus, no domain slot');
   });
 
-  test('class variants change the class: cloistered cleric and battle sorcerer', (t) => {
-    const cleric = withVariants('Cleric', 4, ['classVariants']);
-    cleric.variants = { classVariant: { Cleric: 'cloisteredCleric' } };
+  test('class variants are classes of their own name: cloistered cleric and battle sorcerer', (t) => {
+    const cleric = withVariants('Cloistered cleric', 4, []);
     const d = derive(cleric, srd);
     t.eq([d.summary.bab, d.summary.hitDice[1].die, d.summary.skillPointsPerLevel[0].base], [2, 6, 6]);
-    const sorcerer = withVariants('Sorcerer', 1, ['classVariants'], { abilities: { cha: 11 } });
-    sorcerer.variants = { classVariant: { Sorcerer: 'battleSorcerer' } };
+    t.eq(d.summary.label, 'Cloistered cleric 4', 'the build keeps the variant\'s name');
+    t.ok(d.index.classByName.has('Bardic sage') && d.index.classByName.has('Spontaneous druid'), 'every variant is on the class list, with no switch');
+    const sorcerer = withVariants('Battle sorcerer', 1, [], { abilities: { cha: 11 } });
     const m = derive(sorcerer, srd).magic.classes[0];
     t.eq([m.levels.map((l) => l.perDay), m.levels.map((l) => l.knownAllowed)], [[4, 2], [3, 1]], 'one fewer a day and known, to a minimum of one known');
   });
 
-  test('generic and paragon classes join the class list when their variants are on', (t) => {
-    const warrior = withVariants('Warrior (generic)', 2, ['genericClasses']);
+  test('two versions of one class are flagged, and older sheets keep their variant', (t) => {
+    const mixed = characterWith(srd, [['Cleric'], ['Cloistered cleric']]);
+    t.ok(derive(mixed, srd).notices.some((n) => n.level === 'error' && /same class/.test(n.text)));
+    const old = migrate({ ...characterWith(srd, [['Cleric'], ['Druid'], ['Bard']]), options: { classVariants: true, spontaneousDivine: true }, variants: { classVariant: { Bard: 'bardicSage' } } });
+    t.eq(old.levels.map((r) => r.a), ['Spontaneous cleric', 'Spontaneous druid', 'Bardic sage']);
+    t.eq([old.options.classVariants, old.variants.classVariant], [undefined, undefined], 'and the old switch is gone');
+    const off = migrate({ ...characterWith(srd, [['Bard']]), options: { classVariants: false }, variants: { classVariant: { Bard: 'bardicSage' } } });
+    t.eq(off.levels[0].a, 'Bard', 'a variant chosen but switched off was never played');
+  });
+
+  test('environmental and elemental races are on the race list, changed from their core race', (t) => {
+    const dwarf = characterWith(srd, [['Fighter']]);
+    dwarf.race.name = 'Desert Dwarf';
+    const d = derive(dwarf, srd);
+    t.eq([d.race.known, d.race.abilityAdjust.dex, d.race.abilityAdjust.con, d.race.abilityAdjust.cha], [true, -2, 2, 0]);
+    t.ok(d.effects.all.some((e) => e.target === 'save.fort' && e.condition === 'against hot weather'), 'heat endurance');
+    t.ok(!d.effects.all.some((e) => e.target === 'skill.Search'), 'no stonecunning');
+    const halfling = characterWith(srd, [['Rogue']]);
+    halfling.race.name = 'Aquatic Halfling';
+    t.ok(derive(halfling, srd).languages.bonusFrom.includes('Aquan'), 'an aquatic race may learn Aquan');
+    const gone = derive(dwarf, srd, { overrides: { environmentalRaces: false } });
+    t.eq(gone.race.known, false, 'unless a campaign takes them off the table');
+  });
+
+  test('a prestige bard adds to an arcane class\'s spellcasting', (t) => {
+    const c = characterWith(srd, [...repeat(['Sorcerer'], 4), ...repeat(['Prestige Bard'], 2)]);
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 16 };
+    const d = derive(c, srd);
+    const sorcerer = d.magic.classes.find((m) => m.name === 'Sorcerer');
+    t.eq(sorcerer.classLevel, 5, 'Sorcerer 4, raised one level by the prestige bard\'s 2nd');
+    t.ok(d.notices.some((n) => /prestige class/.test(n.text)), 'and its requirements are shown');
+  });
+
+  test('a specialist variant takes the place of what it replaces', (t) => {
+    const c = characterWith(srd, repeat(['Wizard'], 5));
+    c.abilities.base = { str: 10, dex: 10, con: 10, int: 16, wis: 10, cha: 10 };
+    c.magic = { Wizard: { specialty: 'Conjuration', prohibited: ['Evocation', 'Necromancy'] } };
+    const before = derive(c, srd);
+    t.eq(before.featPlan.slots.filter((s) => s.kind === 'class').length, 1, 'a wizard 5 has a bonus feat');
+    t.eq(before.magic.classes[0].levels[1].school, 1);
+    c.variants = { featureVariants: { Wizard: { bonusFeats: 'enhancedSummoning', schoolSlot: 'spontaneousSummoning' } } };
+    const after = derive(c, srd);
+    t.eq(after.featPlan.slots.filter((s) => s.kind === 'class').length, 0, 'enhanced summoning takes the bonus feats');
+    t.ok(after.featPlan.granted.some((g) => g.name === 'Augmented Summoning') && !after.featPlan.granted.some((g) => g.name === 'Scribe Scroll'), 'and Augmented Summoning replaces Scribe Scroll');
+    t.eq(after.magic.classes[0].levels[1].school, 0, 'spontaneous summoning takes the extra spell of the school');
+    c.magic.Wizard.specialty = 'Evocation';
+    t.ok(derive(c, srd).notices.some((n) => /conjuration specialists/.test(n.text)), 'a variant for another school is flagged');
+  });
+
+  test('a finished character’s held choices: what changed, in words, and nothing that is only play', (t) => {
+    const before = characterWith(srd, [['Fighter'], ['Fighter']]);
+    before.race.name = 'Elf';
+    before.abilities.base = { str: 14, dex: 12, con: 12, int: 10, wis: 10, cha: 8 };
+    before.skills = [{ name: 'Climb', subtype: '', ranks: 4, misc: 0 }, { name: 'Craft', subtype: 'weapons', ranks: 2, misc: 0 }];
+    before.feats = [{ name: 'Power Attack' }, { name: 'Weapon Focus', choice: 'longsword' }];
+    before.magic = { Wizard: { known: [{ name: 'Sleep', level: 1 }], prepared: { 1: [{ name: 'Sleep' }] } } };
+    before.languages = ['Orc'];
+    const after = structuredClone(before);
+    after.race.name = 'Half-Elf';
+    after.levels.push({ level: 3, a: 'Wizard', b: '' });
+    after.abilities.base.str = 15;
+    after.skills[0].ranks = 5;
+    after.feats = [{ name: 'Power Attack' }, { name: 'Cleave' }];
+    after.magic.Wizard.known.push({ name: 'Grease', level: 1 });
+    after.languages = ['Orc', 'Draconic'];
+    // Playing, not building:
+    after.hp = { ...after.hp, current: 3 };
+    after.magic.Wizard.prepared = { 1: [{ name: 'Grease', used: true }] };
+    after.skills[1].misc = 2;
+    t.eq(lockChanges(before, after).map((c) => c.text), [
+      'Race: Elf to Half-Elf',
+      'Level 3 added: Wizard',
+      'Base scores: STR 14 to 15',
+      'Skills: Climb 4 to 5 ranks',
+      'Feats added: Cleave',
+      'Feats removed: Weapon Focus (longsword)',
+      'Wizard spells or powers added: Grease (level 1)',
+      'Languages added: Draconic',
+    ]);
+    const played = structuredClone(before);
+    played.hp = { ...played.hp, current: 1 };
+    played.wealth.items.push({ id: 'x', name: 'Rope', qty: 1 });
+    t.eq(lockChanges(before, played), [], 'hit points and gear are not held');
+    t.eq(JSON.stringify(lockedSummary(lockedParts(before))), JSON.stringify(lockedSummary(before)), 'the parts of a character read as the character');
+
+    restoreLocked(after, lockedParts(before));
+    t.eq(lockChanges(before, after), [], 'restoring puts every held choice back');
+    t.eq([after.hp.current, after.magic.Wizard.prepared[1][0].name], [3, 'Grease'], 'and leaves what was played alone');
+  });
+
+  test('dice: counts, sides, keeping the best, and modifiers', (t) => {
+    const fixed = (...values) => { let i = 0; return () => (values[i++ % values.length] - 1) / 6; };
+    t.eq(rollDice('2d6+3', fixed(4, 5)).total, 12);
+    const stats = rollDice('4d6kh3', fixed(1, 6, 3, 5));
+    t.eq([stats.total, stats.text], [14, '4d6kh3 (~~1~~, 6, 3, 5) = **14**']);
+    t.eq(rollDice('d6 - 1', fixed(2)).total, 1);
+    t.eq([parseDice('hide'), parseDice('1000d6'), parseDice('2d1')], [null, null, null], 'words, too many dice and one-sided dice are not dice');
+  });
+
+  test('a sheet’s rolls: skills, saves, abilities, weapons and dice, by what is typed', (t) => {
+    const c = characterWith(srd, repeat(['Fighter'], 3), { name: 'Grukk' });
+    c.abilities.base = { str: 16, dex: 12, con: 14, int: 8, wis: 10, cha: 8 };
+    c.skills.find((s) => s.name === 'Climb').ranks = 4;
+    wear(c, 'weapon', { damageMedium: '1d12', critical: '20/x3', hands: 'two-handed' }, 'Greataxe');
+    const sheet = rollSheet(derive(c, srd), c);
+    t.eq([sheet.name, sheet.saves.fort, sheet.abilities.str.mod], ['Grukk', 5, 3]);
+    t.eq(findRoll(sheet, 'climb +2'), { kind: 'check', label: 'Climb', bonus: 7, extra: 2, unusable: false });
+    t.eq(findRoll(sheet, 'Fortitude save').bonus, 5);
+    t.eq(findRoll(sheet, 'str').label, 'Strength check');
+    t.eq(findRoll(sheet, 'move sil').label, 'Move Silently', 'the start of a skill’s name is enough');
+    t.eq(findRoll(sheet, 'tumble').unusable, true, 'a trained-only skill with no ranks');
+    t.eq(findRoll(sheet, '3d6').kind, 'dice');
+    t.eq(findRoll(sheet, 'dance lessons'), null);
+
+    const twenty = () => 0.999;
+    const attack = rollFor(sheet, 'greataxe', twenty);
+    t.eq(attack.lines[0], 'Attack: 1d20 (20) +6 = **26** (natural 20)');
+    t.ok(/^Threat 20\/x3: confirm/.test(attack.lines[1]), 'a threat rolls to confirm');
+    t.eq(attack.lines[2], 'Damage: 1d12 (12) + 4 = **16**', 'Strength and a half, two-handed');
+    t.eq(rollChoices(sheet, 'gre')[0], 'Greataxe');
+  });
+
+  test('which fields a finished character holds', (t) => {
+    t.ok(['race.name', 'levels.2.a', 'abilities.base.str', 'skills.4.ranks', 'feats.0.choice', 'languages', 'hp.rolls.3', 'options.defenseBonus', 'magic.Wizard.known'].every(isLockedPath));
+    t.ok(!['name', 'skills.4.misc', 'hp.current', 'abilities.enhancement.str', 'magic.Wizard.prepared', 'wealth.items.0.qty', 'text.notes', 'nextLevel.a'].some(isLockedPath));
+  });
+
+  test('spelltouched and weapon group feats are feats like any other', (t) => {
+    const index = featRuleIndex(srd);
+    t.eq(index.get('bladeproof skin')?.variant, 'spelltouchedFeats');
+    t.eq(index.get('weapon group (exotic weapons)')?.prerequisite, 'Base attack bonus +1.');
+  });
+
+  test('generic and paragon classes are on the class list, unless a campaign takes them off', (t) => {
+    const warrior = withVariants('Warrior (generic)', 2, []);
     warrior.variants = { genericSaves: { 'Warrior (generic)': ['ref'] } };
     const w = derive(warrior, srd);
     t.eq([w.summary.bab, w.saves.ref.base, w.saves.fort.base], [2, 3, 0]);
-    const dwarf = withVariants('Dwarf paragon', 2, ['paragonClasses']);
+    const dwarf = withVariants('Dwarf paragon', 2, []);
     const p = derive(dwarf, srd);
     t.eq([p.summary.bab, p.saves.fort.base, p.summary.hitDice[0].die], [2, 3, 10]);
-    t.eq(derive(characterWith(srd, [['Dwarf paragon']]), srd).summary.hitDice[0].die, 0, 'and not when it is off');
+    t.eq(derive(characterWith(srd, [['Dwarf paragon']]), srd, { overrides: { paragonClasses: false } }).summary.hitDice[0].die, 0, 'and not when a campaign takes them off');
   });
 
   test('reducing level adjustments lowers ECL once paid for; taint takes Constitution and Wisdom', (t) => {

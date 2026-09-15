@@ -433,9 +433,25 @@ rest ('day') or a new week ('week'). The panel is on the Feats page.
 ### Variant rules
 
 Every variant rule in the SRD (Unearthed Arcana) is a module, beside gestalt,
-action points and traits and flaws: `VARIANT_MODULES` in `web/engine/modules.js`,
-each available and off in the SRD ruleset, so a player switches it on from the
-Rules page and a campaign's GM can set it for the table.
+action points and traits and flaws: `VARIANT_MODULES` in `web/engine/modules.js`.
+They come in three kinds, and the creator treats each differently:
+
+- **Content** (`CONTENT_MODULES`) - variants that are only more to choose from:
+  environmental and elemental races, paragon, generic and prestigious classes,
+  class variants (bardic sage, spontaneous cleric), spelltouched and weapon group
+  feats, and the specialist wizard and druid feature variants. They are never
+  switched on. Their races are in the race list, their classes in the class
+  list, their feats in the feat dropdowns, for every character - unless a
+  campaign's GMs take them off the table in its settings. A class variant is a
+  class of its own name on a level row ("Cloistered cleric"), read back to the
+  class it varies by `classVariantView`, so domains, spells and class features
+  all still know it as a cleric.
+- **Building** (`BUILD_MODULES`) - gestalt, traits and flaws, the two skill
+  systems, character background: switched in the creator's Concept step,
+  because they change the steps after it.
+- **Play** (`PLAY_MODULES`) - everything else: switched in the creator's
+  Advanced step, with the choices each needs. The sheet's Rules page lists what
+  is in force and links back to both steps.
 
 - `web/data/variants.json` is the catalog - each variant's name, category, what
   it does, and what the sheet does about it - and the SRD tables the engine
@@ -444,8 +460,17 @@ Rules page and a campaign's GM can set it for the table.
   level adjustments, bloodline levels, the paragon classes). Its rule text is
   `web/data/srd/variants.json`, for the Reference page. Both are built by
   `scripts/build-variants.py` from the SRD's variant pages.
-- `web/engine/variants.js` is the rules: class variants, generic and paragon
-  classes (`variantClassIndex`), defense bonus and armor as DR
+- `web/data/srd/variant-content.json` is the content variants as data: each
+  environmental or elemental race as its core race with what it adds, removes
+  and replaces; the prestige bard, paladin and ranger (tables and class skills
+  read from the rule text, with the levels that add to an existing
+  spellcasting class); spelltouched and weapon group feats; and what each
+  specialist or druid variant takes the place of. `scripts/build-variant-content.py`
+  writes it, and the sweep checks it is current.
+- `web/engine/variants.js` is the rules: class variants, generic, paragon and
+  prestigious classes (`variantClassIndex`, `classVariantView`), variant races
+  (`variantRaceIndex`), class feature variants (`applyFeatureVariants`: a traded
+  bonus feat or school slot is removed, a variant's class skills added), defense bonus and armor as DR
   (`variantArmorClass`), vitality and wounds, reserve points, injury, massive
   damage, death and dying, damage conversion and taint (`variantHealth`), craft
   points, contacts, reputation, honor, sanity, bloodlines and level adjustment
@@ -456,7 +481,10 @@ Rules page and a campaign's GM can set it for the table.
 - Variants that change only how the game is played at the table - hex grid,
   combat facing, complex skill checks, incantations and so on - are switched on
   like the others, noted where they apply, and open to their full text.
-- `web/ui/variants.js` draws them: the catalog on the Rules page, what the
+- `web/ui/variants.js` draws them: the rules of play in the creator's Advanced
+  step (`advancedRulesPanel`), a class's own choices in the Class step
+  (`classChoicesPanel`), the rules in force on the Rules page
+  (`rulesInPlayPanel`), what the
   adventuring variants change on the Combat page, and the scores and tracks on
   the Feats page. The SRD taint variant is `uaTaint`, separate from Antæra's
   corruption and depravity (`taint`).
@@ -468,7 +496,7 @@ rather than on the sheet. It is not a second sheet: `openSheet(id, { wizard })`
 draws one step's panels from the same `PANELS` the sheet uses, binds them the
 same way, and recomputes the same derived character - so a step shows exactly
 the numbers and notices the sheet would. What the wizard adds is order, the
-words at the top of each step, and cards for choosing a race and a class.
+words at the top of each step, and a box for finding a race.
 
 Each step in `WIZARD_STEPS` names its panels, the notice fields it answers for
 (the rail shows only those; the review shows all), and optionally a `body` of
@@ -484,7 +512,41 @@ check `app.wizard`).
 Every step opened is added to `meta.creatorVisited`. Finishing - or "Skip to the
 full sheet" - with steps never opened keeps them in `meta.creatorSkipped`: the
 sheet then shows a warning for each, and a link back, until the step is opened.
-The creator does not buy equipment; that is the sheet's Gear page.
+The creator does not buy equipment; that is the sheet's Inventory and Shop pages.
+
+The steps are Concept (with the switches that change how a character is built:
+gestalt, traits and flaws, the skill systems), Race, Class (the Levels panel,
+and Class choices for a generic or paragon class, a druid's aspect of nature or
+a prestige class's requirements), Ability scores, Skills, Feats, Hit points &
+wealth, Spells, languages & story, Advanced (the rules of play) and Review.
+
+### Held choices and change history
+
+Once a character leaves the creator, what it is built of is held
+(`web/engine/locks.js`): race, classes and class choices, ability scores and
+level increases, skill ranks, feats, traits and flaws, hit point rolls, spells
+and powers known (and a specialist's school, a cleric's domains), languages,
+and the rules it plays by. On the sheet their fields are disabled
+(`LOCKED_FIELDS` by path; `holdChoices` in app.js also disables controls marked
+`data-lock`), and each panel says so with a link into the creator. Everything
+that is play - hit points, spells prepared and cast, uses, gear, notes - stays
+open.
+
+"Change in the creator" opens a finished character in the wizard again. It is
+saved as it stands first, then `beginRevision` copies its held choices into
+`meta.wizard.revision`. The review step lists what has changed
+(`revisionChanges`); "Save the changes" finishes, "Discard changes" puts every
+held choice back (`restoreLocked`).
+
+Changes are written into the sheet's own `history` - `[{ id, at, by, changes }]`,
+each change `{ area, label, step, text }`. When signed in, the **server** writes
+them: `characters.locked` keeps the summary of the choices as last finished
+(`lockedSummary`), and a finished save that differs adds an entry to the stored
+history (a sheet's own history is never trusted) and a row to
+`character_changes`. The GMs of the character's campaign see those rows on the
+campaign page, with a count beside Campaigns in the header until they mark them
+read (`campaign_change_reads`). With no server, the browser writes the entry
+itself. A sheet with history shows a History page.
 
 ### Keeping the library in step with the account
 
@@ -650,6 +712,49 @@ bot fills in and whose message is silently dropped, and a limit of a few
 messages an hour per sender - a hash of the network address (salted with
 `FEEDBACK_SALT` if set), or of the account when signed in. The address itself is
 never stored. The Privacy Policy describes all of this; change it with the form.
+
+### The Discord bot
+
+A table can roll from its sheets in Discord: `/roll what [character]` rolls a
+skill, save, ability, initiative, a weapon (attack, a confirmation roll on a
+threat, and damage) or plain dice, with a `+2` or `-1` on the end for a
+situational modifier; `/sheet` shows a character's numbers; `/character` picks
+which character a person rolls as. What to roll autocompletes from the sheet.
+
+It is an HTTP interactions endpoint on the Worker, `POST /discord/interactions`
+(`worker/src/features/discord.js`): no gateway, no process to keep running.
+Every request is checked against the application's Ed25519 public key, and an
+unsigned one is refused. A person is recognized by the Discord sign-in on their
+account - signing in with Discord, or linking it in Settings, is all it takes -
+and rolls from the characters that account can see. `discord_links` remembers
+the character chosen with `/character`.
+
+The Worker does no arithmetic. Each time the app saves a sheet it writes
+`character.rolls`, a small snapshot of what a roll needs (`rollSheet` in
+`web/engine/rolls.js`), and the bot rolls from that with the same file's
+`rollFor`. A sheet saved before the bot existed asks to be opened once.
+
+Setting it up, once:
+
+1. In the Discord developer portal, open the application the sheets already
+   sign in with (or make one). On its General Information page, copy the
+   **Public key**.
+2. Add it to the Worker as `DISCORD_PUBLIC_KEY` - a repository secret of that
+   name is sent on the next deploy, or set it in the Cloudflare dashboard.
+   `/health` then shows `"discordBot": true`.
+3. Still on General Information, set **Interactions Endpoint URL** to
+   `https://<the worker's address>/discord/interactions`. Discord checks it with
+   a signed ping as you save.
+4. On the Bot page, make a bot and copy its token (keep it to yourself). On
+   OAuth2, invite it to your server with the `applications.commands` scope.
+5. Register the commands, from this folder:
+
+       set DISCORD_APPLICATION_ID=<the application id>
+       set DISCORD_BOT_TOKEN=<the bot token>
+       python scripts/register-discord-commands.py <your server id>
+
+   With a server id they appear there at once; without one they are global.
+   Rerun it whenever `scripts/discord-commands.json` changes.
 
 ### Profiles and settings
 

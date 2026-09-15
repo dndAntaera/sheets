@@ -6,6 +6,7 @@
 //   /api/invites/:code                      an invitation: look at it, accept it
 //   /api/campaigns/:id/members/:userId      a member: make GM or player, remove
 //   /api/campaigns/:id/characters           bring a character in, take one out
+//   /api/campaigns/:id/changes              for its GMs: changes to its characters' held choices
 //
 // Who may do each is decided in policy.js; this file looks up the facts and
 // asks. Settings are checked against web/engine/campaign.js, the same schema the
@@ -59,16 +60,20 @@ async function myCampaigns({ env, user }) {
   const rows = await env.DB.prepare(
     `SELECT k.*, o.name AS ownerName, m.role AS memberRole,
             (SELECT COUNT(*) FROM campaign_members x WHERE x.campaign_id = k.id) AS memberCount,
-            (SELECT COUNT(*) FROM characters c WHERE c.campaign_id = k.id) AS characterCount
+            (SELECT COUNT(*) FROM characters c WHERE c.campaign_id = k.id) AS characterCount,
+            (SELECT COUNT(*) FROM character_changes h
+              WHERE h.campaign_id = k.id AND (h.user_id IS NULL OR h.user_id != ?1)
+                AND h.created > COALESCE((SELECT r.seen FROM campaign_change_reads r WHERE r.campaign_id = k.id AND r.user_id = ?1), '')) AS unseenChanges
        FROM campaign_members m
        JOIN campaigns k ON k.id = m.campaign_id
        JOIN users o ON o.id = k.owner
-      WHERE m.user_id = ?
+      WHERE m.user_id = ?1
       ORDER BY k.name COLLATE NOCASE`
   ).bind(user.id).all();
   return json((rows.results || []).map((row) => {
     const campaign = parse(row);
-    return { ...shape(campaign), role: campaignRole(campaign, { role: row.memberRole }, user.id) };
+    const role = campaignRole(campaign, { role: row.memberRole }, user.id);
+    return { ...shape(campaign), role, ...(campaignCan.seeChanges(role) ? { unseenChanges: row.unseenChanges || 0 } : {}) };
   }));
 }
 
@@ -386,8 +391,53 @@ async function removeCharacter({ env, user, params }) {
   return noContent();
 }
 
+/* -------------------------------------------------------------------------
+   Changes to characters, for the GMs
+   ------------------------------------------------------------------------- */
+
+/**
+ * The latest changes to the held choices of this campaign's characters - newest
+ * first, each marked unseen if it came after this GM last looked and was not
+ * their own.
+ */
+async function campaignChanges({ env, user, params }) {
+  const { campaign } = await campaignFor(env, params.id, user.id, campaignCan.seeChanges);
+  const read = await env.DB.prepare('SELECT seen FROM campaign_change_reads WHERE campaign_id = ? AND user_id = ?').bind(campaign.id, user.id).first();
+  const seen = read?.seen || '';
+  const rows = await env.DB.prepare(
+    `SELECT h.id, h.character_id AS characterId, c.name AS characterName, h.user_id AS byId, u.name AS byName, h.created, h.changes
+       FROM character_changes h
+       LEFT JOIN characters c ON c.id = h.character_id
+       LEFT JOIN users u ON u.id = h.user_id
+      WHERE h.campaign_id = ?
+      ORDER BY h.created DESC LIMIT 100`
+  ).bind(campaign.id).all();
+  const changes = (rows.results || []).map((r) => ({
+    id: r.id,
+    characterId: r.characterId,
+    characterName: r.characterName || 'A character no longer here',
+    by: r.byId ? { id: r.byId, name: r.byName } : null,
+    created: r.created,
+    changes: JSON.parse(r.changes || '[]'),
+    unseen: r.created > seen && r.byId !== user.id,
+  }));
+  return json({ changes, unseen: changes.filter((c) => c.unseen).length, seen: seen || null });
+}
+
+/** Everything in the list, marked read by this GM. */
+async function markChangesSeen({ env, user, params }) {
+  const { campaign } = await campaignFor(env, params.id, user.id, campaignCan.seeChanges);
+  await env.DB.prepare(
+    `INSERT INTO campaign_change_reads (campaign_id, user_id, seen) VALUES (?, ?, ?)
+     ON CONFLICT(campaign_id, user_id) DO UPDATE SET seen = excluded.seen`
+  ).bind(campaign.id, user.id, now()).run();
+  return noContent();
+}
+
 export const routes = [
   { method: 'GET', path: '/api/campaigns', handler: myCampaigns },
+  { method: 'GET', path: '/api/campaigns/:id/changes', handler: campaignChanges },
+  { method: 'POST', path: '/api/campaigns/:id/changes/seen', handler: markChangesSeen },
   { method: 'POST', path: '/api/campaigns', auth: 'gm', handler: createCampaign },
   { method: 'GET', path: '/api/campaigns/:id', handler: getCampaign },
   { method: 'PUT', path: '/api/campaigns/:id', handler: updateCampaign },

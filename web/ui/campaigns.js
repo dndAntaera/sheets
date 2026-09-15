@@ -83,6 +83,7 @@ export async function showCampaigns(main, app) {
             `${c.memberCount} member${c.memberCount === 1 ? '' : 's'}`,
             `${c.characterCount} character${c.characterCount === 1 ? '' : 's'}`,
           ].join(' - ') })),
+        c.unseenChanges ? h('span.badge.unseen', { text: `${c.unseenChanges} change${c.unseenChanges === 1 ? '' : 's'}`, title: 'Changes to characters here you have not seen.' }) : null,
         h(`span.badge.campaign-role-${c.role}`, { text: ROLE_LABELS[c.role] }),
         h(`span.badge.ruleset-${c.ruleset}`, { text: app.baseRules.rulesets[c.ruleset]?.shortName || c.ruleset }))))
       : h('p.empty', { text: 'You are not in any campaigns yet.' })));
@@ -162,6 +163,7 @@ export async function showCampaign(main, app, id) {
       h(`span.badge.campaign-role-${campaign.role}`, { text: ROLE_LABELS[campaign.role] })),
     campaign.description ? h('p.campaign-description', { text: campaign.description }) : null,
     message,
+    runs ? changesBlock(app, campaign) : null,
     tableSettings(campaign, ruleset),
     homebrewBlock(campaign, runs),
     myCharacters(app, campaign, attempt),
@@ -169,6 +171,48 @@ export async function showCampaign(main, app, id) {
     runs ? settingsForm(app, campaign, ruleset, attempt) : null,
     runs ? invitesBlock(campaign, attempt, say) : null,
     leaveOrDelete(app, campaign, attempt)));
+}
+
+/**
+ * For the GMs: changes to what the campaign's characters are built of, newest
+ * first, the ones they have not seen marked. Marking them read clears the count
+ * beside Campaigns in the header.
+ */
+function changesBlock(app, campaign) {
+  const body = h('div', h('p.hint', { text: 'Loading\u2026' }));
+  const section = h('section.campaign-section.campaign-changes', h('h2', { text: 'Changes to characters' }), body);
+  const when = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const draw = async () => {
+    let feed;
+    try {
+      feed = await remote.campaigns.changes(campaign.id);
+    } catch (err) {
+      refill(body, h('p.hint', { text: `${err.message}.` }));
+      return;
+    }
+    refill(body,
+      h('p.hint', { text: feed.changes.length
+        ? 'When a finished character leaves the creator with its race, classes, scores, skills, feats, spells or languages changed, it is listed here.'
+        : 'No finished character here has been changed.' }),
+      feed.unseen ? h('div.row',
+        h('span.badge.unseen', { text: `${feed.unseen} new` }),
+        button('Mark all read', async () => {
+          await remote.campaigns.changesSeen(campaign.id).catch(() => {});
+          app.campaigns = await remote.campaigns.list().catch(() => app.campaigns);
+          app.refreshHeader?.();
+          draw();
+        }, { subtle: true })) : null,
+      feed.changes.length ? h('ol.history-list', feed.changes.slice(0, 30).map((c) => h(`li.history-entry${c.unseen ? '.is-unseen' : ''}`,
+        h('div.history-head',
+          h('a', { href: `#/sheet/${c.characterId}/history`, text: c.characterName }),
+          h('time.hint', { dateTime: c.created, text: when(c.created) }),
+          h('span.hint', { text: c.by?.name ? `by ${c.by.name}` : '' }),
+          c.unseen ? h('span.badge.unseen', { text: 'new' }) : null),
+        h('ul.history-changes', c.changes.map((ch) => h('li', h('span.label', { text: ch.label }), ' ', h('span', { text: ch.text })))))))
+        : null);
+  };
+  draw();
+  return section;
 }
 
 /**

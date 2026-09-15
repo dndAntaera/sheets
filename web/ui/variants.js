@@ -1,8 +1,13 @@
 // The SRD's variant rules on the sheet.
 //
-//   variantRulesPanel    the Rules page: every variant, by category, to switch on
-//                        or off (or shown as set by the campaign), with the
-//                        choices a variant needs once it is on
+//   advancedRulesPanel   the creator's Advanced step: every rule of play, by
+//                        category, to switch on or off (or shown as set by the
+//                        campaign), with the choices a rule needs once it is on
+//   classChoicesPanel    the creator's Class step: what a generic or paragon
+//                        class chooses, a class feature traded for a variant's,
+//                        and what a prestige class asks for
+//   rulesInPlayPanel     the sheet's Rules page: every rule this character plays
+//                        by, to read - changed in the creator
 //   variantCombatPanel   the Combat page: what adventuring variants change -
 //                        defense bonus, damage reduction, vitality and wounds,
 //                        reserve points, injury, massive damage, dying rules
@@ -12,8 +17,10 @@
 // The numbers are engine/variants.js's; the catalog - names, what each does, what
 // the sheet does about it - is data/variants.json.
 
-import { h, button, field, labelled, row, total } from './dom.js';
-import { moduleState, MODULE_LABELS, CLASS_VARIANTS, GENERIC_CLASSES } from '../engine/index.js';
+import { h, button, labelled, row, total } from './dom.js';
+import {
+  moduleState, MODULE_LABELS, MODULES, PLAY_MODULES, BUILD_MODULES, CONTENT_MODULES, featureVariantOptions, REPLACED_FEATURES,
+} from '../engine/index.js';
 import { referenceHref } from '../reference.js';
 
 const SHEET_LABEL = { math: 'changes numbers', track: 'adds a track', table: 'rule of play' };
@@ -22,54 +29,72 @@ const SHEET_LABEL = { math: 'changes numbers', track: 'adds a track', table: 'ru
 const stateOf = (app) => (app.character.variants = app.character.variants || {});
 
 /* ==========================================================================
-   The Rules page: every variant
+   The creator's Advanced step: the rules of play
    ========================================================================== */
 
+/** A variant's switch: on or off, or its state as the campaign or ruleset sets it. */
+function variantSwitch(app, id, name, ways) {
+  const c = app.character;
+  const s = moduleState(app.rules, c, id, app.overrides);
+  if (!s.available) return h('span.hint', { text: 'not in this ruleset' });
+  if (!s.choosable) return h(`span.variant-locked${s.on ? '.is-on' : ''}`, { title: s.lockedBy === 'campaign' || s.lockedBy === 'gm' ? 'Set by the campaign.' : 'Set by the ruleset.' }, s.on ? 'on' : 'off');
+  return h('label.switch', { title: s.on ? 'Switch off' : 'Switch on' },
+    h('input', {
+      type: 'checkbox',
+      checked: s.on,
+      onchange: (ev) => {
+        c.options = { ...c.options, [id]: ev.target.checked };
+        ways.reopen();
+      },
+    }),
+    h('span.switch-track', { 'aria-hidden': 'true' }),
+    h('span.sr-only', { text: name }));
+}
+
 /**
- * @param ways  from app.js: { reopen() } - draw the page again after a change that reshapes it
+ * Every rule that changes how a character plays rather than how it is built -
+ * defense bonus, vitality and wound points, spell points and the rest - each to
+ * switch on, with what it needs once it is.
+ *
+ * @param ways  from app.js: { reopen() } - draw the step again after a change that reshapes it
  */
-export function variantRulesPanel(app, ways) {
+export function advancedRulesPanel(app, ways) {
   const catalog = app.rules.variants;
   if (!catalog) return null;
-  const c = app.character;
-  const on = catalog.variants.filter((v) => app.derived.modules[v.id]);
+  const d = app.derived;
+  const offered = PLAY_MODULES.filter((id) => moduleState(app.rules, app.character, id, app.overrides).available);
+  const listed = catalog.variants.filter((v) => offered.includes(v.id));
+  // A ruleset's own rules of play - Antaera's taint and training - are not in the SRD's catalog.
+  const own = offered.filter((id) => !listed.some((v) => v.id === id));
+  const on = offered.filter((id) => d.modules[id]).length;
 
-  const toggle = (v) => {
-    const s = moduleState(app.rules, c, v.id, app.overrides);
-    if (!s.available) return h('span.hint', { text: 'not in this ruleset' });
-    if (!s.choosable) return h(`span.variant-locked${s.on ? '.is-on' : ''}`, { title: s.lockedBy === 'campaign' || s.lockedBy === 'gm' ? 'Set by the campaign.' : 'Set by the ruleset.' }, s.on ? 'on' : 'off');
-    return h('label.switch', { title: s.on ? 'Switch off' : 'Switch on' },
-      h('input', {
-        type: 'checkbox',
-        checked: s.on,
-        onchange: (ev) => {
-          c.options = { ...c.options, [v.id]: ev.target.checked };
-          ways.reopen();
-        },
-      }),
-      h('span.switch-track', { 'aria-hidden': 'true' }),
-      h('span.sr-only', { text: v.name }));
-  };
+  const item = (id, name, tag, summary, effect, link) => h(`li.variant-item${d.modules[id] ? '.is-on' : ''}`,
+    h('div.variant-head',
+      variantSwitch(app, id, name, ways),
+      h('div.variant-text',
+        h('span.variant-name', { text: name }),
+        tag ? h('span.tag', { text: tag }) : null,
+        summary ? h('p.hint.variant-summary', { text: summary }) : null,
+        d.modules[id] && effect ? h('p.variant-effect', { text: effect }) : null),
+      link ? h('a.hint.variant-link', { href: link, text: 'Rules' }) : null),
+    d.modules[id] ? variantOptions(app, id, ways) : null);
 
-  return h('section.panel', { id: 'panel-variantRules', dataset: { panel: 'variantRules' } },
-    h('h2.panel-title', h('span', { text: 'SRD variant rules' })),
+  return h('section.panel', { id: 'panel-advancedRules', dataset: { panel: 'advancedRules' } },
+    h('h2.panel-title', h('span', { text: 'Rules of play' })),
     h('div.panel-body',
-      h('p.hint', { text: `The optional rules from Unearthed Arcana in the System Reference Document. ${on.length ? `${on.length} in play for this character.` : 'None in play.'} Switch one on and the sheet follows it; each opens to its full rules in the Reference.` }),
+      h('p.hint', { text: `Optional rules that change how a character plays at the table. ${on ? `${on} in play for this character.` : 'None in play.'} Switch one on and the sheet follows it; each links to its full rules in the Reference.` }),
+      own.length
+        ? h('details.variant-group', { open: own.some((id) => d.modules[id]) },
+          h('summary', h('span.variant-group-name', { text: app.rules.ruleset.shortName }), h('span.hint', { text: `${own.length} rules` })),
+          h('ul.variant-list', own.map((id) => item(id, MODULE_LABELS[id], null, app.rules.ruleset.variantNotes?.[id] || '', null, null))))
+        : null,
       catalog.categories.map(([key, label]) => {
-        const list = catalog.variants.filter((v) => v.category === key);
-        const active = list.filter((v) => app.derived.modules[v.id]).length;
+        const list = listed.filter((v) => v.category === key);
+        if (!list.length) return null;
+        const active = list.filter((v) => d.modules[v.id]).length;
         return h('details.variant-group', { open: active > 0 },
           h('summary', h('span.variant-group-name', { text: label }), h('span.hint', { text: active ? `${active} on` : `${list.length} rules` })),
-          h('ul.variant-list', list.map((v) => h(`li.variant-item${app.derived.modules[v.id] ? '.is-on' : ''}`,
-            h('div.variant-head',
-              toggle(v),
-              h('div.variant-text',
-                h('span.variant-name', { text: v.name }),
-                h('span.tag', { text: SHEET_LABEL[v.sheet] || v.sheet }),
-                h('p.hint.variant-summary', { text: v.summary }),
-                app.derived.modules[v.id] ? h('p.variant-effect', { text: v.onSheet }) : null),
-              h('a.hint.variant-link', { href: referenceHref('variants', v.name), text: 'Rules' })),
-            app.derived.modules[v.id] ? variantOptions(app, v.id, ways) : null))));
+          h('ul.variant-list', list.map((v) => item(v.id, v.name, SHEET_LABEL[v.sheet] || v.sheet, v.summary, v.onSheet, referenceHref('variants', v.name)))));
       })));
 }
 
@@ -87,58 +112,6 @@ function variantOptions(app, id, ways) {
     options.map(([v, t]) => h('option', { value: v, text: t, selected: String(value ?? '') === v }))));
 
   switch (id) {
-    case 'classVariants': {
-      const eligible = classes.filter((name) => CLASS_VARIANTS[name]);
-      if (!eligible.length) return h('p.hint.variant-options', { text: 'None of this character’s classes has a variant. Barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue, sorcerer and wizard do.' });
-      return h('div.row.variant-options', eligible.map((name) => choose(name, state.classVariant?.[name] || '',
-        [['', `Standard ${name.toLowerCase()}`], ...Object.entries(CLASS_VARIANTS[name]).map(([k, v]) => [k, v.name])],
-        (value) => { state.classVariant = { ...(state.classVariant || {}), [name]: value || undefined }; })));
-    }
-    case 'genericClasses':
-    case 'paragonClasses': {
-      const here = classes.map((name) => [name, d.index.classByName.get(name)]).filter(([, def]) => def && (id === 'genericClasses' ? def.generic : def.paragon));
-      if (!here.length) {
-        return h('p.hint.variant-options', { text: id === 'genericClasses'
-          ? 'Expert (generic), Spellcaster (generic) and Warrior (generic) are now on the class list.'
-          : 'The paragon classes - dwarf paragon, elf paragon and the rest - are now on the class list.' });
-      }
-      const skillNames = app.rules.skills.skills.map((s) => s.name);
-      return h('div.variant-options', here.map(([name, def]) => h('div.variant-class',
-        h('span.variant-name', { text: name }),
-        def.generic ? h('div.row',
-          h('span.label', { text: `${def.generic.goodSaves} good save${def.generic.goodSaves === 1 ? '' : 's'}` }),
-          ['fort', 'ref', 'will'].map((save) => {
-            const chosen = state.genericSaves?.[name] || [];
-            return h('label.check', h('input', {
-              type: 'checkbox',
-              checked: def.saves[save] === 'good',
-              onchange: change((ev) => {
-                const next = new Set(chosen.length ? chosen : Object.keys(def.saves).filter((k) => def.saves[k] === 'good'));
-                if (ev.target.checked) next.add(save); else next.delete(save);
-                state.genericSaves = { ...(state.genericSaves || {}), [name]: [...next].slice(-def.generic.goodSaves) };
-              }),
-            }), h('span', { text: save[0].toUpperCase() + save.slice(1) }));
-          }),
-          def.generic.spellcaster ? choose('Casts with', state.casterAbility?.[name] || 'cha', [['int', 'Intelligence (arcane)'], ['cha', 'Charisma (arcane)'], ['wis', 'Wisdom (divine)']],
-            (value) => { state.casterAbility = { ...(state.casterAbility || {}), [name]: value }; }) : null)
-          : null,
-        def.chooseSkills ? h('details.variant-skills',
-          h('summary', { text: `Class skills: ${(state.chosenSkills?.[name] || []).length} of ${def.chooseSkills} chosen` }),
-          h('div.variant-skill-grid', skillNames.map((skill) => {
-            const chosen = state.chosenSkills?.[name] || [];
-            return h('label.check', h('input', {
-              type: 'checkbox',
-              checked: chosen.includes(skill),
-              disabled: !chosen.includes(skill) && chosen.length >= def.chooseSkills,
-              onchange: change((ev) => {
-                const next = new Set(chosen);
-                if (ev.target.checked) next.add(skill); else next.delete(skill);
-                state.chosenSkills = { ...(state.chosenSkills || {}), [name]: [...next] };
-              }),
-            }), h('span', { text: skill }));
-          })))
-          : null)));
-    }
     case 'massiveDamage': {
       const m = state.massiveDamage || {};
       return h('div.row.variant-options',
@@ -153,16 +126,6 @@ function variantOptions(app, id, ways) {
         checked: Boolean(state.magicRatingSeparate),
         onchange: change((ev) => { state.magicRatingSeparate = ev.target.checked; }),
       }), h('span', { text: 'Keep arcane and divine ratings apart (the optional rule)' })));
-    case 'reducingLA': {
-      const la = d.variants.scores.levelAdjustment;
-      if (!la || !la.starting) return h('p.hint.variant-options', { text: 'This character has no level adjustment to reduce.' });
-      return h('div.row.variant-options',
-        labelled('Reductions paid for', h('select.field', { onchange: change((ev) => { state.laReductions = Number(ev.target.value); }) },
-          Array.from({ length: la.eligible + 1 }, (_, i) => h('option', { value: String(i), text: String(i), selected: la.taken === i })))),
-        h('span.hint', { text: la.nextAt
-          ? `Next eligible at class level ${la.nextAt}, for ${((d.summary.ecl - 1) * 1000).toLocaleString()} XP.`
-          : la.eligible > la.taken ? `Eligible now, for ${((d.summary.ecl - 1) * 1000).toLocaleString()} XP.` : 'No further reductions until epic levels.' }));
-    }
     case 'bloodlines': {
       const b = state.bloodline || {};
       const set = (key, value) => { state.bloodline = { ...(state.bloodline || {}), [key]: value }; };
@@ -178,6 +141,148 @@ function variantOptions(app, id, ways) {
     default:
       return null;
   }
+}
+
+/* ==========================================================================
+   The creator's Class step: choices a class makes
+   ========================================================================== */
+
+/**
+ * What the classes chosen ask for beyond a name: a generic class's good saves
+ * and class skills, a paragon's skills, a druid's aspect of nature in place of
+ * wild shape, and what a prestige class needs first. Hidden while there is
+ * nothing to choose, so it can appear the moment a class that asks is picked.
+ */
+export function classChoicesPanel(app) {
+  const c = app.character;
+  const d = app.derived;
+  const state = stateOf(app);
+  const taken = [...new Map((d.summary.sides || []).flatMap((s) => s.classes).map((k) => [k.name, k])).values()];
+  const rebuild = () => { app.recompute(); app.rebuildPanel('classChoices'); app.rebuildPanel('skills'); };
+  const blocks = [];
+
+  for (const k of taken) {
+    const def = k.def;
+    const shown = def.displayName || k.name;
+    if (def.classVariant?.note) blocks.push(h('div.variant-class', h('span.variant-name', { text: shown }), h('p.hint', { text: def.classVariant.note })));
+    if (def.generic || def.chooseSkills) {
+      const name = k.name;
+      const skillNames = app.rules.skills.skills.map((s) => s.name);
+      blocks.push(h('div.variant-class',
+        h('span.variant-name', { text: shown }),
+        def.generic ? h('div.row',
+          h('span.label', { text: `${def.generic.goodSaves} good save${def.generic.goodSaves === 1 ? '' : 's'}` }),
+          ['fort', 'ref', 'will'].map((save) => {
+            const chosen = state.genericSaves?.[name] || [];
+            return h('label.check', h('input', {
+              type: 'checkbox',
+              checked: def.saves[save] === 'good',
+              dataset: { unbound: '', lock: 'classes' },
+              onchange: (ev) => {
+                const next = new Set(chosen.length ? chosen : Object.keys(def.saves).filter((x) => def.saves[x] === 'good'));
+                if (ev.target.checked) next.add(save); else next.delete(save);
+                state.genericSaves = { ...(state.genericSaves || {}), [name]: [...next].slice(-def.generic.goodSaves) };
+                rebuild();
+              },
+            }), h('span', { text: save[0].toUpperCase() + save.slice(1) }));
+          }),
+          def.generic.spellcaster ? labelled('Casts with', h('select.field', {
+            dataset: { unbound: '', lock: 'classes' },
+            onchange: (ev) => { state.casterAbility = { ...(state.casterAbility || {}), [name]: ev.target.value }; rebuild(); },
+          }, [['int', 'Intelligence (arcane)'], ['cha', 'Charisma (arcane)'], ['wis', 'Wisdom (divine)']].map(([v, t]) => h('option', { value: v, text: t, selected: (state.casterAbility?.[name] || 'cha') === v })))) : null)
+          : null,
+        def.chooseSkills ? h('details.variant-skills', { open: (state.chosenSkills?.[name] || []).length < def.chooseSkills },
+          h('summary', { text: `Class skills: ${(state.chosenSkills?.[name] || []).length} of ${def.chooseSkills} chosen` }),
+          h('div.variant-skill-grid', skillNames.map((skill) => {
+            const chosen = state.chosenSkills?.[name] || [];
+            return h('label.check', h('input', {
+              type: 'checkbox',
+              checked: chosen.includes(skill),
+              disabled: !chosen.includes(skill) && chosen.length >= def.chooseSkills,
+              dataset: { unbound: '', lock: 'classes' },
+              onchange: (ev) => {
+                const next = new Set(chosen);
+                if (ev.target.checked) next.add(skill); else next.delete(skill);
+                state.chosenSkills = { ...(state.chosenSkills || {}), [name]: [...next] };
+                rebuild();
+              },
+            }), h('span', { text: skill }));
+          })))
+          : null));
+    }
+    if (def.requires) blocks.push(h('div.variant-class', h('span.variant-name', { text: shown }), h('p.hint', { text: `A prestige class. Before its first level: ${def.requires}` }), def.note ? h('p.hint', { text: def.note }) : null));
+
+    // A class feature traded for a variant's. A specialist wizard's are chosen with the school, on the Spells step.
+    if (k.name !== 'Wizard') {
+      const groups = featureVariantOptions(k.name, app.rules, d.modules);
+      for (const [replaces, list] of Object.entries(groups)) {
+        const picked = state.featureVariants?.[k.name]?.[replaces] || '';
+        blocks.push(h('div.variant-class',
+          h('span.variant-name', { text: `${shown}: ${REPLACED_FEATURES[replaces] || replaces}` }),
+          labelled('Take', h('select.field', {
+            dataset: { unbound: '', lock: 'classes' },
+            onchange: (ev) => {
+              const mine = { ...(state.featureVariants?.[k.name] || {}), [replaces]: ev.target.value || undefined };
+              state.featureVariants = { ...(state.featureVariants || {}), [k.name]: mine };
+              rebuild();
+              app.rebuildPanel('abilitiesList');
+            },
+          }, [['', `${REPLACED_FEATURES[replaces] || replaces} (standard)`], ...list.map((o) => [o.key, o.name])].map(([v, t]) => h('option', { value: v, text: t, selected: picked === v })))),
+          picked ? h('p.hint', { text: list.find((o) => o.key === picked)?.note || '' }) : null));
+      }
+    }
+  }
+
+  return h('section.panel', { id: 'panel-classChoices', dataset: { panel: 'classChoices' }, hidden: !blocks.length },
+    h('h2.panel-title', h('span', { text: 'Class choices' })),
+    h('div.panel-body.variant-options', blocks));
+}
+
+/* ==========================================================================
+   The sheet's Rules page: what this character plays by
+   ========================================================================== */
+
+/**
+ * The rules in force, to read. Rules are chosen in the creator - how the
+ * character is built in Concept, how it plays in Advanced - so the page says
+ * which, and links there.
+ *
+ * @param ways  from app.js: { creatorHref(step), campaign }
+ */
+export function rulesInPlayPanel(app, ways) {
+  const d = app.derived;
+  const rs = app.rules.ruleset;
+  const catalog = new Map((app.rules.variants?.variants || []).map((v) => [v.id, v]));
+  const nameOf = (id) => catalog.get(id)?.name || MODULE_LABELS[id] || id;
+  const available = (id) => moduleState(app.rules, app.character, id, app.overrides).available;
+  const building = BUILD_MODULES.filter((id) => available(id) && d.modules[id]);
+  const playing = PLAY_MODULES.filter((id) => available(id) && d.modules[id]);
+  const withheld = CONTENT_MODULES.filter((id) => available(id) && !d.modules[id]);
+  const others = MODULES.filter((id) => !available(id));
+
+  const list = (ids, empty) => (ids.length
+    ? h('ul.rules-in-play', ids.map((id) => h('li',
+      h('span.variant-name', { text: nameOf(id) }),
+      catalog.get(id)?.onSheet ? h('span.hint', { text: ` ${catalog.get(id).onSheet}` }) : null)))
+    : h('p.hint', { text: empty }));
+
+  return h('section.panel', { id: 'panel-rulesInPlay', dataset: { panel: 'rulesInPlay' } },
+    h('h2.panel-title', h('span', { text: 'Rules this character plays by' })),
+    h('div.panel-body',
+      h('p', {},
+        h('strong', { text: rs.name }),
+        ways.campaign ? [' - set by ', h('a', { href: `#/campaign/${ways.campaign.id}`, text: ways.campaign.name })] : null,
+        '. ',
+        h('span.hint', { text: rs.tagline || '' })),
+      h('h3', { text: 'Building' }),
+      list(building, 'The standard rules: one class a level, skill points, no traits or flaws.'),
+      h('h3', { text: 'In play' }),
+      list(playing, 'No optional rules of play.'),
+      withheld.length ? [h('h3', { text: 'Not offered at this table' }), list(withheld, '')] : null,
+      h('p.hint', { text: `Races, classes and feats from the variant rules - aquatic dwarves, bardic sages, spelltouched feats and the rest - are in the creator's lists${withheld.length ? ', except those above' : ''}.${others.length ? '' : ''}` }),
+      h('div.row',
+        h('a.btn.subtle', { href: ways.creatorHref('concept') }, 'Change how it is built'),
+        h('a.btn.subtle', { href: ways.creatorHref('advanced') }, 'Change the rules of play'))));
 }
 
 /* ==========================================================================
@@ -225,7 +330,7 @@ export function variantCombatPanel(app) {
       h('p', { text: `Save to resist injury: Fort ${health.injury.saveWithHits >= 0 ? '+' : ''}${health.injury.saveWithHits} against DC 15 + damage ÷ 5 (rounded up). Failing by 10 or more disables you.` }))));
   if (health.massiveDamage) {
     const results = { death: 'death', dying: '-1 hit points and dying', nearDeath: '-8 hit points and dying' };
-    blocks.push(h('div.variant-block', h('h3', 'Massive damage'), h('p', { text: `A single hit of ${health.massiveDamage.threshold} or more calls for a DC 15 Fortitude save; failing means ${results[health.massiveDamage.result]}. Choose the threshold on the Rules page.` })));
+    blocks.push(h('div.variant-block', h('h3', 'Massive damage'), h('p', { text: `A single hit of ${health.massiveDamage.threshold} or more calls for a DC 15 Fortitude save; failing means ${results[health.massiveDamage.result]}. The threshold is chosen in the creator’s Advanced step.` })));
   }
   if (health.deathAndDying) blocks.push(h('div.variant-block', h('h3', 'Death and dying'), h('p', { text: 'Hit points stop at 0. Reaching 0 calls for a Fortitude save, DC 10 + 2 per 10 points of damage from the hit: success leaves you disabled, failure dying, failure by 10 or more dead.' })));
   if (v.playersRoll) blocks.push(h('div.variant-block', h('h3', 'Players roll all the dice'), row(
@@ -290,7 +395,7 @@ export function variantTracksPanel(app) {
   if (s.honor) blocks.push(h('div.variant-block', h('h3', 'Honor'), row(
     h('div.total', h('span.label', { text: 'Starting' }), h('span.out', { text: s.honor.starting === null ? '-' : String(s.honor.starting) })),
     labelled('Current', number((n) => { state.honor = { ...(state.honor || {}), current: n }; }, s.honor.current, 'Current honor')),
-    h('p.hint', { text: 'Starting honor is set by alignment and ancestry (on the Rules page).' }))));
+    h('p.hint', { text: 'Starting honor is set by alignment and ancestry (in the creator’s Advanced step).' }))));
 
   if (s.sanity) blocks.push(h('div.variant-block', h('h3', 'Sanity'), row(
     h('div.total', h('span.label', { text: 'Starting' }), h('span.out', { text: String(s.sanity.starting) })),
@@ -301,8 +406,16 @@ export function variantTracksPanel(app) {
   if (s.bloodline && s.bloodline.strength) blocks.push(h('div.variant-block', h('h3', `Bloodline: ${s.bloodline.source || 'unnamed'} (${s.bloodline.strength})`),
     h('p', { text: `${s.bloodline.taken} bloodline level${s.bloodline.taken === 1 ? '' : 's'} taken; ${s.bloodline.required} due by now.${s.bloodline.nextBefore ? ` The next is due before character level ${s.bloodline.nextBefore}.` : ''}` })));
 
-  if (s.levelAdjustment && s.levelAdjustment.starting) blocks.push(h('div.variant-block', h('h3', 'Level adjustment'),
-    h('p', { text: `+${s.levelAdjustment.current} now (from +${s.levelAdjustment.starting}); ${s.levelAdjustment.taken} reduction${s.levelAdjustment.taken === 1 ? '' : 's'} paid for.` })));
+  if (s.levelAdjustment && s.levelAdjustment.starting) {
+    const la = s.levelAdjustment;
+    blocks.push(h('div.variant-block', h('h3', 'Level adjustment'), row(
+      h('div.total', h('span.label', { text: 'Now' }), h('span.out.big', { text: `+${la.current}` })),
+      labelled('Reductions paid for', h('select.field', { onchange: (ev) => { state.laReductions = Number(ev.target.value); rebuild(); } },
+        Array.from({ length: la.eligible + 1 }, (_, i) => h('option', { value: String(i), text: String(i), selected: la.taken === i })))),
+      h('p.hint', { text: `From +${la.starting}. ${la.nextAt
+        ? `Next eligible at class level ${la.nextAt}, for ${((d.summary.ecl - 1) * 1000).toLocaleString()} XP.`
+        : la.eligible > la.taken ? `Eligible now, for ${((d.summary.ecl - 1) * 1000).toLocaleString()} XP.` : 'No further reductions until epic levels.'}` }))));
+  }
 
   if (health.taint) blocks.push(h('div.variant-block', h('h3', 'Taint'), row(
     labelled('Taint score', number((n) => { state.taint = Math.max(0, n); }, health.taint.score, 'Taint score')),

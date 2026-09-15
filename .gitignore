@@ -6,3 +6,4 @@ _site/
 .DS_Store
 Thumbs.db
 .claude/
+__pycache__/

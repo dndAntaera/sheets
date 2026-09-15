@@ -7,7 +7,7 @@
 import { call, signIn, people, googler, discorder, d1 } from './worker-suite.js';
 import { campaignCan, campaignRole, characterAccess, characterCan } from '../worker/src/policy.js';
 import { normalizeSettings, settableModules, applyCampaign } from '../web/engine/campaign.js';
-import { VARIANT_MODULES } from '../web/engine/modules.js';
+import { VARIANT_MODULES, CONTENT_MODULES } from '../web/engine/modules.js';
 import srd from '../web/data/rulesets/srd.json' with { type: 'json' };
 import antaera from '../web/data/rulesets/antaera.json' with { type: 'json' };
 
@@ -95,9 +95,59 @@ export function buildCampaignSuite() {
   test('settings: a campaign’s choices become the character’s rules', async (t) => {
     const rules = { ruleset: srd };
     const { rules: applied, overrides } = applyCampaign(rules, { settings: { modules: { gestalt: true }, startingLevel: 5 } });
-    t.eq(overrides, { gestalt: true, actionPoints: false, traitsFlaws: false, ...Object.fromEntries(VARIANT_MODULES.map((m) => [m, false])) }, 'unset variants take the ruleset default');
+    t.eq(overrides, { gestalt: true, actionPoints: false, traitsFlaws: false, ...Object.fromEntries(VARIANT_MODULES.map((m) => [m, CONTENT_MODULES.includes(m)])) }, 'unset variants take the ruleset default: content offered, rules off');
     t.eq(applied.ruleset.startingLevel, 5);
     t.eq(srd.startingLevel, 1, 'the ruleset itself is untouched');
+  });
+
+  /* --- held choices, and their history --------------------------------------- */
+
+  test('a finished character\u2019s changed choices are written into its history, and its GMs see them', async (t) => {
+    const gm = await gmAccount();
+    const ada = await player('Ada');
+    const campaign = await campaignWith(gm);
+    await join(ada, (await invite(gm, campaign.id)).code);
+    const base = { name: 'Vashti', ruleset: 'srd', race: { name: 'Elf' }, levels: [{ a: 'Rogue' }], skills: [{ name: 'Hide', ranks: 4 }], feats: [{ name: 'Dodge' }] };
+
+    // A draft changes freely.
+    await call('PUT', '/api/characters/vashti', { token: ada.token, body: { ...base, meta: { wizard: { step: 'skills' } } } });
+    await call('POST', `/api/campaigns/${campaign.id}/characters`, { token: ada.token, body: { characterId: 'vashti' } });
+    await call('PUT', '/api/characters/vashti', { token: ada.token, body: { ...base, race: { name: 'Half-Elf' }, meta: { wizard: { step: 'feats' } } } });
+    // Finished: the choices are held from here.
+    const first = await call('PUT', '/api/characters/vashti', { token: ada.token, body: { ...base, meta: {} } });
+    t.eq([first.data.history, first.data.recorded], [[], false], 'finishing the creator is not a change');
+
+    // Back in the creator: nothing is recorded until it is finished again.
+    const midway = { ...base, levels: [{ a: 'Rogue' }, { a: 'Fighter' }], feats: [{ name: 'Dodge' }, { name: 'Mobility' }] };
+    await call('PUT', '/api/characters/vashti', { token: ada.token, body: { ...midway, meta: { wizard: { step: 'class', revision: { started: 'x' } } } } });
+    const forged = [{ id: 'fake', at: '2020-01-01', changes: [] }];
+    const done = await call('PUT', '/api/characters/vashti', { token: ada.token, body: { ...midway, history: forged, meta: {} } });
+    t.eq(done.data.recorded, true);
+    t.eq(done.data.history.length, 1, 'a sheet cannot write its own history');
+    t.eq(done.data.history[0].changes.map((c) => c.text), ['Level 2 added: Fighter', 'Feats added: Mobility']);
+    t.eq(done.data.history[0].by.name, 'Ada');
+    const stored = (await call('GET', '/api/characters/vashti', { token: ada.token })).data;
+    t.eq(stored.history.length, 1, 'the history is in the sheet');
+
+    // Playing - hit points, notes - changes nothing held.
+    await call('PUT', '/api/characters/vashti', { token: ada.token, body: { ...midway, hp: { current: 3 }, text: { notes: 'Lost an eye.' }, meta: {} } });
+    t.eq((await call('GET', '/api/characters/vashti', { token: ada.token })).data.history.length, 1);
+
+    const list = (await call('GET', '/api/campaigns', { token: gm.token })).data;
+    t.eq(list[0].unseenChanges, 1, 'the GM is told');
+    t.eq((await call('GET', '/api/campaigns', { token: ada.token })).data[0].unseenChanges, undefined, 'a player is not');
+    t.eq((await call('GET', `/api/campaigns/${campaign.id}/changes`, { token: ada.token })).status, 403);
+
+    const feed = (await call('GET', `/api/campaigns/${campaign.id}/changes`, { token: gm.token })).data;
+    t.eq([feed.unseen, feed.changes[0].characterName, feed.changes[0].unseen], [1, 'Vashti', true]);
+    t.eq((await call('POST', `/api/campaigns/${campaign.id}/changes/seen`, { token: gm.token })).status, 204);
+    t.eq((await call('GET', `/api/campaigns/${campaign.id}/changes`, { token: gm.token })).data.unseen, 0, 'until it is read');
+
+    // A GM's own change is recorded, but is not news to that GM.
+    await call('PUT', '/api/characters/vashti', { token: gm.token, body: { ...midway, race: { name: 'Elf' }, skills: [{ name: 'Hide', ranks: 5 }], meta: {} } });
+    const after = (await call('GET', `/api/campaigns/${campaign.id}/changes`, { token: gm.token })).data;
+    t.eq([after.changes.length, after.unseen], [2, 0]);
+    t.eq(after.changes[0].changes.map((c) => c.text), ['Skills: Hide 4 to 5 ranks']);
   });
 
   /* --- making one --------------------------------------------------------- */

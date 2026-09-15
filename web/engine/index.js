@@ -38,6 +38,8 @@ export * from './traits.js';
 export * from './synergies.js';
 export * from './inventory.js';
 export * from './feedback.js';
+export * from './locks.js';
+export * from './rolls.js';
 export { derive } from './derive.js';
 export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 
@@ -53,7 +55,7 @@ export const RULESET_IDS = ['srd', 'antaera'];
  */
 export function makeRules({
   core, rulesets, classes, skills, races, backgrounds = {}, progression = {}, variants = null,
-  featRules = [], featEffects = null, traits = [], languages = [], domains = [], synergies = null,
+  featRules = [], featEffects = null, traits = [], languages = [], domains = [], synergies = null, variantContent = null,
 }, rulesetId = 'srd') {
   const base = {
     core,
@@ -64,7 +66,10 @@ export function makeRules({
     backgrounds,
     progression,
     variants,
-    featRules,
+    // Unearthed Arcana's races, classes, feats and class features (srd/variant-content.json).
+    variantContent,
+    // Its feats sit beside the SRD's, each marked with the variant it belongs to.
+    featRules: [...featRules, ...(variantContent?.feats || [])],
     featEffects,
     traits,
     languages,
@@ -91,7 +96,7 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     return res.json();
   };
 
-  const [core, classes, skills, races, progression, variants, featRules, featEffects, traits, languages, domains, synergies, ...rulesetFiles] = await Promise.all([
+  const [core, classes, skills, races, progression, variants, featRules, featEffects, traits, languages, domains, synergies, variantContent, ...rulesetFiles] = await Promise.all([
     get('core.json'),
     get('classes.json'),
     get('skills.json'),
@@ -104,6 +109,7 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
     get('srd/languages.json'),
     get('srd/domains.json'),
     get('synergies.json'),
+    get('srd/variant-content.json'),
     ...RULESET_IDS.map((id) => get(`rulesets/${id}.json`)),
   ]);
 
@@ -118,6 +124,6 @@ export async function loadRules(base = './data/', rulesetId = 'srd') {
   }
 
   return makeRules({
-    core, rulesets, classes, skills, races, backgrounds, progression, variants, featRules, featEffects, traits, languages, domains, synergies,
+    core, rulesets, classes, skills, races, backgrounds, progression, variants, featRules, featEffects, traits, languages, domains, synergies, variantContent,
   }, rulesetId);
 }

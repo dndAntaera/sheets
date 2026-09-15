@@ -16,7 +16,7 @@ import { h } from './dom.js';
  * the magic page is Spells, Powers, or both.
  */
 export const SHEET_PAGES = [
-  { key: 'character', label: 'Character', panels: ['identity', 'levels', 'abilities', 'languages'], notices: ['identity', 'levels', 'abilities', 'languages', 'creator'] },
+  { key: 'character', label: 'Character', panels: ['identity', 'levels', 'classChoices', 'abilities', 'languages'], notices: ['identity', 'levels', 'abilities', 'languages', 'creator'] },
   { key: 'combat', label: 'Combat', panels: ['combat', 'attackCards', 'variantCombat', 'effects'], notices: ['hp', 'effects'] },
   { key: 'skills', label: 'Skills', panels: ['skills'], notices: ['skills'] },
   { key: 'feats', label: 'Feats & abilities', panels: ['trackers', 'variantTracks', 'abilitiesList', 'feats', 'houserules'], notices: ['feats', 'houserules', 'trackers'] },
@@ -31,7 +31,8 @@ export const SHEET_PAGES = [
   { key: 'inventory', label: 'Inventory', panels: ['inventory'], notices: ['inventory', 'wealth'] },
   { key: 'shop', label: 'Shop', panels: ['shop'], notices: [] },
   { key: 'story', label: 'Story', panels: ['text'], notices: [] },
-  { key: 'rules', label: 'Rules', panels: ['variants', 'variantRules', 'content'], notices: ['content', 'variants'] },
+  { key: 'rules', label: 'Rules', panels: ['rulesInPlay', 'content'], notices: ['content', 'variants'] },
+  { key: 'history', label: 'History', panels: ['history'], notices: [], visible: (d, c) => (c?.history || []).length > 0 },
   { key: 'all', label: 'Full sheet', panels: null, notices: null },
 ];
 
@@ -51,9 +52,9 @@ export function pageForNotice(field) {
 }
 
 /** The row of page tabs across the top of the sheet. */
-export function sheetTabs(characterId, current, derived) {
+export function sheetTabs(characterId, current, derived, character = null) {
   return h('nav.sheet-tabs', { 'aria-label': 'Sheet pages' },
-    SHEET_PAGES.filter((p) => !p.visible || p.visible(derived) || p.key === current).map((p) => h('a.sheet-tab', {
+    SHEET_PAGES.filter((p) => !p.visible || p.visible(derived, character) || p.key === current).map((p) => h('a.sheet-tab', {
       href: `#/sheet/${characterId}/${p.key}`,
       class: p.key === current ? 'is-active' : '',
       'aria-current': p.key === current ? 'page' : null,

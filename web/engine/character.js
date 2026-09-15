@@ -6,6 +6,7 @@
 // totals is a sheet whose totals eventually disagree with its parts.
 
 import { migrateInventory } from './inventory.js';
+import { CLASS_VARIANTS } from './variants.js';
 
 export const SCHEMA = 2;
 
@@ -153,8 +154,42 @@ export function migrate(character) {
   c.features = c.features || [];
   c.content = { races: [], classes: [], feats: [], skills: [], items: [], templates: [], features: [], ...(c.content || {}) };
   migrateInventory(c);
+  migrateClassVariants(c);
   c.schema = SCHEMA;
   return c;
+}
+
+/**
+ * Unearthed Arcana's class variants were a switch and a choice of variant for
+ * each class; spontaneous divine casting, a switch for clerics and druids both.
+ * Now the variant is the class chosen - "Cloistered cleric" on the level rows -
+ * so a sheet that had one switched on is given the variant's name there.
+ */
+function migrateClassVariants(c) {
+  const renamed = {};
+  if (c.options?.classVariants === true) {
+    for (const [className, key] of Object.entries(c.variants?.classVariant || {})) {
+      const variant = CLASS_VARIANTS[className]?.[key];
+      if (variant) renamed[className] = variant.name;
+    }
+  }
+  if (c.options?.spontaneousDivine === true) {
+    renamed.Cleric = renamed.Cleric || CLASS_VARIANTS.Cleric.spontaneousCleric.name;
+    renamed.Druid = renamed.Druid || CLASS_VARIANTS.Druid.spontaneousDruid.name;
+  }
+  const legacy = c.variants?.classVariant || c.options?.classVariants !== undefined || c.options?.spontaneousDivine !== undefined;
+  if (!legacy) return;
+  const to = (name) => renamed[name] || name;
+  c.levels = (c.levels || []).map((row) => ({ ...row, a: to(row.a), b: to(row.b) }));
+  if (c.nextLevel) c.nextLevel = { ...c.nextLevel, a: to(c.nextLevel.a), b: to(c.nextLevel.b) };
+  if (c.variants?.classVariant) {
+    c.variants = { ...c.variants };
+    delete c.variants.classVariant;
+  }
+  const options = { ...c.options };
+  delete options.classVariants;
+  delete options.spontaneousDivine;
+  c.options = options;
 }
 
 /**

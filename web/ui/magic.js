@@ -8,6 +8,7 @@
 // one opens to its full entry.
 
 import { h, button, refill } from './dom.js';
+import { featureVariantOptions, REPLACED_FEATURES } from '../engine/index.js';
 import { loadReferences, referenceNow, lookUp, referenceHref } from '../reference.js';
 import { referenceCard } from './reference.js';
 
@@ -187,9 +188,40 @@ function options(app, m, state, changed) {
                 changed();
               },
             }), h('span', { text: school }))))
-        : h('p.hint', { text: 'A specialist prepares one more spell of their school at each level, and gives up two other schools (a diviner, one).' }));
+        : h('p.hint', { text: 'A specialist prepares one more spell of their school at each level, and gives up two other schools (a diviner, one).' }),
+      state.specialty ? specialistVariants(app, m, state.specialty, changed) : null);
   }
   return null;
+}
+
+/**
+ * A specialist wizard's variants (Unearthed Arcana): for each of the familiar,
+ * the bonus feats and the school's extra spell, the standard feature or the
+ * school's variant in its place.
+ */
+function specialistVariants(app, m, school, changed) {
+  const groups = featureVariantOptions(m.name, app.rules, app.derived.modules, school);
+  if (!Object.keys(groups).length) return null;
+  const c = app.character;
+  const mine = c.variants?.featureVariants?.[m.name] || {};
+  return h('div.magic-specialist-variants',
+    h('span.label', { text: `${school} variants` }),
+    h('div.row', Object.entries(groups).map(([replaces, list]) => h('label.magic-option',
+      h('span.label', { text: REPLACED_FEATURES[replaces] }),
+      h('select.field', {
+        dataset: { unbound: '', lock: 'spells' },
+        onchange: (ev) => {
+          const picks = { ...mine, [replaces]: ev.target.value || undefined };
+          c.variants = { ...(c.variants || {}), featureVariants: { ...(c.variants?.featureVariants || {}), [m.name]: picks } };
+          app.rebuildPanel('abilitiesList');
+          app.rebuildPanel('feats');
+          changed();
+        },
+      }, [['', 'Standard'], ...list.map((o) => [o.key, `${o.name}${o.level > 1 ? ` (${o.level}th)` : ''}`])].map(([v, t]) => h('option', { value: v, text: t, selected: (mine[replaces] || '') === v })))))),
+    Object.values(mine).filter(Boolean).map((key) => {
+      const o = Object.values(groups).flat().find((x) => x.key === key);
+      return o ? h('p.hint', { text: `${o.name}: ${o.note}` }) : null;
+    }));
 }
 
 /* ==========================================================================
@@ -254,7 +286,7 @@ function knownLists(app, m, state, levels, changed) {
         h('div.magic-level-head', h('span.magic-level-name', { text: levelName(l.level) }),
           l.knownAllowed !== null ? h('span.hint', { text: `${here.length} of ${l.knownAllowed}` }) : null),
         h('ul.magic-spells', here.map((k) => spellRow(k.name, 'spells', [
-          button('x', () => { state.known.splice(k.i, 1); changed(); }, { subtle: true, danger: true, title: 'Forget this spell' }),
+          button('x', () => { state.known.splice(k.i, 1); changed(); }, { subtle: true, danger: true, title: 'Forget this spell', lock: 'spells' }),
         ], m, state))),
         h('div.row.magic-adder',
           dropdown(`Add a ${levelName(l.level)} spell`, '', [{ options: choices.map((e) => ({ value: e.name, text: `${e.name} - ${e.school}` })) }], (name) => {
@@ -423,7 +455,7 @@ function manifesterBlock(app, m, state, changed) {
           h('span.tag', { text: `${ordinal(Number(k.level) || 0)}` }),
           cost !== null && app.wizard ? h('span.hint', { text: `${cost} pp` }) : null,
           cost !== null && !app.wizard ? button(`Manifest (${cost} pp)`, () => spend(cost), { subtle: true, title: 'Spend its base cost. Augmenting costs more: spend the extra from the pool.' }) : null,
-          button('x', () => { state.known.splice(i, 1); changed(); }, { subtle: true, danger: true, title: 'Forget this power' }),
+          button('x', () => { state.known.splice(i, 1); changed(); }, { subtle: true, danger: true, title: 'Forget this power', lock: 'spells' }),
         ], m, state);
       })),
       (() => {

@@ -1,0 +1,49 @@
+[
+  {
+    "name": "roll",
+    "description": "Roll from your character sheet: a skill, save, ability, initiative, weapon or dice",
+    "options": [
+      {
+        "type": 3,
+        "name": "what",
+        "description": "hide, fort, str, init, longsword, 2d6+3 - add +2 or -1 for a modifier",
+        "required": true,
+        "autocomplete": true,
+        "max_length": 100
+      },
+      {
+        "type": 3,
+        "name": "character",
+        "description": "Which character, if not the one chosen with /character",
+        "required": false,
+        "autocomplete": true
+      }
+    ]
+  },
+  {
+    "name": "sheet",
+    "description": "A character's numbers at a glance",
+    "options": [
+      {
+        "type": 3,
+        "name": "character",
+        "description": "Which character, if not the one chosen with /character",
+        "required": false,
+        "autocomplete": true
+      }
+    ]
+  },
+  {
+    "name": "character",
+    "description": "Choose which of your characters you roll as",
+    "options": [
+      {
+        "type": 3,
+        "name": "name",
+        "description": "The character",
+        "required": true,
+        "autocomplete": true
+      }
+    ]
+  }
+]

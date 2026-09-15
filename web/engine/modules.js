@@ -76,6 +76,37 @@ export const VARIANT_MODULES = [
 
 export const MODULES = ['gestalt', 'actionPoints', 'taint', 'traitsFlaws', 'backgrounds', 'training', ...VARIANT_MODULES];
 
+/**
+ * Variant rules that are only more to choose from - races, classes, feats and
+ * class features. They are not switched on: their races are in the race list,
+ * their classes in the class list, for everyone, unless a campaign's GMs take
+ * them off the table.
+ */
+export const CONTENT_MODULES = [
+  'environmentalRaces',
+  'elementalRaces',
+  'paragonClasses',
+  'classVariants',
+  'specialistVariants',
+  'spontaneousDivine',
+  'classFeatureVariants',
+  'prestigiousClasses',
+  'genericClasses',
+  'spelltouchedFeats',
+  'weaponGroups',
+];
+
+/**
+ * The switches that change how a character is BUILT - two classes a level, a
+ * different way of buying skills, flaws that buy feats. The creator asks about
+ * them first, in Concept. Every other switch changes how a character PLAYS, and
+ * waits for the creator's Advanced step.
+ */
+export const BUILD_MODULES = ['gestalt', 'traitsFlaws', 'skillsMaxRanks', 'skillsLevelBased', 'srdBackground', 'backgrounds'];
+
+/** The switches the Advanced step holds: every module that is neither content nor part of the build. */
+export const PLAY_MODULES = MODULES.filter((m) => !CONTENT_MODULES.includes(m) && !BUILD_MODULES.includes(m));
+
 export const MODULE_LABELS = {
   gestalt: 'Gestalt',
   actionPoints: 'Action points',
@@ -145,6 +176,9 @@ export function moduleState(rules, character, name, overrides = {}) {
   if (overrides[name] !== undefined && overrides[name] !== null) {
     return { on: Boolean(overrides[name]), available: true, choosable: false, lockedBy: def.lockedBy || 'campaign' };
   }
+
+  // More races, classes and feats to choose from: offered, not switched.
+  if (CONTENT_MODULES.includes(name)) return { on: true, available: true, choosable: false, lockedBy: 'content' };
 
   // A module the ruleset hands to the GM - Antaera's gestalt - is set by the
   // campaign a character is in, which arrives above as an override. A character

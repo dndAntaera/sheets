@@ -1,0 +1,3015 @@
+{
+ "_comment": "Built by scripts/build-variant-content.py from races.json and the Unearthed Arcana rule text. Do not edit by hand.",
+ "races": [
+  {
+   "name": "Aquatic Dwarf",
+   "size": "Medium",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Fighter",
+   "abilityAdjust": {
+    "str": 2,
+    "con": 2,
+    "dex": -4,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against poison"
+    },
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against spells and spell-like abilities"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against giants"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against orcs and goblinoids"
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 2,
+     "condition": "for unusual stonework"
+    },
+    {
+     "target": "skill.Appraise",
+     "type": "racial",
+     "value": 2,
+     "condition": "on stone or metal items"
+    },
+    {
+     "target": "skill.Craft",
+     "type": "racial",
+     "value": 2,
+     "condition": "on stone or metal"
+    }
+   ],
+   "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load. Aquatic subtype: breathes water, and air only if also amphibious. A swim speed, with +8 on Swim checks and always able to take 10 on them. Swim 20 ft.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Dwarven"
+    ],
+    "bonus": [
+     "Aquan",
+     "Giant",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Terran",
+     "Undercommon"
+    ]
+   },
+   "base": "Dwarf",
+   "variant": "environmentalRaces",
+   "group": "aquatic"
+  },
+  {
+   "name": "Aquatic Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Wizard",
+   "abilityAdjust": {
+    "dex": 2,
+    "con": -2
+   },
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Notices a secret door on passing within 5 ft, with a Search check. Aquatic subtype: breathes water, and air only if also amphibious. A swim speed, with +8 on Swim checks and always able to take 10 on them. Swim 40 ft. No gills.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": [
+     "Aquan",
+     "Draconic",
+     "Gnoll",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Sylvan"
+    ]
+   },
+   "base": "Elf",
+   "variant": "environmentalRaces",
+   "group": "aquatic"
+  },
+  {
+   "name": "Aquatic Gnome",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Bard",
+   "abilityAdjust": {
+    "con": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against illusions"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against goblinoids"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against giants"
+    },
+    {
+     "target": "skill.Sense Motive",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Gather Information",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better. Aquatic subtype: breathes water, and air only if also amphibious. A swim speed, with +8 on Swim checks and always able to take 10 on them. Swim 20 ft.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Gnome"
+    ],
+    "bonus": [
+     "Aquan",
+     "Draconic",
+     "Dwarven",
+     "Elven",
+     "Giant",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Gnome",
+   "variant": "environmentalRaces",
+   "group": "aquatic"
+  },
+  {
+   "name": "Aquatic Half-Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "any",
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Diplomacy",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "skill.Survival",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares. Aquatic subtype: breathes water, and air only if also amphibious. A swim speed, with +8 on Swim checks and always able to take 10 on them. Swim 40 ft.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": "any"
+   },
+   "base": "Half-Elf",
+   "variant": "environmentalRaces",
+   "group": "aquatic"
+  },
+  {
+   "name": "Aquatic Half-Orc",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Barbarian",
+   "abilityAdjust": {
+    "str": 2,
+    "int": -2,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "skill.Diplomacy",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Gather Information",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Darkvision 60 ft. Orc blood: counts as an orc for anything that cares. Aquatic subtype: breathes water, and air only if also amphibious. A swim speed, with +8 on Swim checks and always able to take 10 on them. Swim 30 ft.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Orc"
+    ],
+    "bonus": [
+     "Abyssal",
+     "Aquan",
+     "Draconic",
+     "Giant",
+     "Gnoll",
+     "Goblin"
+    ]
+   },
+   "base": "Half-Orc",
+   "variant": "environmentalRaces",
+   "group": "aquatic"
+  },
+  {
+   "name": "Aquatic Halfling",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Rogue",
+   "abilityAdjust": {
+    "dex": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Climb",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Jump",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Move Silently",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.all",
+     "type": "morale",
+     "value": 2,
+     "condition": "against fear"
+    },
+    {
+     "target": "attack.ranged",
+     "type": "racial",
+     "value": 1,
+     "condition": "with thrown weapons and slings"
+    }
+   ],
+   "traits": "+1 on all saving throws, and a further +2 morale bonus against fear. Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them. Aquatic subtype: breathes water, and air only if also amphibious. A swim speed, with +8 on Swim checks and always able to take 10 on them. Swim 20 ft. Low-light vision, seeing four times as far as a human.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Halfling"
+    ],
+    "bonus": [
+     "Aquan",
+     "Dwarven",
+     "Elven",
+     "Gnome",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Halfling",
+   "variant": "environmentalRaces",
+   "group": "aquatic"
+  },
+  {
+   "name": "Aquatic Human",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "any",
+   "effects": [
+    {
+     "target": "feats.bonus",
+     "value": 1,
+     "note": "A bonus feat at 1st level"
+    },
+    {
+     "target": "skillPoints.perLevel",
+     "value": 1,
+     "note": "4 extra skill points at 1st level, 1 per level after"
+    }
+   ],
+   "traits": "Bonus feat at 1st level. Four extra skill points at 1st level and one per level after. Favored class: any. Aquatic subtype: breathes water, and air only if also amphibious. A swim speed, with +8 on Swim checks and always able to take 10 on them. Swim 30 ft. Low-light vision, seeing four times as far as a human.",
+   "languages": {
+    "automatic": [
+     "Common"
+    ],
+    "bonus": "any"
+   },
+   "base": "Human",
+   "variant": "environmentalRaces",
+   "group": "aquatic"
+  },
+  {
+   "name": "Arctic Dwarf",
+   "size": "Medium",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Fighter",
+   "abilityAdjust": {
+    "str": 2,
+    "con": 2,
+    "dex": -4,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against poison"
+    },
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against spells and spell-like abilities"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against giants"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against kobolds"
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 2,
+     "condition": "for unusual stonework"
+    },
+    {
+     "target": "skill.Appraise",
+     "type": "racial",
+     "value": 2,
+     "condition": "on stone or metal items"
+    },
+    {
+     "target": "skill.Craft",
+     "type": "racial",
+     "value": 2,
+     "condition": "on stone or metal"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against cold weather and exposure"
+    },
+    {
+     "target": "skill.Appraise",
+     "type": "racial",
+     "value": 2,
+     "condition": "on items made of ice"
+    },
+    {
+     "target": "skill.Craft",
+     "type": "racial",
+     "value": 2,
+     "condition": "on items made of ice"
+    }
+   ],
+   "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load. Cold endurance: +4 on Fortitude saves against cold weather and exposure. Icecunning: stonecunning works on ice as well as stone.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Dwarven"
+    ],
+    "bonus": [
+     "Giant",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Terran",
+     "Undercommon"
+    ]
+   },
+   "base": "Dwarf",
+   "variant": "environmentalRaces",
+   "group": "arctic"
+  },
+  {
+   "name": "Arctic Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Wizard",
+   "abilityAdjust": {
+    "str": -2,
+    "dex": 2
+   },
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against cold weather and exposure"
+    },
+    {
+     "target": "skill.Survival",
+     "type": "racial",
+     "value": 2,
+     "condition": "in arctic environments"
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Cold endurance: +4 on Fortitude saves against cold weather and exposure. +2 on one Craft skill, chosen at creation.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": [
+     "Draconic",
+     "Gnoll",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Sylvan"
+    ]
+   },
+   "base": "Elf",
+   "variant": "environmentalRaces",
+   "group": "arctic"
+  },
+  {
+   "name": "Arctic Gnome",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Bard",
+   "abilityAdjust": {
+    "con": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against illusions"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against kobolds and goblinoids"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against giants"
+    },
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against cold weather and exposure"
+    },
+    {
+     "target": "skill.Sense Motive",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better. Cold endurance: +4 on Fortitude saves against cold weather and exposure.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Gnome"
+    ],
+    "bonus": [
+     "Draconic",
+     "Dwarven",
+     "Elven",
+     "Giant",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Gnome",
+   "variant": "environmentalRaces",
+   "group": "arctic"
+  },
+  {
+   "name": "Arctic Half-Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "any",
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Gather Information",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against cold weather and exposure"
+    },
+    {
+     "target": "skill.Survival",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares. Cold endurance: +4 on Fortitude saves against cold weather and exposure.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": "any"
+   },
+   "base": "Half-Elf",
+   "variant": "environmentalRaces",
+   "group": "arctic"
+  },
+  {
+   "name": "Arctic Half-Orc",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Barbarian",
+   "abilityAdjust": {
+    "str": 2,
+    "int": -2,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against cold weather and exposure"
+    },
+    {
+     "target": "skill.Diplomacy",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Orc blood: counts as an orc for anything that cares. Cold endurance: +4 on Fortitude saves against cold weather and exposure. Low-light vision.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Orc"
+    ],
+    "bonus": [
+     "Draconic",
+     "Giant",
+     "Gnoll",
+     "Goblin",
+     "Abyssal"
+    ]
+   },
+   "base": "Half-Orc",
+   "variant": "environmentalRaces",
+   "group": "arctic"
+  },
+  {
+   "name": "Arctic Halfling",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Ranger",
+   "abilityAdjust": {
+    "dex": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Climb",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Jump",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Move Silently",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.all",
+     "type": "morale",
+     "value": 2,
+     "condition": "against fear"
+    },
+    {
+     "target": "attack.ranged",
+     "type": "racial",
+     "value": 1,
+     "condition": "with thrown weapons"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against cold weather and exposure"
+    },
+    {
+     "target": "skill.Swim",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "+1 on all saving throws, and a further +2 morale bonus against fear. Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them. Cold endurance: +4 on Fortitude saves against cold weather and exposure.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Halfling"
+    ],
+    "bonus": [
+     "Dwarven",
+     "Elven",
+     "Gnome",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Halfling",
+   "variant": "environmentalRaces",
+   "group": "arctic"
+  },
+  {
+   "name": "Desert Dwarf",
+   "size": "Medium",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Fighter",
+   "abilityAdjust": {
+    "dex": -2,
+    "con": 2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against poison"
+    },
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against spells and spell-like abilities"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against dragons"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against reptilian humanoids and dragons"
+    },
+    {
+     "target": "skill.Appraise",
+     "type": "racial",
+     "value": 2,
+     "condition": "on stone or metal items"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against hot weather"
+    },
+    {
+     "target": "skill.Knowledge (architecture and engineering)",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Knowledge (dungeoneering)",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Profession",
+     "type": "racial",
+     "value": 2,
+     "condition": "as a miner"
+    }
+   ],
+   "traits": "Darkvision 60 ft. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load. Heat endurance: +4 on Fortitude saves against hot weather.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Dwarven"
+    ],
+    "bonus": [
+     "Giant",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Terran",
+     "Undercommon"
+    ]
+   },
+   "base": "Dwarf",
+   "variant": "environmentalRaces",
+   "group": "desert"
+  },
+  {
+   "name": "Desert Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Wizard",
+   "abilityAdjust": {
+    "str": -2,
+    "dex": 2
+   },
+   "effects": [
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against hot weather"
+    },
+    {
+     "target": "skill.Handle Animal",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Ride",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Notices a secret door on passing within 5 ft, with a Search check. Heat endurance: +4 on Fortitude saves against hot weather. Martial Weapon Proficiency with the scimitar, rapier and shortbow (composite too) as bonus feats.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": [
+     "Draconic",
+     "Gnoll",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Sylvan"
+    ]
+   },
+   "base": "Elf",
+   "variant": "environmentalRaces",
+   "group": "desert"
+  },
+  {
+   "name": "Desert Gnome",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Bard",
+   "abilityAdjust": {
+    "con": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against illusions"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against kobolds and goblinoids"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against giants"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against hot weather"
+    },
+    {
+     "target": "skill.Bluff",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Diplomacy",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Sense Motive",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better. Heat endurance: +4 on Fortitude saves against hot weather.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Gnome"
+    ],
+    "bonus": [
+     "Draconic",
+     "Dwarven",
+     "Elven",
+     "Giant",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Gnome",
+   "variant": "environmentalRaces",
+   "group": "desert"
+  },
+  {
+   "name": "Desert Half-Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "any",
+   "effects": [
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Diplomacy",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Gather Information",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against hot weather"
+    },
+    {
+     "target": "skill.Sense Motive",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares. Heat endurance: +4 on Fortitude saves against hot weather.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": "any"
+   },
+   "base": "Half-Elf",
+   "variant": "environmentalRaces",
+   "group": "desert"
+  },
+  {
+   "name": "Desert Half-Orc",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Barbarian",
+   "abilityAdjust": {
+    "con": 2,
+    "int": -2
+   },
+   "effects": [
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against hot weather"
+    }
+   ],
+   "traits": "Orc blood: counts as an orc for anything that cares. Heat endurance: +4 on Fortitude saves against hot weather. Low-light vision. Run as a racial bonus feat.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Orc"
+    ],
+    "bonus": [
+     "Draconic",
+     "Giant",
+     "Gnoll",
+     "Goblin",
+     "Abyssal"
+    ]
+   },
+   "base": "Half-Orc",
+   "variant": "environmentalRaces",
+   "group": "desert"
+  },
+  {
+   "name": "Desert Halfling",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Rogue",
+   "abilityAdjust": {
+    "dex": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Move Silently",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.all",
+     "type": "morale",
+     "value": 2,
+     "condition": "against fear"
+    },
+    {
+     "target": "attack.ranged",
+     "type": "racial",
+     "value": 1,
+     "condition": "with thrown weapons and slings"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 4,
+     "condition": "against hot weather"
+    },
+    {
+     "target": "skill.Hide",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Sleight of Hand",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "+1 on all saving throws, and a further +2 morale bonus against fear. Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them. Heat endurance: +4 on Fortitude saves against hot weather.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Halfling"
+    ],
+    "bonus": [
+     "Dwarven",
+     "Elven",
+     "Gnome",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Halfling",
+   "variant": "environmentalRaces",
+   "group": "desert"
+  },
+  {
+   "name": "Jungle Dwarf",
+   "size": "Medium",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Ranger",
+   "abilityAdjust": {
+    "con": 2,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against poison"
+    },
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against spells and spell-like abilities"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against giants"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against orcs and goblinoids"
+    },
+    {
+     "target": "skill.Appraise",
+     "type": "racial",
+     "value": 2,
+     "condition": "on stone or metal items"
+    },
+    {
+     "target": "skill.Heal",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Knowledge (nature)",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Survival",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load. Low-light vision.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Dwarven"
+    ],
+    "bonus": [
+     "Giant",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Terran",
+     "Undercommon"
+    ]
+   },
+   "base": "Dwarf",
+   "variant": "environmentalRaces",
+   "group": "jungle"
+  },
+  {
+   "name": "Jungle Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Wizard",
+   "abilityAdjust": {
+    "dex": 2,
+    "con": -2
+   },
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "skill.Knowledge (history)",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Martial Weapon Proficiency with the handaxe, rapier, short sword and shortbow (composite too) as bonus feats.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": [
+     "Draconic",
+     "Gnoll",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Sylvan"
+    ]
+   },
+   "base": "Elf",
+   "variant": "environmentalRaces",
+   "group": "jungle"
+  },
+  {
+   "name": "Jungle Gnome",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Bard",
+   "abilityAdjust": {
+    "con": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against illusions"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against goblinoids"
+    },
+    {
+     "target": "skill.Climb",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Swim",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Craft",
+     "type": "racial",
+     "value": 2,
+     "condition": "on shipbuilding"
+    },
+    {
+     "target": "skill.Use Rope",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Gnome"
+    ],
+    "bonus": [
+     "Draconic",
+     "Dwarven",
+     "Elven",
+     "Giant",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Gnome",
+   "variant": "environmentalRaces",
+   "group": "jungle"
+  },
+  {
+   "name": "Jungle Half-Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "any",
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "skill.Bluff",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Sense Motive",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": "any"
+   },
+   "base": "Half-Elf",
+   "variant": "environmentalRaces",
+   "group": "jungle"
+  },
+  {
+   "name": "Jungle Half-Orc",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Barbarian",
+   "abilityAdjust": {
+    "str": 2,
+    "int": -2,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "skill.Climb",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Jump",
+     "type": "racial",
+     "value": 2
+    }
+   ],
+   "traits": "Orc blood: counts as an orc for anything that cares. Low-light vision.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Orc"
+    ],
+    "bonus": [
+     "Draconic",
+     "Giant",
+     "Gnoll",
+     "Goblin",
+     "Abyssal"
+    ]
+   },
+   "base": "Half-Orc",
+   "variant": "environmentalRaces",
+   "group": "jungle"
+  },
+  {
+   "name": "Jungle Halfling",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Barbarian",
+   "abilityAdjust": {
+    "dex": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "skill.Climb",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Jump",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Move Silently",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "attack.ranged",
+     "type": "racial",
+     "value": 1,
+     "condition": "with thrown weapons"
+    },
+    {
+     "target": "save.fort",
+     "type": "racial",
+     "value": 2,
+     "condition": "against poison"
+    }
+   ],
+   "traits": "Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them. Martial Weapon Proficiency with the throwing axe, handaxe and shortbow (composite too) as bonus feats. Poison use: never poisons itself applying or using poison.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Halfling"
+    ],
+    "bonus": [
+     "Dwarven",
+     "Elven",
+     "Gnome",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Halfling",
+   "variant": "environmentalRaces",
+   "group": "jungle"
+  },
+  {
+   "name": "Air Gnome",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Bard",
+   "abilityAdjust": {
+    "dex": 2,
+    "str": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against illusions"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against Large or larger creatures of the earth subtype"
+    },
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Craft",
+     "type": "racial",
+     "value": 2,
+     "condition": "on alchemy"
+    }
+   ],
+   "traits": "Low-light vision. Weapon familiarity: gnome hooked hammer. Illusions you cast have a save DC 1 higher. Speak with animals 1/day, and dancing lights, ghost sound and prestidigitation 1/day with Charisma 10 or better. The general traits of the races of air; see the Reference.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Gnome"
+    ],
+    "bonus": [
+     "Draconic",
+     "Dwarven",
+     "Elven",
+     "Giant",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Gnome",
+   "variant": "elementalRaces",
+   "group": "air"
+  },
+  {
+   "name": "Earth Dwarf",
+   "size": "Medium",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Fighter",
+   "abilityAdjust": {
+    "str": 2,
+    "con": 2,
+    "dex": -2,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 2,
+     "condition": "against poison"
+    },
+    {
+     "target": "ac",
+     "type": "dodge",
+     "value": 4,
+     "condition": "against giants"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against creatures of the air subtype"
+    },
+    {
+     "target": "save.all",
+     "type": "untyped",
+     "value": -2,
+     "condition": "against spells and abilities of the air subtype or air creatures"
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 4,
+     "condition": "for unusual stonework"
+    },
+    {
+     "target": "skill.Appraise",
+     "type": "racial",
+     "value": 4,
+     "condition": "on stone or metal items"
+    },
+    {
+     "target": "skill.Craft",
+     "type": "racial",
+     "value": 4,
+     "condition": "on stone or metal"
+    }
+   ],
+   "traits": "Darkvision 60 ft. Stonecunning. Stability: +4 against bull rush and trip while standing on the ground. Weapon familiarity: dwarven waraxe and urgrosh. Speed 20 ft, never reduced by armor or load. Stability: +4 against bull rush and trip while standing on the ground. -2 on saves against spells and abilities of the air subtype, or used by air creatures. Improved stonecunning.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Dwarven"
+    ],
+    "bonus": [
+     "Giant",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Terran",
+     "Undercommon"
+    ]
+   },
+   "base": "Dwarf",
+   "variant": "elementalRaces",
+   "group": "earth"
+  },
+  {
+   "name": "Fire Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Wizard",
+   "abilityAdjust": {
+    "dex": 2,
+    "con": -2,
+    "int": 2,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against creatures of the water subtype"
+    },
+    {
+     "target": "save.all",
+     "type": "untyped",
+     "value": -2,
+     "condition": "against spells and abilities of the water or cold subtype or water creatures"
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Proficient with longsword, rapier, longbow and shortbow. Notices a secret door on passing within 5 ft, with a Search check. Resistance to fire 5. -2 on saves against spells and abilities of the water or cold subtype, or used by water creatures.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": [
+     "Draconic",
+     "Gnoll",
+     "Gnome",
+     "Goblin",
+     "Orc",
+     "Sylvan"
+    ]
+   },
+   "base": "Elf",
+   "variant": "elementalRaces",
+   "group": "fire"
+  },
+  {
+   "name": "Water Halfling",
+   "size": "Small",
+   "speed": 20,
+   "la": 0,
+   "favoredClass": "Rogue",
+   "abilityAdjust": {
+    "str": -2,
+    "dex": 2,
+    "con": 2
+   },
+   "effects": [
+    {
+     "target": "save.all",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Climb",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Jump",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Move Silently",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.all",
+     "type": "morale",
+     "value": 2,
+     "condition": "against fear"
+    },
+    {
+     "target": "attack.ranged",
+     "type": "racial",
+     "value": 1,
+     "condition": "with thrown weapons and slings"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against creatures of the fire subtype"
+    },
+    {
+     "target": "save.all",
+     "type": "untyped",
+     "value": -2,
+     "condition": "against spells and abilities of the fire subtype or fire creatures"
+    }
+   ],
+   "traits": "+1 on all saving throws, and a further +2 morale bonus against fear. Weapon familiarity: halflings treat the sling as a simple weapon in every way that matters to them. Natural swimmer: a swim speed equal to base land speed. -2 on saves against spells and abilities of the fire subtype, or used by fire creatures. Swim 20 ft.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Halfling"
+    ],
+    "bonus": [
+     "Dwarven",
+     "Elven",
+     "Gnome",
+     "Goblin",
+     "Orc"
+    ]
+   },
+   "base": "Halfling",
+   "variant": "elementalRaces",
+   "group": "water"
+  },
+  {
+   "name": "Fire Half-Elf",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "any",
+   "effects": [
+    {
+     "target": "skill.Listen",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Search",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Spot",
+     "type": "racial",
+     "value": 1
+    },
+    {
+     "target": "skill.Diplomacy",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "skill.Gather Information",
+     "type": "racial",
+     "value": 2
+    },
+    {
+     "target": "save.will",
+     "type": "racial",
+     "value": 2,
+     "condition": "against enchantments"
+    },
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against water creatures"
+    },
+    {
+     "target": "save.all",
+     "type": "untyped",
+     "value": -1,
+     "condition": "against spells and abilities used by water creatures"
+    }
+   ],
+   "traits": "Immune to magic sleep effects. Low-light vision. Elven blood: counts as an elf for anything that cares. -1 on saves against spells and abilities used by water creatures.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Elven"
+    ],
+    "bonus": "any"
+   },
+   "base": "Half-Elf",
+   "variant": "elementalRaces",
+   "group": "fire"
+  },
+  {
+   "name": "Water Half-Orc",
+   "size": "Medium",
+   "speed": 30,
+   "la": 0,
+   "favoredClass": "Barbarian",
+   "abilityAdjust": {
+    "str": 2,
+    "int": -2,
+    "cha": -2
+   },
+   "effects": [
+    {
+     "target": "attack.all",
+     "type": "racial",
+     "value": 1,
+     "condition": "against fire creatures"
+    },
+    {
+     "target": "save.all",
+     "type": "untyped",
+     "value": -1,
+     "condition": "against spells and abilities used by fire creatures"
+    }
+   ],
+   "traits": "Darkvision 60 ft. Orc blood: counts as an orc for anything that cares. -1 on saves against spells and abilities used by fire creatures.",
+   "languages": {
+    "automatic": [
+     "Common",
+     "Orc"
+    ],
+    "bonus": [
+     "Draconic",
+     "Giant",
+     "Gnoll",
+     "Goblin",
+     "Abyssal"
+    ]
+   },
+   "base": "Half-Orc",
+   "variant": "elementalRaces",
+   "group": "water"
+  }
+ ],
+ "classes": [
+  {
+   "name": "Prestige Bard",
+   "hd": 6,
+   "skillPoints": 6,
+   "classSkills": [
+    "Appraise",
+    "Balance",
+    "Bluff",
+    "Climb",
+    "Concentration",
+    "Craft",
+    "Decipher Script",
+    "Diplomacy",
+    "Disguise",
+    "Escape Artist",
+    "Gather Information",
+    "Hide",
+    "Jump",
+    "Knowledge",
+    "Listen",
+    "Move Silently",
+    "Perform",
+    "Profession",
+    "Sense Motive",
+    "Sleight of Hand",
+    "Speak Language",
+    "Spellcraft",
+    "Swim",
+    "Tumble",
+    "Use Magic Device"
+   ],
+   "prestige": true,
+   "maxLevel": 15,
+   "table": [
+    {
+     "level": 1,
+     "bab": 0,
+     "fort": 0,
+     "ref": 2,
+     "will": 2,
+     "special": "Bardic music (countersong, fascinate, inspire courage +1), bardic knowledge"
+    },
+    {
+     "level": 2,
+     "bab": 1,
+     "fort": 0,
+     "ref": 3,
+     "will": 3,
+     "special": ""
+    },
+    {
+     "level": 3,
+     "bab": 2,
+     "fort": 1,
+     "ref": 3,
+     "will": 3,
+     "special": "Inspire competence"
+    },
+    {
+     "level": 4,
+     "bab": 3,
+     "fort": 1,
+     "ref": 4,
+     "will": 4,
+     "special": ""
+    },
+    {
+     "level": 5,
+     "bab": 3,
+     "fort": 1,
+     "ref": 4,
+     "will": 4,
+     "special": "Inspire courage +2"
+    },
+    {
+     "level": 6,
+     "bab": 4,
+     "fort": 2,
+     "ref": 5,
+     "will": 5,
+     "special": ""
+    },
+    {
+     "level": 7,
+     "bab": 5,
+     "fort": 2,
+     "ref": 5,
+     "will": 5,
+     "special": "Inspire greatness"
+    },
+    {
+     "level": 8,
+     "bab": 6,
+     "fort": 2,
+     "ref": 6,
+     "will": 6,
+     "special": ""
+    },
+    {
+     "level": 9,
+     "bab": 6,
+     "fort": 3,
+     "ref": 6,
+     "will": 6,
+     "special": "Song of freedom"
+    },
+    {
+     "level": 10,
+     "bab": 7,
+     "fort": 3,
+     "ref": 7,
+     "will": 7,
+     "special": "Inspire courage +3"
+    },
+    {
+     "level": 11,
+     "bab": 8,
+     "fort": 3,
+     "ref": 7,
+     "will": 7,
+     "special": "Inspire heroics"
+    },
+    {
+     "level": 12,
+     "bab": 9,
+     "fort": 4,
+     "ref": 8,
+     "will": 8,
+     "special": ""
+    },
+    {
+     "level": 13,
+     "bab": 9,
+     "fort": 4,
+     "ref": 8,
+     "will": 8,
+     "special": "Mass suggestion"
+    },
+    {
+     "level": 14,
+     "bab": 10,
+     "fort": 4,
+     "ref": 9,
+     "will": 9,
+     "special": ""
+    },
+    {
+     "level": 15,
+     "bab": 11,
+     "fort": 5,
+     "ref": 9,
+     "will": 9,
+     "special": "Inspire courage +4"
+    }
+   ],
+   "castingAdvance": {
+    "type": "arcane",
+    "levels": [
+     2,
+     4,
+     5,
+     6,
+     8,
+     9,
+     10,
+     11,
+     12,
+     14,
+     15
+    ]
+   },
+   "requires": "Any nonlawful alignment; base attack bonus +3; Knowledge (any) 4 ranks and Perform (any) 8 ranks; able to cast 1st-level arcane spells of divination, enchantment and illusion.",
+   "note": "The bard as a prestige class. Its spellcasting adds to a arcane spellcasting class the character already has.",
+   "variant": "prestigiousClasses"
+  },
+  {
+   "name": "Prestige Paladin",
+   "hd": 10,
+   "skillPoints": 2,
+   "classSkills": [
+    "Concentration",
+    "Craft",
+    "Diplomacy",
+    "Handle Animal",
+    "Heal",
+    "Knowledge (nobility and royalty)",
+    "Knowledge (religion)",
+    "Profession",
+    "Ride",
+    "Sense Motive"
+   ],
+   "prestige": true,
+   "maxLevel": 15,
+   "table": [
+    {
+     "level": 1,
+     "bab": 1,
+     "fort": 2,
+     "ref": 0,
+     "will": 0,
+     "special": "Detect evil, smite evil 1/day, turn undead"
+    },
+    {
+     "level": 2,
+     "bab": 2,
+     "fort": 3,
+     "ref": 0,
+     "will": 0,
+     "special": "Divine grace, lay on hands, special mount"
+    },
+    {
+     "level": 3,
+     "bab": 3,
+     "fort": 3,
+     "ref": 1,
+     "will": 1,
+     "special": "Aura of courage, divine health"
+    },
+    {
+     "level": 4,
+     "bab": 4,
+     "fort": 4,
+     "ref": 1,
+     "will": 1,
+     "special": "Remove disease 1 /week"
+    },
+    {
+     "level": 5,
+     "bab": 5,
+     "fort": 4,
+     "ref": 1,
+     "will": 1,
+     "special": "Smite evil 2/day"
+    },
+    {
+     "level": 6,
+     "bab": 6,
+     "fort": 5,
+     "ref": 2,
+     "will": 2,
+     "special": ""
+    },
+    {
+     "level": 7,
+     "bab": 7,
+     "fort": 5,
+     "ref": 2,
+     "will": 2,
+     "special": ""
+    },
+    {
+     "level": 8,
+     "bab": 8,
+     "fort": 6,
+     "ref": 2,
+     "will": 2,
+     "special": "Remove disease 2/week"
+    },
+    {
+     "level": 9,
+     "bab": 9,
+     "fort": 6,
+     "ref": 3,
+     "will": 3,
+     "special": ""
+    },
+    {
+     "level": 10,
+     "bab": 10,
+     "fort": 7,
+     "ref": 3,
+     "will": 3,
+     "special": "Smite evil 3/day"
+    },
+    {
+     "level": 11,
+     "bab": 11,
+     "fort": 7,
+     "ref": 3,
+     "will": 3,
+     "special": ""
+    },
+    {
+     "level": 12,
+     "bab": 12,
+     "fort": 8,
+     "ref": 4,
+     "will": 4,
+     "special": "Remove disease 3/week"
+    },
+    {
+     "level": 13,
+     "bab": 13,
+     "fort": 8,
+     "ref": 4,
+     "will": 4,
+     "special": ""
+    },
+    {
+     "level": 14,
+     "bab": 14,
+     "fort": 9,
+     "ref": 4,
+     "will": 4,
+     "special": ""
+    },
+    {
+     "level": 15,
+     "bab": 15,
+     "fort": 9,
+     "ref": 5,
+     "will": 5,
+     "special": "Smite evil 4 /day"
+    }
+   ],
+   "castingAdvance": {
+    "type": "divine",
+    "levels": [
+     1,
+     3,
+     5,
+     7,
+     9,
+     11,
+     13,
+     15
+    ]
+   },
+   "requires": "Lawful good; base attack bonus +4; Knowledge (religion) 2 ranks, Knowledge (nobility and royalty) 2 ranks and Ride 4 ranks; Mounted Combat; able to cast protection from evil as a divine spell; able to turn undead.",
+   "note": "The paladin as a prestige class. Its spellcasting adds to a divine spellcasting class the character already has.",
+   "variant": "prestigiousClasses"
+  },
+  {
+   "name": "Prestige Ranger",
+   "hd": 8,
+   "skillPoints": 6,
+   "classSkills": [
+    "Climb",
+    "Concentration",
+    "Craft",
+    "Handle Animal",
+    "Heal",
+    "Hide",
+    "Jump",
+    "Knowledge (dungeoneering)",
+    "Knowledge (geography)",
+    "Knowledge (nature)",
+    "Listen",
+    "Move Silently",
+    "Profession",
+    "Ride",
+    "Search",
+    "Spot",
+    "Survival",
+    "Swim",
+    "Use Rope"
+   ],
+   "prestige": true,
+   "maxLevel": 15,
+   "table": [
+    {
+     "level": 1,
+     "bab": 1,
+     "fort": 2,
+     "ref": 2,
+     "will": 0,
+     "special": "1st favored enemy, animal companion, wild empathy"
+    },
+    {
+     "level": 2,
+     "bab": 2,
+     "fort": 3,
+     "ref": 3,
+     "will": 0,
+     "special": "Bonus feat, woodland stride"
+    },
+    {
+     "level": 3,
+     "bab": 3,
+     "fort": 3,
+     "ref": 3,
+     "will": 1,
+     "special": "Swift tracker"
+    },
+    {
+     "level": 4,
+     "bab": 4,
+     "fort": 4,
+     "ref": 4,
+     "will": 1,
+     "special": ""
+    },
+    {
+     "level": 5,
+     "bab": 5,
+     "fort": 4,
+     "ref": 4,
+     "will": 1,
+     "special": "2nd favored enemy"
+    },
+    {
+     "level": 6,
+     "bab": 6,
+     "fort": 5,
+     "ref": 5,
+     "will": 2,
+     "special": ""
+    },
+    {
+     "level": 7,
+     "bab": 7,
+     "fort": 5,
+     "ref": 5,
+     "will": 2,
+     "special": "Bonus feat"
+    },
+    {
+     "level": 8,
+     "bab": 8,
+     "fort": 6,
+     "ref": 6,
+     "will": 2,
+     "special": ""
+    },
+    {
+     "level": 9,
+     "bab": 9,
+     "fort": 6,
+     "ref": 6,
+     "will": 3,
+     "special": "Camouflage"
+    },
+    {
+     "level": 10,
+     "bab": 10,
+     "fort": 7,
+     "ref": 7,
+     "will": 3,
+     "special": "3rd favored enemy"
+    },
+    {
+     "level": 11,
+     "bab": 11,
+     "fort": 7,
+     "ref": 7,
+     "will": 3,
+     "special": ""
+    },
+    {
+     "level": 12,
+     "bab": 12,
+     "fort": 8,
+     "ref": 8,
+     "will": 4,
+     "special": ""
+    },
+    {
+     "level": 13,
+     "bab": 13,
+     "fort": 8,
+     "ref": 8,
+     "will": 4,
+     "special": "Hide in plain sight"
+    },
+    {
+     "level": 14,
+     "bab": 14,
+     "fort": 9,
+     "ref": 9,
+     "will": 4,
+     "special": ""
+    },
+    {
+     "level": 15,
+     "bab": 15,
+     "fort": 9,
+     "ref": 9,
+     "will": 5,
+     "special": "4th favored enemy"
+    }
+   ],
+   "castingAdvance": {
+    "type": "divine",
+    "levels": [
+     2,
+     4,
+     6,
+     8,
+     10,
+     12,
+     14
+    ]
+   },
+   "requires": "Base attack bonus +4; Knowledge (nature) 2 ranks and Survival 4 ranks; Endurance, Track, and Rapid Shot or Two-Weapon Fighting; able to cast calm animals as a divine spell.",
+   "note": "The ranger as a prestige class. Its spellcasting adds to a divine spellcasting class the character already has.",
+   "variant": "prestigiousClasses"
+  }
+ ],
+ "feats": [
+  {
+   "name": "Accurate Jaunt",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to greater teleport, plane shift, teleport or shadow walk.",
+   "benefit": "Better odds of arriving where you mean to when teleporting or traveling between planes.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Bladeproof Skin",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to stoneskin or iron body.",
+   "benefit": "Damage reduction 3/bludgeoning.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Breadth of Knowledge",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to legend lore or vision.",
+   "benefit": "Every Knowledge check counts as trained.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Conductivity",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to call lightning, lightning bolt or chain lightning.",
+   "benefit": "After taking electricity damage, loose a line of electricity at a target within 30 feet.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Controlled Immolation",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to fireball or delayed blast fireball.",
+   "benefit": "No damage from catching fire, and creatures striking you in melee take 1d6 fire damage.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Eyes to the Sky",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to scrying or greater scrying.",
+   "benefit": "You notice any magical scrying sensor within 40 feet.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "False Pretenses",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to a charm or dominate spell.",
+   "benefit": "You can make a caster believe you are charmed or dominated.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Ineluctable Echo",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to wail of the banshee or any power word spell.",
+   "benefit": "A caster who targets you with a power word or wail of the banshee is caught by it too.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Life Leech",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to the death touch granted power or death knell.",
+   "benefit": "Dying creatures within 30 feet lose a hit point, which you gain as temporary hit points.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Live My Nightmare",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to phantasmal killer.",
+   "benefit": "A creature that targets you with divination suffers a nightmarish vision.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Momentary Alteration",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to alter self.",
+   "benefit": "Alter self as a spell-like ability, for 1 minute, once a day.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Naturalized Denizen",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to dimensional anchor.",
+   "benefit": "You are never treated as an extraplanar creature.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Omniscient Whispers",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to commune or contact other plane.",
+   "benefit": "One question a week answered as though by commune.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Photosynthetic Skin",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to barkskin.",
+   "benefit": "+2 natural armor while outdoors by day.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Polar Chill",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to cone of cold or ice storm.",
+   "benefit": "Create a patch of icy ground that hampers movement.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Residual Rebound",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to spell resistance or spell turning.",
+   "benefit": "A natural 20 on a save against a targeted spell turns it back on its caster.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Stench of the Dead",
+   "types": [
+    "Spelltouched"
+   ],
+   "prerequisite": "Exposure to ghoul touch or vampiric touch.",
+   "benefit": "A carrion stench sickens creatures next to you.",
+   "variant": "spelltouchedFeats"
+  },
+  {
+   "name": "Weapon Group (Axes)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with handaxe, battleaxe, greataxe, dwarven waraxe (two-handed).",
+   "weapons": [
+    "handaxe",
+    "battleaxe",
+    "greataxe",
+    "dwarven waraxe (two-handed)"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Basic Weapons)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with club, dagger, quarterstaff.",
+   "weapons": [
+    "club",
+    "dagger",
+    "quarterstaff"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Bows)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with shortbow, longbow, composite shortbow, composite longbow.",
+   "weapons": [
+    "shortbow",
+    "longbow",
+    "composite shortbow",
+    "composite longbow"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Claw Weapons)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with punching dagger, spiked gauntlet.",
+   "weapons": [
+    "punching dagger",
+    "spiked gauntlet"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Crossbows)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with heavy crossbow, light crossbow, repeating heavy crossbow, repeating light crossbow.",
+   "weapons": [
+    "heavy crossbow",
+    "light crossbow",
+    "repeating heavy crossbow",
+    "repeating light crossbow"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Druid Weapons)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with club, dagger, dart, quarterstaff, scimitar, sickle, shortspear, sling, spear.",
+   "weapons": [
+    "club",
+    "dagger",
+    "dart",
+    "quarterstaff",
+    "scimitar",
+    "sickle",
+    "shortspear",
+    "sling",
+    "spear"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Flails and Chains)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with light flail, heavy flail.",
+   "weapons": [
+    "light flail",
+    "heavy flail"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Heavy Blades)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with longsword, greatsword, falchion, scimitar, bastard sword (two-handed).",
+   "weapons": [
+    "longsword",
+    "greatsword",
+    "falchion",
+    "scimitar",
+    "bastard sword (two-handed)"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Light Blades)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with dagger, punching dagger, rapier, short sword.",
+   "weapons": [
+    "dagger",
+    "punching dagger",
+    "rapier",
+    "short sword"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Maces and Clubs)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with club, light mace, heavy mace, greatclub, quarterstaff, sap.",
+   "weapons": [
+    "club",
+    "light mace",
+    "heavy mace",
+    "greatclub",
+    "quarterstaff",
+    "sap"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Monk Weapons)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with kama, nunchaku, quarterstaff, sai, shuriken, siangham.",
+   "weapons": [
+    "kama",
+    "nunchaku",
+    "quarterstaff",
+    "sai",
+    "shuriken",
+    "siangham"
+   ],
+   "variant": "weaponGroups",
+   "prerequisite": "Improved Unarmed Strike."
+  },
+  {
+   "name": "Weapon Group (Picks and Hammers)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with light pick, heavy pick, light hammer, warhammer, scythe.",
+   "weapons": [
+    "light pick",
+    "heavy pick",
+    "light hammer",
+    "warhammer",
+    "scythe"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Polearms)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with glaive, guisarme, halberd, ranseur.",
+   "weapons": [
+    "glaive",
+    "guisarme",
+    "halberd",
+    "ranseur"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Slings and Thrown Weapons)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with dart, sling.",
+   "weapons": [
+    "dart",
+    "sling"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Spears and Lances)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "benefit": "Proficient with javelin, lance, longspear, shortspear, trident.",
+   "weapons": [
+    "javelin",
+    "lance",
+    "longspear",
+    "shortspear",
+    "trident"
+   ],
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Exotic Weapons)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "prerequisite": "Base attack bonus +1.",
+   "benefit": "Proficient with the exotic weapons of every weapon group you know, and of each group you learn later.",
+   "variant": "weaponGroups"
+  },
+  {
+   "name": "Weapon Group (Exotic Double Weapons)",
+   "types": [
+    "General",
+    "Fighter"
+   ],
+   "prerequisite": "Base attack bonus +1.",
+   "benefit": "Proficient with the exotic double weapons of every weapon group you know, and of each group you learn later.",
+   "variant": "weaponGroups"
+  }
+ ],
+ "featureVariants": {
+  "variant": "specialistVariants",
+  "Wizard": [
+   {
+    "key": "resistanceToEnergy",
+    "name": "Resistance to energy",
+    "school": "Abjuration",
+    "replaces": "familiar",
+    "level": 1,
+    "note": "Once a day, grant a touched creature resistance to one energy type."
+   },
+   {
+    "key": "auraOfProtection",
+    "name": "Aura of protection",
+    "school": "Abjuration",
+    "replaces": "bonusFeats",
+    "level": 5,
+    "note": "Once a day, a deflection bonus to AC and resistance bonus on saves equal to Intelligence modifier."
+   },
+   {
+    "key": "spontaneousDispelling",
+    "name": "Spontaneous dispelling",
+    "school": "Abjuration",
+    "replaces": "schoolSlot",
+    "level": 5,
+    "note": "Give up prepared spells to cast dispel magic, and later greater dispel magic."
+   },
+   {
+    "key": "rapidSummoning",
+    "name": "Rapid summoning",
+    "school": "Conjuration",
+    "replaces": "familiar",
+    "level": 1,
+    "note": "Summon monster spells take a standard action to cast."
+   },
+   {
+    "key": "enhancedSummoning",
+    "name": "Enhanced summoning",
+    "school": "Conjuration",
+    "replaces": "bonusFeats",
+    "level": 1,
+    "note": "Augmented Summoning in place of Scribe Scroll, and summoned creatures that grow tougher with level."
+   },
+   {
+    "key": "spontaneousSummoning",
+    "name": "Spontaneous summoning",
+    "school": "Conjuration",
+    "replaces": "schoolSlot",
+    "level": 1,
+    "note": "Give up a prepared spell to cast a summon monster spell of a lower level."
+   },
+   {
+    "key": "enhancedAwareness",
+    "name": "Enhanced awareness",
+    "school": "Divination",
+    "replaces": "familiar",
+    "level": 1,
+    "note": "Sense Motive becomes a class skill, and some divinations work faster and harder to resist.",
+    "classSkills": [
+     "Sense Motive"
+    ]
+   },
+   {
+    "key": "bonusFeatList",
+    "name": "Divination bonus feats",
+    "school": "Divination",
+    "replaces": "bonusFeats",
+    "level": 5,
+    "note": "Bonus feats from a list of perception feats in place of the usual ones."
+   },
+   {
+    "key": "prescience",
+    "name": "Prescience",
+    "school": "Divination",
+    "replaces": "schoolSlot",
+    "level": 1,
+    "note": "A daily pool of insight bonuses to add to d20 rolls."
+   },
+   {
+    "key": "cohort",
+    "name": "Cohort",
+    "school": "Enchantment",
+    "replaces": "familiar",
+    "level": 6,
+    "note": "A loyal cohort in place of a familiar."
+   },
+   {
+    "key": "socialProficiency",
+    "name": "Social proficiency",
+    "school": "Enchantment",
+    "replaces": "bonusFeats",
+    "level": 1,
+    "note": "Social skills as class skills, with bonuses that grow with level."
+   },
+   {
+    "key": "extendedEnchantment",
+    "name": "Extended enchantment",
+    "school": "Enchantment",
+    "replaces": "schoolSlot",
+    "level": 1,
+    "note": "Enchantment spells last longer."
+   },
+   {
+    "key": "energyAffinity",
+    "name": "Energy affinity",
+    "school": "Evocation",
+    "replaces": "familiar",
+    "level": 1,
+    "note": "Choose an energy type; evocations of it are stronger."
+   },
+   {
+    "key": "energySubstitution",
+    "name": "Energy substitution",
+    "school": "Evocation",
+    "replaces": "bonusFeats",
+    "level": 5,
+    "note": "Change an energy spell’s energy type as it is cast."
+   },
+   {
+    "key": "overcomeResistance",
+    "name": "Overcome resistance",
+    "school": "Evocation",
+    "replaces": "schoolSlot",
+    "level": 1,
+    "note": "Energy spells ignore some of a target’s resistance."
+   },
+   {
+    "key": "chainsOfDisbelief",
+    "name": "Chains of disbelief",
+    "school": "Illusion",
+    "replaces": "familiar",
+    "level": 1,
+    "note": "Illusions hold even after others are told they are false."
+   },
+   {
+    "key": "shadowShaper",
+    "name": "Shadow shaper",
+    "school": "Illusion",
+    "replaces": "bonusFeats",
+    "level": 1,
+    "note": "Hide becomes a class skill, and shadow powers come with level.",
+    "classSkills": [
+     "Hide"
+    ]
+   },
+   {
+    "key": "illusionMastery",
+    "name": "Illusion mastery",
+    "school": "Illusion",
+    "replaces": "schoolSlot",
+    "level": 1,
+    "note": "Two illusion spells added to the spellbook each level."
+   },
+   {
+    "key": "skeletalMinion",
+    "name": "Skeletal minion",
+    "school": "Necromancy",
+    "replaces": "familiar",
+    "level": 1,
+    "note": "A skeleton servant that grows with level."
+   },
+   {
+    "key": "undeadApotheosis",
+    "name": "Undead apotheosis",
+    "school": "Necromancy",
+    "replaces": "bonusFeats",
+    "level": 5,
+    "note": "Resistances like the undead’s, gained with level."
+   },
+   {
+    "key": "enhancedUndead",
+    "name": "Enhanced undead",
+    "school": "Necromancy",
+    "replaces": "schoolSlot",
+    "level": 1,
+    "note": "Undead you create are stronger."
+   },
+   {
+    "key": "enhanceAttribute",
+    "name": "Enhance attribute",
+    "school": "Transmutation",
+    "replaces": "familiar",
+    "level": 1,
+    "note": "A daily enhancement bonus to an ability score."
+   },
+   {
+    "key": "spellVersatility",
+    "name": "Spell versatility",
+    "school": "Transmutation",
+    "replaces": "bonusFeats",
+    "level": 5,
+    "note": "Learn spells from prohibited schools as transmutations."
+   },
+   {
+    "key": "transmutableMemory",
+    "name": "Transmutable memory",
+    "school": "Transmutation",
+    "replaces": "schoolSlot",
+    "level": 1,
+    "note": "Once a day, swap prepared spells for others in the spellbook."
+   }
+  ],
+  "Druid": [
+   {
+    "key": "aspectOfNature",
+    "name": "Aspect of nature",
+    "replaces": "wildShape",
+    "level": 5,
+    "note": "In place of wild shape: take on aspects of animals and elements, one more as the druid rises in level. Aspects: Agility (8th), Aquatic, Elemental air (16th), Elemental earth (16th), Elemental fire (16th), Elemental water (16th), Endurance (8th), Flight, Plant, Poison, Scent, Speed, Tooth and claw, Vigor (8th).",
+    "variant": "classFeatureVariants"
+   }
+  ]
+ }
+}

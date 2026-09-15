@@ -88,7 +88,8 @@ function choiceOptions(app, rule, plan, current) {
 
 /** Every feat that could be picked: the SRD's, and the homebrew this character may use. */
 function featCatalogue(app) {
-  const srd = app.rules.featRules || [];
+  // The variant rules' feats (spelltouched, weapon group) unless a campaign withholds them.
+  const srd = (app.rules.featRules || []).filter((f) => !f.variant || app.derived.modules[f.variant]);
   const known = new Set(srd.map((f) => lower(f.name)));
   const homebrew = [
     ...app.derived.index.featByName.values(),

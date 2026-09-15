@@ -155,14 +155,14 @@ export function levelsPanel(app) {
         rebuild();
         app.recompute();
         app.rebuildPanel('abilities');
-      }),
+      }, { lock: 'classes' }),
       button('Remove the last', () => {
         if (app.character.levels.length <= 1) return;
         app.character.levels.pop();
         rebuild();
         app.recompute();
         app.rebuildPanel('abilities');
-      }, { subtle: true }),
+      }, { subtle: true, lock: 'classes' }),
       h('span.hint', { text: gestalt
         ? 'Gestalt: each level takes two classes and the sheet keeps the better of each.'
         : 'Pick a class for each level. Multiclassing is just different classes on different rows.' }),
@@ -245,7 +245,7 @@ export function abilitiesPanel(app) {
     method === 'pointBuy' ? labelled('Remaining', out('pointBuy.remaining')) : null,
     method === 'rolled' ? labelled('Array total', out('rolledTotal')) : null,
     placement && placement.unplaced.length < placement.scores.length
-      ? button('Clear the placing', () => { c.abilities.placed = {}; changed(); }, { subtle: true })
+      ? button('Clear the placing', () => { c.abilities.placed = {}; changed(); }, { subtle: true, lock: 'abilities' })
       : null,
     h('span.hint', { text: method === 'array' || method === 'rolled'
       ? 'Choose a score for each ability. Choosing one already placed swaps the two.'
@@ -553,7 +553,7 @@ export function skillsPanel(app) {
   const rebuild = () => refill(host, skillRows(app));
 
   const subjectSkills = app.derived.index.skills.filter((s) => s.subtype || s.custom);
-  const picker = h('div.row', { dataset: { unbound: '' } },
+  const picker = h('div.row', { dataset: { unbound: '', lock: 'skills' } },
     labelled('Add', h('select.field.grow',
       h('option', { value: '', text: '- a skill -' }),
       subjectSkills.map((s) => h('option', { value: s.name, text: s.custom ? `${s.name} (yours)` : `${s.name}...` })))),
@@ -622,7 +622,7 @@ function skillRows(app) {
           app.character.skills.splice(i, 1);
           app.rebuildPanel('skills');
           app.recompute();
-        }, { subtle: true, title: 'Remove this line' })
+        }, { subtle: true, title: 'Remove this line', lock: 'skills' })
         : h('span'));
   });
 }

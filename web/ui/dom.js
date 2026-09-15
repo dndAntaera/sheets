@@ -255,6 +255,8 @@ export function row(...children) {
 export function button(label, onclick, opts = {}) {
   return h(`button.btn${opts.subtle ? '.subtle' : ''}${opts.danger ? '.danger' : ''}`, {
     type: 'button', onclick, title: opts.title, class: opts.className, disabled: opts.disabled,
+    // `lock` marks a control that changes a finished character's held choices (engine/locks.js).
+    dataset: opts.lock ? { lock: opts.lock } : undefined,
   }, label);
 }
 

@@ -4,10 +4,26 @@
 // also read and edit it, and the other players may read it if the campaign
 // allows. Nobody else sees it - a site-wide role grants nothing here on its own.
 // The rules are characterAccess and characterCan in policy.js.
+//
+// A finished character's choices are held (web/engine/locks.js). The server
+// keeps its own copy of them in `characters.locked`; a finished save that
+// differs is written into the sheet's `history`, and into character_changes
+// for its campaign's GMs. The history a sheet sends is not trusted: the stored
+// one is kept, and only the server adds to it.
 
-import { fail, json, noContent, now } from '../http.js';
+import { fail, json, noContent, now, randomToken } from '../http.js';
 import { campaignRole, characterAccess, characterCan } from '../policy.js';
 import { DEFAULT_PUBLIC_RULESET, isPublicRuleset } from '../rulesets.js';
+import { lockedSummary, lockChanges, historyEntry, withHistory, HISTORY_LIMIT } from '../../../web/engine/locks.js';
+
+const parseList = (text) => {
+  try {
+    const value = JSON.parse(text || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+};
 
 const MAX_SHEET_BYTES = 512 * 1024;
 
@@ -26,11 +42,12 @@ async function accessFor(env, userId, row) {
   return characterAccess(userId, row, role, partyVisible);
 }
 
-/** Every character the asker may see: their own, and those in campaigns that let them. */
-async function listCharacters({ env, user }) {
+/** Every character an account may see: its own, and those in campaigns that let it. */
+export async function visibleCharacters(env, userId) {
   const rows = await env.DB.prepare(
     `SELECT c.id, c.name, c.player, c.build, c.level, c.ruleset, c.updated, c.owner,
             json_extract(c.data, '$.meta.wizard.step') AS draftStep,
+            json_extract(c.data, '$.meta.wizard.revision.started') IS NOT NULL AS revising,
             c.campaign_id AS campaignId, k.name AS campaignName, u.name AS ownerName
        FROM characters c
        JOIN users u ON u.id = c.owner
@@ -42,8 +59,12 @@ async function listCharacters({ env, user }) {
               SELECT m.campaign_id FROM campaign_members m JOIN campaigns g ON g.id = m.campaign_id
                WHERE m.user_id = ?1 AND json_extract(g.settings, '$.partyVisible') = 1)
       ORDER BY c.name COLLATE NOCASE`
-  ).bind(user.id).all();
-  return json(rows.results || []);
+  ).bind(userId).all();
+  return rows.results || [];
+}
+
+async function listCharacters({ env, user }) {
+  return json(await visibleCharacters(env, user.id));
 }
 
 async function loadCharacter({ env, user, params }) {
@@ -67,7 +88,8 @@ async function loadCharacter({ env, user, params }) {
 async function saveCharacter({ env, user, params, body }) {
   const character = await body(MAX_SHEET_BYTES);
   const existing = await env.DB.prepare(
-    `SELECT c.owner, c.campaign_id, c.created, c.ruleset, k.ruleset AS campaignRuleset
+    `SELECT c.owner, c.campaign_id, c.created, c.ruleset, c.locked, json_extract(c.data, '$.history') AS history,
+            k.ruleset AS campaignRuleset
        FROM characters c LEFT JOIN campaigns k ON k.id = c.campaign_id WHERE c.id = ?`
   ).bind(params.id).first();
 
@@ -90,12 +112,27 @@ async function saveCharacter({ env, user, params, body }) {
   delete character.access;
   character.meta = { ...(character.meta || {}), owner, updated: stamp };
 
-  await env.DB.prepare(
-    `INSERT INTO characters (id, owner, name, player, build, level, ruleset, campaign_id, data, created, updated)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  // Held choices: a finished save that differs from the last finished one is a change, recorded.
+  let history = existing ? parseList(existing.history) : (Array.isArray(character.history) ? character.history.slice(-HISTORY_LIMIT) : []);
+  let locked = existing?.locked ?? null;
+  let recorded = null;
+  if (!character.meta.wizard) {
+    const summary = lockedSummary(character);
+    const text = JSON.stringify(summary);
+    if (locked && locked !== text) {
+      recorded = historyEntry(lockChanges(JSON.parse(locked), summary), { at: stamp, by: { id: user.id, name: user.name }, id: randomToken(8) });
+      history = withHistory(history, recorded);
+    }
+    locked = text;
+  }
+  character.history = history;
+
+  const writes = [env.DB.prepare(
+    `INSERT INTO characters (id, owner, name, player, build, level, ruleset, campaign_id, data, created, updated, locked)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET name = excluded.name, player = excluded.player,
        build = excluded.build, level = excluded.level, ruleset = excluded.ruleset,
-       data = excluded.data, updated = excluded.updated`
+       data = excluded.data, updated = excluded.updated, locked = excluded.locked`
   ).bind(
     params.id, owner,
     String(character.name || '').slice(0, 200),
@@ -106,10 +143,17 @@ async function saveCharacter({ env, user, params, body }) {
     campaignId,
     JSON.stringify(character),
     existing ? existing.created : stamp,
-    stamp
-  ).run();
+    stamp,
+    locked
+  )];
+  if (recorded) {
+    writes.push(env.DB.prepare(
+      'INSERT INTO character_changes (id, character_id, campaign_id, user_id, created, changes) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(recorded.id, params.id, campaignId, user.id, stamp, JSON.stringify(recorded.changes)));
+  }
+  await env.DB.batch(writes);
 
-  return json({ ok: true, id: params.id, updated: stamp, ruleset, campaignId });
+  return json({ ok: true, id: params.id, updated: stamp, ruleset, campaignId, history, recorded: Boolean(recorded) });
 }
 
 async function deleteCharacter({ env, user, params }) {

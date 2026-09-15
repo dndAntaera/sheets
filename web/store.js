@@ -297,6 +297,7 @@ export function summarise(character) {
     updated: character.meta?.updated || null,
     owner: character.meta?.owner || null,
     draftStep: character.meta?.wizard?.step || null,
+    revising: Boolean(character.meta?.wizard?.revision),
   };
 }
 
@@ -420,6 +421,10 @@ export const remote = {
       remove: (id, entryId) => api(`/api/campaigns/${id}/content/${entryId}`, { method: 'DELETE' }),
     },
 
+    /** For its GMs: changes to the held choices of the campaign's characters, and marking them read. */
+    changes: (id) => api(`/api/campaigns/${id}/changes`),
+    changesSeen: (id) => api(`/api/campaigns/${id}/changes/seen`, { method: 'POST' }),
+
     addCharacter: (id, characterId) => api(`/api/campaigns/${id}/characters`, { method: 'POST', body: JSON.stringify({ characterId }) }),
     removeCharacter: (id, characterId) => api(`/api/campaigns/${id}/characters/${characterId}`, { method: 'DELETE' }),
   },
@@ -465,8 +470,10 @@ export async function save(character) {
   if (!remote.enabled()) return { synced: false, reason: 'local build' };
   if (!account.signedIn()) return { synced: false, reason: 'not signed in' };
   try {
-    await remote.save(character);
-    return { synced: true };
+    const saved = await remote.save(character);
+    // The server keeps the history; the sheet takes its copy back.
+    if (Array.isArray(saved?.history)) character.history = saved.history;
+    return { synced: true, recorded: Boolean(saved?.recorded) };
   } catch (err) {
     return { synced: false, reason: err.code === 401 ? 'not signed in' : err.message };
   }

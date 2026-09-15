@@ -30,6 +30,7 @@
   import { buildCampaignSuite } from './campaign-suite.js';
   import { buildProfileSuite } from './profile-suite.js';
   import { buildFeedbackSuite } from './feedback-suite.js';
+  import { buildDiscordSuite } from './discord-suite.js';
   import { checker } from './assert.js';
 
   // Every server suite, in order. A new feature's tests are one more entry.
@@ -38,6 +39,7 @@
     ['Campaigns', buildCampaignSuite],
     ['Profiles', buildProfileSuite],
     ['Feedback', buildFeedbackSuite],
+    ['Discord bot', buildDiscordSuite],
   ];
 
   const tally = document.getElementById('tally');

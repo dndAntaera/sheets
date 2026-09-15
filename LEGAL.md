@@ -32,6 +32,10 @@ game mechanics taken from the 3.5 System Reference Document:
   rule text) — the variant rules from Unearthed Arcana, built by
   `scripts/build-variants.py`; the catalog's own descriptions are not Open Game
   Content
+- `web/data/srd/variant-content.json` — Unearthed Arcana's environmental and
+  elemental races, prestigious character classes, spelltouched and weapon group
+  feats and specialist wizard and druid variants, restated for the engine by
+  `scripts/build-variant-content.py`
 - `web/data/srd/traits.json` — Unearthed Arcana's character traits and flaws
 - `web/data/srd/languages.json` — the SRD's languages
 - `web/data/synergies.json` — the SRD's skill synergies

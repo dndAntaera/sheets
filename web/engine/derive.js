@@ -38,7 +38,8 @@ import { activeModules } from './modules.js';
 import { magicFor, magicNotices } from './magic.js';
 import { trackersFor, trackerNotices } from './trackers.js';
 import {
-  variantClassIndex, variantArmorClass, variantHealth, variantScores, magicRatingFor, spontaneousMetamagicFor,
+  variantClassIndex, classVariantView, variantRaceIndex, applyFeatureVariants,
+  variantArmorClass, variantHealth, variantScores, magicRatingFor, spontaneousMetamagicFor,
   skillSystemOf, skillsKnownAllowed, variantNotices,
 } from './variants.js';
 import { featPlan, featSlots, featNotices, featRuleIndex } from './feats.js';
@@ -79,20 +80,32 @@ function sheetEffects(character) {
  *                           campaign server's gestalt switch
  * @param options.gestalt    shorthand for overrides.gestalt
  */
-export function derive(character, rules, options = {}) {
+export function derive(stored, rules, options = {}) {
   // --- 1. the rules in force ---------------------------------------------
   const overrides = { ...(options.overrides || {}) };
   if (options.gestalt !== undefined) overrides.gestalt = options.gestalt;
-  const modules = activeModules(rules, character, overrides);
+  const modules = activeModules(rules, stored, overrides);
   const gestalt = modules.gestalt;
 
   // --- 2. what the character is built of ---------------------------------
   // In a campaign, only the homebrew the campaign allows counts.
-  const usable = usableContent(character, rules);
-  const index = contentIndex(rules, { ...character, content: usable.content });
-  // Variant rules that change classes: generic and paragon classes, class variants.
-  index.classByName = variantClassIndex(index.classByName, character, rules, modules);
+  const usable = usableContent(stored, rules);
+  const index = contentIndex(rules, { ...stored, content: usable.content });
+  // The variant rules' races and classes: generic, paragon and prestigious
+  // classes, class variants, environmental and elemental races.
+  index.raceByName = variantRaceIndex(index.raceByName, rules, modules);
+  index.classByName = variantClassIndex(index.classByName, stored, rules, modules);
+  // A class variant on a level row is read as the class it varies, from here on.
+  const shaped = classVariantView(stored, index.classByName);
+  const character = shaped.character;
+  const features = applyFeatureVariants(shaped.classByName, stored, rules, modules);
+  index.classByName = features.classByName;
   const summary = buildSummary(character, rules, gestalt, index);
+  // The build in words keeps a variant's own name: "Cloistered cleric 3".
+  summary.label = summary.sides
+    .map((s) => s.classes.map((c) => `${c.def.displayName || c.name} ${c.levels}`).join('/'))
+    .filter(Boolean)
+    .join(' // ');
   // Reducing level adjustments: reductions paid for lower the adjustment, and ECL with it.
   summary.baseLA = summary.la;
   if (modules.reducingLA) {
@@ -145,8 +158,8 @@ export function derive(character, rules, options = {}) {
   // divine grace, a monk's Wisdom to AC - so they join the effects now. None of
   // them touches an ability score, so the scores above stand.
   const featRuleNames = new Set((rules.featRules || []).map((f) => f.name.toLowerCase()));
-  const features = classFeatures(character, summary, rules, featRuleNames);
-  effects.push(...featureEffects(view, summary, abilities, features));
+  const classFeatureList = classFeatures(character, summary, rules, featRuleNames);
+  effects.push(...featureEffects(view, summary, abilities, classFeatureList));
   let resolved = resolveEffects(effects, summary.hitDiceCount);
 
   // --- 5. everything else ------------------------------------------------
@@ -293,11 +306,13 @@ export function derive(character, rules, options = {}) {
 
   // What the character can do that is not a number: class features, what
   // feats, traits and flaws do beyond their numbers, and its race's traits.
-  derived.classFeatures = features;
+  derived.classFeatures = classFeatureList;
   derived.languages = languagePlan(character, derived, rules);
   const featNotes = entries.feats.flatMap((f) => (f.notes || []).map((text) => ({ source: f.choice ? `${f.name} (${f.choice})` : f.name, kind: 'feat', text })));
   const traitNotes = entries.other.flatMap((t) => (t.notes || []).map((text) => ({ source: t.name, kind: t.kind, text })));
-  derived.specialNotes = [...featNotes, ...traitNotes, ...synergy.notes];
+  // Class features traded for a variant's: what each does instead.
+  const variantFeatureNotes = features.taken.map((f) => ({ source: `${f.className}: ${f.name}`, kind: 'class', text: f.note }));
+  derived.specialNotes = [...featNotes, ...traitNotes, ...synergy.notes, ...variantFeatureNotes];
   derived.synergies = synergy.earned;
   if (derived.languages.illiterate) derived.specialNotes.push({ source: 'Barbarian', kind: 'class', text: 'Illiterate: cannot read or write until 2 skill points are spent, or a level is taken in another class.' });
   derived.traitsFlaws = entries.other;
@@ -340,6 +355,10 @@ export function derive(character, rules, options = {}) {
     classesChosing: [...new Set(summary.sides.flatMap((s) => s.classes))]
       .filter((c) => c.def?.chooseSkills && (character.variants?.chosenSkills?.[c.name] || []).length < c.def.chooseSkills)
       .map((c) => [c.name, c.def]),
+    classConflicts: shaped.conflicts,
+    featureVariants: features.taken.map((f) => ({ ...f, levels: summary.sides.flatMap((s) => s.classes).filter((c) => c.name === f.className).reduce((n, c) => Math.max(n, c.levels), 0) })),
+    featureProblems: features.problems,
+    prestige: [...new Map(summary.sides.flatMap((s) => s.classes).filter((c) => c.def?.requires).map((c) => [c.name, { name: c.name, requires: c.def.requires }])).values()],
   };
   if (modules.spontaneousMetamagic && highestSpell >= 0) {
     for (const m of spontaneousMetamagicFor(character, highestSpell, rules)) {
