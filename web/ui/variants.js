@@ -19,7 +19,7 @@
 
 import { h, button, labelled, row, total } from './dom.js';
 import {
-  moduleState, MODULE_LABELS, MODULES, PLAY_MODULES, BUILD_MODULES, CONTENT_MODULES, featureVariantOptions, REPLACED_FEATURES,
+  moduleState, MODULE_LABELS, PLAY_MODULES, BUILD_MODULES, CONTENT_MODULES, featureVariantOptions, REPLACED_FEATURES,
 } from '../engine/index.js';
 import { referenceHref } from '../reference.js';
 
@@ -247,7 +247,7 @@ export function classChoicesPanel(app) {
  * character is built in Concept, how it plays in Advanced - so the page says
  * which, and links there.
  *
- * @param ways  from app.js: { creatorHref(step), campaign }
+ * @param ways  from app.js: { campaign }
  */
 export function rulesInPlayPanel(app, ways) {
   const d = app.derived;
@@ -258,7 +258,6 @@ export function rulesInPlayPanel(app, ways) {
   const building = BUILD_MODULES.filter((id) => available(id) && d.modules[id]);
   const playing = PLAY_MODULES.filter((id) => available(id) && d.modules[id]);
   const withheld = CONTENT_MODULES.filter((id) => available(id) && !d.modules[id]);
-  const others = MODULES.filter((id) => !available(id));
 
   const list = (ids, empty) => (ids.length
     ? h('ul.rules-in-play', ids.map((id) => h('li',
@@ -279,10 +278,7 @@ export function rulesInPlayPanel(app, ways) {
       h('h3', { text: 'In play' }),
       list(playing, 'No optional rules of play.'),
       withheld.length ? [h('h3', { text: 'Not offered at this table' }), list(withheld, '')] : null,
-      h('p.hint', { text: `Races, classes and feats from the variant rules - aquatic dwarves, bardic sages, spelltouched feats and the rest - are in the creator's lists${withheld.length ? ', except those above' : ''}.${others.length ? '' : ''}` }),
-      h('div.row',
-        h('a.btn.subtle', { href: ways.creatorHref('concept') }, 'Change how it is built'),
-        h('a.btn.subtle', { href: ways.creatorHref('advanced') }, 'Change the rules of play'))));
+      h('p.hint', { text: `Races, classes and feats from the variant rules - aquatic dwarves, bardic sages, spelltouched feats and the rest - are in the creator's lists${withheld.length ? ', except those above' : ''}.` })));
 }
 
 /* ==========================================================================
@@ -330,7 +326,7 @@ export function variantCombatPanel(app) {
       h('p', { text: `Save to resist injury: Fort ${health.injury.saveWithHits >= 0 ? '+' : ''}${health.injury.saveWithHits} against DC 15 + damage ÷ 5 (rounded up). Failing by 10 or more disables you.` }))));
   if (health.massiveDamage) {
     const results = { death: 'death', dying: '-1 hit points and dying', nearDeath: '-8 hit points and dying' };
-    blocks.push(h('div.variant-block', h('h3', 'Massive damage'), h('p', { text: `A single hit of ${health.massiveDamage.threshold} or more calls for a DC 15 Fortitude save; failing means ${results[health.massiveDamage.result]}. The threshold is chosen in the creator’s Advanced step.` })));
+    blocks.push(h('div.variant-block', h('h3', 'Massive damage'), h('p', { text: `A single hit of ${health.massiveDamage.threshold} or more calls for a DC 15 Fortitude save; failing means ${results[health.massiveDamage.result]}.` })));
   }
   if (health.deathAndDying) blocks.push(h('div.variant-block', h('h3', 'Death and dying'), h('p', { text: 'Hit points stop at 0. Reaching 0 calls for a Fortitude save, DC 10 + 2 per 10 points of damage from the hit: success leaves you disabled, failure dying, failure by 10 or more dead.' })));
   if (v.playersRoll) blocks.push(h('div.variant-block', h('h3', 'Players roll all the dice'), row(
@@ -395,7 +391,7 @@ export function variantTracksPanel(app) {
   if (s.honor) blocks.push(h('div.variant-block', h('h3', 'Honor'), row(
     h('div.total', h('span.label', { text: 'Starting' }), h('span.out', { text: s.honor.starting === null ? '-' : String(s.honor.starting) })),
     labelled('Current', number((n) => { state.honor = { ...(state.honor || {}), current: n }; }, s.honor.current, 'Current honor')),
-    h('p.hint', { text: 'Starting honor is set by alignment and ancestry (in the creator’s Advanced step).' }))));
+    h('p.hint', { text: 'Starting honor is set by alignment and ancestry.' }))));
 
   if (s.sanity) blocks.push(h('div.variant-block', h('h3', 'Sanity'), row(
     h('div.total', h('span.label', { text: 'Starting' }), h('span.out', { text: String(s.sanity.starting) })),

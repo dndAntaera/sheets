@@ -1806,8 +1806,6 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .signin-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-left: auto; }
 
 /* A finished character's held choices: shown, not changed, on the sheet. */
-.held-note { margin: 0 var(--sp-4) var(--sp-2); font-size: var(--text-small); color: var(--ink-dim, inherit); }
-.held-note a { margin-left: var(--sp-1); }
 .is-held { cursor: not-allowed; }
 input.is-held, select.is-held, textarea.is-held { opacity: .85; }
 

@@ -451,7 +451,7 @@ They come in three kinds, and the creator treats each differently:
   because they change the steps after it.
 - **Play** (`PLAY_MODULES`) - everything else: switched in the creator's
   Advanced step, with the choices each needs. The sheet's Rules page lists what
-  is in force and links back to both steps.
+  is in force.
 
 - `web/data/variants.json` is the catalog - each variant's name, category, what
   it does, and what the sheet does about it - and the SRD tables the engine
@@ -528,11 +528,11 @@ level increases, skill ranks, feats, traits and flaws, hit point rolls, spells
 and powers known (and a specialist's school, a cleric's domains), languages,
 and the rules it plays by. On the sheet their fields are disabled
 (`LOCKED_FIELDS` by path; `holdChoices` in app.js also disables controls marked
-`data-lock`), and each panel says so with a link into the creator. Everything
+`data-lock`); the sheet does not point the player at the creator. Everything
 that is play - hit points, spells prepared and cast, uses, gear, notes - stays
 open.
 
-"Change in the creator" opens a finished character in the wizard again. It is
+"Open in the creator", in the toolbar, opens a finished character in the wizard again. It is
 saved as it stands first, then `beginRevision` copies its held choices into
 `meta.wizard.revision`. The review step lists what has changed
 (`revisionChanges`); "Save the changes" finishes, "Discard changes" puts every

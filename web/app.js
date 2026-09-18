@@ -63,7 +63,7 @@ const PANELS = {
   trackers: (a) => trackersPanel(a, { rest: restCharacter, newWeek: () => restCharacter('week'), setUsed: setTrackerUsed }),
   advancedRules: (a) => advancedRulesPanel(a, { reopen }),
   classChoices: classChoicesPanel,
-  rulesInPlay: (a) => rulesInPlayPanel(a, { creatorHref: (step) => `#/create/${a.character.id}/${step}`, campaign: campaignOf(a.character) }),
+  rulesInPlay: (a) => rulesInPlayPanel(a, { campaign: campaignOf(a.character) }),
   variantCombat: variantCombatPanel,
   variantTracks: variantTracksPanel,
   equipment: equipmentPanel,
@@ -975,10 +975,7 @@ function sheetToolbar() {
     h('a.back', { href: '#/characters', text: 'All characters' }),
     draft ? h('a.btn.primary', { href: `#/create/${app.character.id}/${draft}` }, inRevision(app.character) ? 'Finish changing in the creator' : 'Continue in the creator') : null,
     !draft && canEdit()
-      ? h('a.btn.subtle', {
-        href: `#/create/${app.character.id}/review`,
-        title: `Race, classes, scores, skills, feats, spells known and languages are changed in the creator, and each change is kept in the character\u2019s history${campaignOf(app.character) ? ' for its GMs to see' : ''}.`,
-      }, 'Change in the creator')
+      ? h('a.btn.subtle', { href: `#/create/${app.character.id}/review` }, 'Open in the creator')
       : null,
     !draft && (app.character.meta?.creatorSkipped || []).length
       ? h('span.toolbar-flag', { title: 'Steps of the character creator this character skipped.' },
@@ -1169,24 +1166,14 @@ function recompute() {
   document.title = `${app.character.name || 'Unnamed'} - ${config.title}`;
 }
 
-/** The panels that show a finished character's held choices, and what each says about them. */
-const HELD_PANELS = {
-  levels: ['class', 'Classes are chosen in the creator.'],
-  classChoices: ['class', 'Chosen in the creator.'],
-  abilities: ['abilities', 'Base scores and level increases are chosen in the creator.'],
-  skills: ['skills', 'Skill ranks are chosen in the creator.'],
-  feats: ['feats', 'Feats, traits and flaws are chosen in the creator.'],
-  languages: ['details', 'Languages are chosen in the creator.'],
-  casting: ['details', 'Spells and powers known are chosen in the creator; preparing and casting happen here.'],
-};
 // Controls, not bound to a path, that change held choices.
 const HELD_CONTROLS = '[data-lock], .roller, .base-score, .magic-adder, .magic-options';
 const WHOLLY_HELD = ['feats', 'languages', 'classChoices'];
 
 /**
  * On the sheet, a finished character's held choices are shown but not changed:
- * their fields and buttons are disabled, and each panel says where they are
- * changed. In the creator, and for a draft, everything stays open.
+ * their fields and buttons are disabled. In the creator, and for a draft,
+ * everything stays open.
  */
 function holdChoices(root) {
   if (!root || app.wizard || !app.character || !isHeld(app.character)) return;
@@ -1194,19 +1181,11 @@ function holdChoices(root) {
     if (el.disabled) return;
     el.disabled = true;
     el.classList.add('is-held');
-    if (!el.title) el.title = 'Chosen in the creator. Change it there.';
   };
   const controls = (el) => (el.matches('input, select, textarea, button') ? [el] : [...el.querySelectorAll('input, select, textarea, button')]);
   for (const el of root.querySelectorAll('[data-field]')) if (isLockedPath(el.dataset.field)) hold(el);
   for (const el of root.querySelectorAll(HELD_CONTROLS)) controls(el).forEach(hold);
   for (const key of WHOLLY_HELD) if (app.panels[key]) controls(app.panels[key]).forEach(hold);
-  for (const [key, [step, words]] of Object.entries(HELD_PANELS)) {
-    const panel = app.panels[key];
-    if (!panel || panel.hidden || panel.querySelector('.held-note')) continue;
-    const note = h('p.held-note', `${words} `, canEdit() ? h('a', { href: `#/create/${app.character.id}/${step}`, text: 'Change in the creator' }) : null);
-    const title = panel.querySelector('.panel-title');
-    if (title) title.after(note); else panel.prepend(note);
-  }
 }
 
 /**
