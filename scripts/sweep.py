@@ -290,6 +290,14 @@ def sweep_data():
     stale = module.build() != load(os.path.join(DATA, 'srd', 'variant-content.json'))
     check('variant-content.json is what its script builds', ['rerun: python scripts/build-variant-content.py'] if stale else [])
 
+    spec = importlib.util.spec_from_file_location('build_preload', os.path.join(ROOT, 'scripts', 'build-preload.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with open(os.path.join(WEB, 'index.html'), encoding='utf-8') as f:
+        html = f.read()
+    stale = module.build(html) != html
+    check("index.html lists every module the app loads", ['rerun: python scripts/build-preload.py'] if stale else [])
+
 
 # ---------------------------------------------------------------------------
 #   The words

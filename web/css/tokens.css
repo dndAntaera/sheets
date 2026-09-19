@@ -116,6 +116,16 @@
   --taint-severe: #7b2d2d;
   --taint-past: #4a1220;
 
+  /* The header bar: the accent, as the wiki's is, with white ink on it. The
+     shadow is the one Material gives the wiki's bar. */
+  --bar: var(--accent);
+  --bar-ink: #ffffff;
+  --bar-ink-dim: rgba(255, 255, 255, .78);
+  --bar-hover: rgba(255, 255, 255, .14);
+  --bar-warn: #ffe08a;
+  --bar-field: rgba(0, 0, 0, .26);  /* the wiki's search box, on the bar */
+  --shadow-bar: 0 0 .2rem rgba(0, 0, 0, .1), 0 .2rem .4rem rgba(0, 0, 0, .2);
+
   --shadow-card: 0 1px 3px rgba(0, 0, 0, .18);
   --shadow-float: 0 6px 24px rgba(0, 0, 0, .35);
 

@@ -16,6 +16,9 @@ and writes, sized for where they are shown:
     web/icons/apple-touch-icon.png         an iPhone's home screen (180)
     web/icons/favicon-48.png               the browser tab
     web/brand/logo-mark-96.png, -256.png   the transparent logo, header and pages
+    web/brand/logo-disc-96.png             the white one on a disc, for the header
+                                           bar - the wiki's header logo, made the
+                                           same way
     web/brand/logo-badge-320.png           the white one, as a badge on purple
 
 Plain Python, no imaging library: PNGs are decoded, averaged down, and written
@@ -124,6 +127,18 @@ def on_white(size, rgba):
     return out
 
 
+def on_disc(size, rgba):
+    """Flatten onto white and cut to a circle, its edge smoothed over a pixel."""
+    out = on_white(size, rgba)
+    r = size / 2
+    for y in range(size):
+        for x in range(size):
+            # Four samples a pixel: enough that the rim does not step.
+            inside = sum(((x + dx) - r) ** 2 + ((y + dy) - r) ** 2 <= r * r for dx in (.25, .75) for dy in (.25, .75))
+            out[(y * size + x) * 4 + 3] = inside * 255 // 4
+    return out
+
+
 def padded(size, inner, rgba_inner):
     """`rgba_inner` (inner x inner) centred on a white square of `size`."""
     out = bytearray([255] * (size * size * 4))
@@ -155,6 +170,8 @@ def main():
         print('wrote', name)
     write_png(brand / 'logo-badge-320.png', 320, 320, on_white(320, resize(iw, ih, icon, 320)))
     print('wrote logo-badge-320.png')
+    write_png(brand / 'logo-disc-96.png', 96, 96, on_disc(96, resize(iw, ih, icon, 96)))
+    print('wrote logo-disc-96.png')
 
 
 if __name__ == '__main__':

@@ -32,4 +32,12 @@ export const config = {
   // Only for the app wrapped for a phone: where sign-in sends it back to. Must
   // be named in the Worker's APP_RETURN_URLS. Null on the website.
   appReturnUrl: null,
+
+  // The commit this build was made from, written in by the deploy
+  // (.github/workflows/deploy.yml); 'dev' on a working copy. Data files are
+  // asked for by it, so a browser keeps them until the next deploy.
+  version: 'dev',
 };
+
+/** The query that stamps a data file with this build, or '' on a working copy. */
+export const versionQuery = () => (config.version && config.version !== 'dev' ? `?v=${encodeURIComponent(config.version)}` : '');

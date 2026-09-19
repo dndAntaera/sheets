@@ -140,7 +140,7 @@ async function start() {
   // How this player likes the site to look, before anything is drawn.
   applyAppearance();
   registerServiceWorker();
-  app.baseRules = await loadRules('./data/');
+  app.baseRules = await loadRules('./data/', undefined, { version: config.version === 'dev' ? null : config.version });
   app.rules = app.baseRules;
 
   // Back from Google or Discord: finish signing in before drawing anything, so
@@ -167,7 +167,7 @@ async function start() {
 
   await connect();
 
-  document.body.append(header(), h('main#main'), footer(), h('div#datalists.hidden'));
+  document.body.append(...[header(), notice(), h('main#main'), footer(), h('div#datalists.hidden')].filter(Boolean));
   window.addEventListener('hashchange', route);
   window.addEventListener('library-synced', (ev) => {
     refreshDatalists();
@@ -311,7 +311,8 @@ function header() {
 
   return h('header.top',
     h('a.brand', { href: '#/', title: config.tagline },
-      h('img.brand-logo', { src: 'brand/logo-mark-96.png', alt: '', width: 36, height: 36 }),
+      // On its white disc, as in the wiki's header: the bar is the flames' own purple.
+      h('img.brand-logo', { src: 'brand/logo-disc-96.png', alt: '', width: 28, height: 28 }),
       h('span.brand-name', { text: config.title })),
     h('nav.top-nav',
       NAV.filter((item) => item.visible()).map((item) => {
@@ -322,8 +323,12 @@ function header() {
     h('div.top-right',
       app.status,
       themeSwitch(),
-      accountMenu()),
-    app.notice ? h(`p.banner.${app.notice.level}`, { text: app.notice.text }) : null);
+      accountMenu()));
+}
+
+/** What a sign-in left to say, under the header bar rather than on it. */
+function notice() {
+  return app.notice ? h('div.top-notice', h(`p.banner.${app.notice.level}`, { text: app.notice.text })) : null;
 }
 
 const PROVIDER_LABELS = { google: 'Google', discord: 'Discord' };
@@ -1150,7 +1155,11 @@ function onEdit(path, value, el, ev) {
   scheduleSave();
 }
 
+// A rebuilt panel waiting for the recompute that fills it (app.rebuildPanel).
+let repaintDue = false;
+
 function recompute() {
+  repaintDue = false;
   app.derived = derive(app.character, app.rules, { overrides: app.overrides });
   const root = document.getElementById('main');
   paint(root, app.derived);
@@ -1286,7 +1295,13 @@ function paintCasting() {
     c.note ? h('p.hint', { text: c.note }) : null)));
 }
 
-/** Rebuild one panel in place - used when a list or a field changes its shape. */
+/**
+ * Rebuild one panel in place - used when a list or a field changes its shape.
+ *
+ * The fresh panel is filled by a recompute once the code that asked is done,
+ * so an edit rebuilding several panels, or recomputing itself afterwards,
+ * works the sheet out once rather than once per panel.
+ */
 app.rebuildPanel = (key) => {
   const old = app.panels[key];
   if (!old || !PANELS[key]) return;
@@ -1298,7 +1313,12 @@ app.rebuildPanel = (key) => {
   }
   app.panels[key] = fresh;
   old.replaceWith(fresh);
-  recompute();
+  if (repaintDue) return;
+  repaintDue = true;
+  queueMicrotask(() => {
+    if (repaintDue && app.character) recompute();
+    repaintDue = false;
+  });
 };
 
 app.recompute = () => {

@@ -77,7 +77,8 @@ any failure. It checks:
   exactly what a browser test run on one page will not notice. Also: no
   `debugger` or `console.log` left in `web/`; every panel a sheet page or
   creator step names is in `PANELS`; the manifest's icons and the service
-  worker's offline shell are files that exist.
+  worker's offline shell are files that exist; `web/index.html` lists every
+  module the app loads (see Loading fast, below).
 - **the data** - every JSON file parses; every feat in `feat-effects.json` is an
   SRD feat; every effect (feats, traits and flaws, races) aims at a target
   `effects.js` knows, or a real skill; classes and races name real feats and
@@ -564,6 +565,27 @@ while signed in, and a moment after each edit. The rules:
 Signing out sends any pending edit, then takes the library off the browser; it
 comes back on the next sign-in.
 
+## Loading fast
+
+Three things keep the first load short and the next ones shorter:
+
+- **Every module named up front.** A browser only learns what `app.js`
+  imports once it arrives, so without help the modules come in waves.
+  `web/index.html` names them all with `<link rel="modulepreload">` so they
+  download together. The list is written by a script and the sweep fails while
+  it is out of step, so after adding, removing or renaming a module run:
+
+      python scripts/build-preload.py
+
+- **Data stamped with its build.** The deploy writes the commit into
+  `web/config.js` (`version`), and the rules data and the SRD reference are
+  asked for as `file.json?v=<commit>`. The service worker keeps a stamped file
+  and serves it straight away until the next deploy asks for a new stamp. A
+  working copy says `version: 'dev'`, and every file is checked with the server
+  each time, so an edit shows on reload.
+- **Saves without the history.** The server keeps a character's history of
+  held choices itself, so a character it already has is saved without it.
+
 ## What is deployed where
 
 | Half | Where | Deployed by |
@@ -586,10 +608,22 @@ the logo changes:
 
     python scripts/build-brand.py
 
-On the dark sky the transparent logo is used: the header and the Legal page.
-Where purple text, buttons or glow sit close to it - the landing page - the
-white-ground version is used instead, as a rounded badge, so the logo's purple
-does not run into the site's.
+The sheets wear the wiki's look, so a player moving between them does not feel
+they have left:
+
+- **The header bar** is the wiki's: the full width of the window, in the
+  accent purple, the logo on a white disc (`logo-disc-96.png`, made the way the
+  wiki's is) and the name in bold white. A player who picks another accent in
+  Settings gets the bar in that color.
+- **The sky** is the wiki's starfield. `web/starfield.js` is the wiki's
+  `docs/javascripts/starfield.js` with this site's class names and its own
+  reduced-motion setting; change the sky in the wiki first, then copy it here.
+- **The colors, type and spacing** in `web/css/tokens.css` are the wiki's own
+  values under this site's names.
+
+Elsewhere on the dark sky the transparent logo is used. Where purple text,
+buttons or glow sit close to it - the landing page - the white-ground version is
+used as a rounded badge, so the logo's purple does not run into the site's.
 
 ## The mobile app
 
@@ -601,7 +635,9 @@ progressive web app: on Android, Chrome offers *Install app*; on an iPhone,
 Safari's *Share → Add to Home Screen*. It opens full screen with its own icon
 (`web/icons/`, made by `scripts/build-brand.py` - see Branding below). The service worker fetches
 network first and keeps a copy of everything the site has loaded, so the app
-opens offline and a deploy is never held back by a stale cache. Characters
+opens offline and a deploy is never held back by a stale cache. Data files
+stamped with their build are the exception: they are served from the copy until
+the next deploy (see Loading fast). Characters
 edited offline are saved in the browser by the app itself and sent to the
 account when it is back online, as they always were.
 

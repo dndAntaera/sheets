@@ -88,10 +88,16 @@ export function withRuleset(rules, rulesetId) {
   return { ...rules, ruleset, rulesetId: ruleset.id };
 }
 
-/** Fetch the data files and build the rules context. Browser side. */
-export async function loadRules(base = './data/', rulesetId = 'srd') {
+/**
+ * Fetch the data files and build the rules context. Browser side.
+ *
+ * With a `version` (the deployed commit) each file is asked for by it, and the
+ * browser may keep what it has until the next deploy; without one, as on a
+ * working copy, every file is checked with the server each time.
+ */
+export async function loadRules(base = './data/', rulesetId = 'srd', { version = null } = {}) {
   const get = async (path) => {
-    const res = await fetch(`${base}${path}`, { cache: 'no-cache' });
+    const res = await fetch(version ? `${base}${path}?v=${encodeURIComponent(version)}` : `${base}${path}`, { cache: version ? 'default' : 'no-cache' });
     if (!res.ok) throw new Error(`could not load ${path} (${res.status})`);
     return res.json();
   };

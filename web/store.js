@@ -337,6 +337,9 @@ async function api(path, options = {}) {
 
 const hex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 
+/** The characters this visit has loaded from, or saved to, the account server. */
+const onServer = new Set();
+
 export const remote = {
   name: 'your account',
   enabled: () => Boolean(config.apiBase),
@@ -391,8 +394,14 @@ export const remote = {
   },
 
   list: () => api('/api/characters'),
-  load: (id) => api(`/api/characters/${id}`),
-  save: (character) => api(`/api/characters/${character.id}`, { method: 'PUT', body: JSON.stringify(character) }),
+  load: (id) => api(`/api/characters/${id}`).then((character) => { onServer.add(id); return character; }),
+  // The server keeps the history of held choices itself, so a character it
+  // already has is sent without it. Only one arriving for the first time - an
+  // import, say - brings the history it carries.
+  save: (character) => api(`/api/characters/${character.id}`, {
+    method: 'PUT',
+    body: JSON.stringify(onServer.has(character.id) ? { ...character, history: undefined } : character),
+  }).then((saved) => { onServer.add(character.id); return saved; }),
   remove: (id) => api(`/api/characters/${id}`, { method: 'DELETE' }),
 
   /**

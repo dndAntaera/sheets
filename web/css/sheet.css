@@ -20,7 +20,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--sky-far) var(--sky) fixed;
+  background: transparent;
   color: var(--sky-ink);
   font: var(--text-body)/var(--leading) var(--font-body);
 }
@@ -33,7 +33,9 @@ a { color: var(--sky-link); }
 .hint { color: var(--ink-faint); font-size: var(--text-small); }
 
 /* ---------------------------------------------------------------------------
-   The header
+   The header - the wiki's bar: the full width of the window, in the accent,
+   the logo on its white disc and the name in bold white beside it. What sits
+   on the bar lines up with the sheet below it.
    --------------------------------------------------------------------------- */
 
 .top {
@@ -41,21 +43,29 @@ a { color: var(--sky-link); }
   align-items: center;
   gap: var(--sp-4);
   flex-wrap: wrap;
-  padding: var(--sp-3) var(--sp-4);
-  max-width: var(--sheet-width);
-  margin: 0 auto;
+  padding: var(--sp-2) max(var(--sp-4), calc((100% - var(--sheet-width)) / 2 + var(--sp-4)));
+  background: var(--bar);
+  color: var(--bar-ink);
+  box-shadow: var(--shadow-bar);
 }
 
-.brand { display: inline-flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--sky-ink); }
-.brand-logo { width: 36px; height: 36px; flex: none; }
-.brand-name {
-  font: 400 var(--text-panel-title)/1 var(--font-display);
-  letter-spacing: .04em;
-}
+.brand { display: inline-flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--bar-ink); transition: opacity var(--transition); }
+.brand:hover { opacity: .8; }
+.brand-logo { width: 28px; height: 28px; flex: none; }
+.brand-name { font: 700 var(--text-panel-title)/1 var(--font-display); }
 
 .top-nav { display: flex; gap: var(--sp-4); font-size: var(--text-small); }
-.top-nav a { color: var(--sky-ink-dim); text-decoration: none; }
-.top-nav a:hover { color: var(--sky-link); }
+.top-nav a { color: var(--bar-ink-dim); text-decoration: none; }
+.top-nav a:hover { color: var(--bar-ink); }
+
+.top .btn.subtle { color: var(--bar-ink-dim); }
+.top .btn.subtle:hover { color: var(--bar-ink); background: var(--bar-hover); }
+.top .nav-badge { background: var(--bar-ink); color: var(--bar); }
+.top .btn:not(.subtle) { background: var(--bar-field); border-color: transparent; color: var(--bar-ink); }
+.top .btn:not(.subtle):hover { background: var(--bar-hover); }
+
+/* A sign-in's message, under the bar and in line with the sheet. */
+.top-notice { max-width: var(--sheet-width); margin: 0 auto; padding: var(--sp-3) var(--sp-4) 0; }
 
 .top-right { margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); }
 .account { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-small); color: var(--sky-ink-dim); }
@@ -66,13 +76,33 @@ a { color: var(--sky-link); }
   font-size: var(--text-tiny);
   text-transform: uppercase;
   letter-spacing: .08em;
-  color: var(--sky-ink-dim);
+  color: var(--bar-ink-dim);
   min-width: 4rem;
   text-align: right;
 }
-.status[data-state="saved"] { color: var(--pass); }
-.status[data-state="editing"] { color: var(--sky-ink-dim); }
-.status[data-state="local"] { color: var(--warn); }
+.status[data-state="saved"] { color: var(--bar-ink); }
+.status[data-state="editing"] { color: var(--bar-ink-dim); }
+.status[data-state="local"] { color: var(--bar-warn); }
+
+/* ---------------------------------------------------------------------------
+   The sky - the wiki's starfield (starfield.js), fixed behind everything. It
+   sits below the page rather than the page above it, so nothing else needs a
+   z-index. The page's own gradient shows until the script has drawn, and the
+   body is left clear, or it would cover the sky.
+   --------------------------------------------------------------------------- */
+
+html { background: var(--sky-far) var(--sky) fixed; }
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--sky);
+}
+.sky canvas { position: absolute; top: 0; left: 0; will-change: transform; }
+.sky-comets { transform: none !important; z-index: 1; }
+@media print { .sky { display: none; } }
 
 /* ---------------------------------------------------------------------------
    Buttons and fields
@@ -465,12 +495,12 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .account-menu > summary::-webkit-details-marker { display: none; }
 .account-name {
   font-size: var(--text-small);
-  color: var(--sky-ink);
+  color: var(--bar-ink);
   padding: .3rem .5rem;
   border-radius: var(--radius);
 }
-.account-name::after { content: " \25BE"; color: var(--sky-ink-dim); }
-.account-name:hover { color: var(--sky-link); }
+.account-name::after { content: " \25BE"; color: var(--bar-ink-dim); }
+.account-name:hover { background: var(--bar-hover); }
 .account-pop {
   position: absolute;
   right: 0;
@@ -1346,7 +1376,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 }
 .badge.ruleset-antaera { border-color: var(--accent-dark); color: var(--accent-dark); }
 
-.top-nav a.is-active { color: var(--sky-ink); }
+.top-nav a.is-active { color: var(--bar-ink); font-weight: 600; }
 
 /* The roster's new-character block. */
 .roster-intro h1 { font: 400 var(--text-page-title)/1.2 var(--font-display); margin: 0; }
@@ -1568,7 +1598,7 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   }
   .top-nav::-webkit-scrollbar { display: none; }
   .top-nav a { flex: none; white-space: nowrap; padding: var(--sp-2) var(--sp-2); border-radius: var(--radius); }
-  .top-nav a.is-active { color: var(--sky-ink); background: rgba(215, 220, 237, .08); }
+  .top-nav a.is-active { color: var(--bar-ink); background: var(--bar-hover); }
   .top > .banner { grid-column: 1 / -1; }
   .account-name > span:not(.avatar) { display: none; }
   .status { min-width: 0; }

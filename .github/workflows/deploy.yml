@@ -39,6 +39,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # The build's commit, so browsers keep its data files until the next
+      # deploy (web/config.js, web/sw.js).
+      - name: Stamp the build
+        run: |
+          grep -q "version: 'dev'" web/config.js
+          sed -i "s/version: 'dev'/version: '${GITHUB_SHA::12}'/" web/config.js
+          grep -n "version: '" web/config.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web

@@ -7,6 +7,8 @@
 // spell, a feat or a class - the Reference pages, the sheet's spell and feat
 // lists - reads it from here, so the same entry reads the same everywhere.
 
+import { versionQuery } from './config.js';
+
 export const REFERENCE_KINDS = {
   spells: { label: 'Spells', singular: 'spell' },
   powers: { label: 'Powers', singular: 'power' },
@@ -31,7 +33,7 @@ const key = (name) => String(name || '').trim().toLowerCase();
 export function loadReference(kind) {
   if (!REFERENCE_KINDS[kind]) return Promise.reject(new Error(`no reference called ${kind}`));
   if (!loading.has(kind)) {
-    loading.set(kind, fetch(`./data/srd/${kind}.json`)
+    loading.set(kind, fetch(`./data/srd/${kind}.json${versionQuery()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`the ${REFERENCE_KINDS[kind].label.toLowerCase()} could not be loaded`);
         return res.json();

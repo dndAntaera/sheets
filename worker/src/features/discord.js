@@ -80,10 +80,11 @@ async function characterFor(env, account, named) {
     row = rows.find((r) => r.id === chosen?.character_id) || (rows.length === 1 ? rows[0] : null);
     if (!row) return { error: 'Which character? Choose one with /character, or name one in the command.' };
   }
-  const stored = await env.DB.prepare('SELECT data FROM characters WHERE id = ?').bind(row.id).first();
-  const character = JSON.parse(stored?.data || '{}');
-  if (!character.rolls) return { error: `${row.name || 'That character'} has not been saved since rolling arrived. Open the sheet once and it is ready.` };
-  return { row, sheet: character.rolls };
+  // Only the snapshot, not the whole sheet: autocomplete asks on every keystroke.
+  const stored = await env.DB.prepare("SELECT json_extract(data, '$.rolls') AS rolls FROM characters WHERE id = ?").bind(row.id).first();
+  const rolls = stored?.rolls ? JSON.parse(stored.rolls) : null;
+  if (!rolls) return { error: `${row.name || 'That character'} has not been saved since rolling arrived. Open the sheet once and it is ready.` };
+  return { row, sheet: rolls };
 }
 
 const signed = (n) => (n < 0 ? `${n}` : `+${n}`);
