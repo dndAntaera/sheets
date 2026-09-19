@@ -13,7 +13,7 @@ export const config = {
 
   // The public name: a creator for the 3.5 SRD first, and a campaign's tool
   // second.
-  title: '3.5 Sheets',
+  title: 'Sheet Tracker 3.5e',
   tagline: 'A character creator for the 3.5 System Reference Document',
 
   // The sheets are the wiki's sister site, and share its legal page: the Open

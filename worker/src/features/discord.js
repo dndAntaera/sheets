@@ -14,6 +14,9 @@
 //   /sheet [character]         a character's numbers at a glance
 //   /character name            which character this Discord account rolls as
 //
+// Each has a one-letter shortcut that works the same: /r 1d6 is /roll 1d6,
+// /s is /sheet and /c is /character (SHORTCUTS below).
+//
 // A roll reads `character.rolls`, the snapshot the app writes each time a sheet
 // is saved (web/engine/rolls.js): the server does no arithmetic of its own.
 //
@@ -53,6 +56,10 @@ export async function verifyDiscord(publicKey, signature, timestamp, body) {
   return false;
 }
 
+/** The one-letter commands, and the command each stands for. */
+export const SHORTCUTS = { r: 'roll', s: 'sheet', c: 'character' };
+const commandName = (interaction) => SHORTCUTS[interaction.data?.name] || interaction.data?.name;
+
 const option = (interaction, name) => (interaction.data?.options || []).find((o) => o.name === name);
 const say = (content, { ephemeral = true } = {}) => json({ type: MESSAGE, data: { content, flags: ephemeral ? EPHEMERAL : 0, allowed_mentions: { parse: [] } } });
 
@@ -90,7 +97,7 @@ async function characterFor(env, account, named) {
 const signed = (n) => (n < 0 ? `${n}` : `+${n}`);
 
 async function command(env, interaction, account) {
-  const name = interaction.data?.name;
+  const name = commandName(interaction);
 
   if (name === 'character') {
     const found = await characterFor(env, account, option(interaction, 'name')?.value);

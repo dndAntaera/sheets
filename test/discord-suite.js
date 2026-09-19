@@ -8,7 +8,7 @@
 
 import { call, signIn, people, googler, discorder, env } from './worker-suite.js';
 import worker from '../worker/src/index.js';
-import { verifyDiscord, handleInteraction } from '../worker/src/features/discord.js';
+import { verifyDiscord, handleInteraction, SHORTCUTS } from '../worker/src/features/discord.js';
 
 const account = async (profile, provider = 'google') => {
   people[provider] = profile;
@@ -106,6 +106,29 @@ export function buildDiscordSuite() {
 
     const suggest = await reply(await handleInteraction(env, { type: 4, member: { user: { id: 'd-ada' } }, data: { name: 'roll', options: [{ name: 'what', value: 'gre', focused: true }, { name: 'character', value: 'grukk' }] } }));
     t.eq(suggest.data.data.choices[0], { name: 'Greataxe', value: 'Greataxe' }, 'what to roll autocompletes from the sheet');
+  });
+
+  test('the shortcuts: /r is /roll, /s is /sheet, /c is /character', async (t) => {
+    const eve = await account(discorder('d-eve', 'eve'), 'discord');
+    await call('PUT', '/api/characters/brin', { token: eve.token, body: { name: 'Brin', ruleset: 'srd', levels: [{ a: 'Fighter' }], rolls: rollsFor('Brin') } });
+    await call('PUT', '/api/characters/tam', { token: eve.token, body: { name: 'Tam', ruleset: 'srd', levels: [{ a: 'Rogue' }], rolls: rollsFor('Tam') } });
+
+    const chosen = await reply(await handleInteraction(env, commandFrom('d-eve', 'c', [{ name: 'name', value: 'tam' }])));
+    t.ok(/Tam/.test(chosen.data.data.content), '/c chooses the character');
+    const dice = await reply(await handleInteraction(env, commandFrom('d-eve', 'r', [{ name: 'what', value: '1d6' }])));
+    t.ok(/^1d6 \(\d\) = \*\*\d\*\*$/.test(dice.data.data.embeds[0].description), dice.data.data.embeds[0].description);
+    const sheet = await reply(await handleInteraction(env, commandFrom('d-eve', 's')));
+    t.eq(sheet.data.data.embeds[0].title, 'Tam', '/s shows the chosen one');
+    const suggest = await reply(await handleInteraction(env, { type: 4, member: { user: { id: 'd-eve' } }, data: { name: 'r', options: [{ name: 'what', value: 'gre', focused: true }] } }));
+    t.eq(suggest.data.data.choices[0]?.value, 'Greataxe', 'and /r autocompletes as /roll does');
+
+    // What is registered with Discord must be what the bot answers.
+    const registered = await (await fetch(new URL('../scripts/discord-commands.json', import.meta.url))).json();
+    const byName = Object.fromEntries(registered.map((c) => [c.name, c]));
+    for (const [short, long] of Object.entries(SHORTCUTS)) {
+      t.ok(byName[short], `/${short} is registered`);
+      t.eq(byName[short]?.options, byName[long]?.options, `/${short} takes what /${long} does`);
+    }
   });
 
   test('a character from before rolling arrived asks to be opened once', async (t) => {

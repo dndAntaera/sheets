@@ -756,6 +756,10 @@ skill, save, ability, initiative, a weapon (attack, a confirmation roll on a
 threat, and damage) or plain dice, with a `+2` or `-1` on the end for a
 situational modifier; `/sheet` shows a character's numbers; `/character` picks
 which character a person rolls as. What to roll autocompletes from the sheet.
+Each has a one-letter shortcut that works the same way: `/r 1d6` is
+`/roll 1d6`, `/s` is `/sheet` and `/c` is `/character` (`SHORTCUTS` in
+`discord.js`, and a second entry in `discord-commands.json`, which the tests
+check agree).
 
 It is an HTTP interactions endpoint on the Worker, `POST /discord/interactions`
 (`worker/src/features/discord.js`): no gateway, no process to keep running.

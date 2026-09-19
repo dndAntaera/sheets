@@ -1,4 +1,4 @@
-# 3.5 Sheets
+# Sheet Tracker 3.5e
 
 A character creator for the 3.5 edition System Reference Document — build a
 character, and the sheet keeps the arithmetic.
