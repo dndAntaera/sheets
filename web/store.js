@@ -62,7 +62,11 @@ export const local = {
   save(character) {
     const now = new Date().toISOString();
     character.meta = { ...character.meta, updated: now, created: character.meta?.created || now };
-    write(sheetKey(character.id), character);
+    // The roll snapshot is for the Discord bot, which reads it from the
+    // account server. This browser writes it afresh on every save, so keeping
+    // it here would be the largest thing in the file for no purpose.
+    const { rolls, ...kept } = character;
+    write(sheetKey(character.id), kept);
     const index = this.list().filter((row) => row.id !== character.id);
     index.push(summarise(character));
     write(indexKey, index.sort(byName));

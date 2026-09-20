@@ -8,8 +8,9 @@
 
 import { h, button, refill } from './dom.js';
 import { remote } from '../store.js';
+import { ROLE_LABELS } from './people.js';
 
-export const ROLE_LABELS = { player: 'Player', gm: 'GM', admin: 'Admin' };
+export { ROLE_LABELS };
 
 const ROLE_POWERS = [
   ['Player', 'Their own characters and homebrew, and joins campaigns they are invited to.'],

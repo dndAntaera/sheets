@@ -14,7 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
-  mergeLibraries, fillMissing, applyCampaign, restedMagic, usesInSpecial, restedTrackers, VARIANT_MODULES,
+  mergeLibraries, fillCharacter, packCharacter, modulesIn, applyCampaign, restedMagic, usesInSpecial, restedTrackers, VARIANT_MODULES,
   rollAbilityArray, newAbilityRolls, placeScore, parsePrerequisites, featRuleIndex, stateAtLevel, featEligibility,
   featOptions, languagePlan, featureKey, applyCampaign as campaignRules,
   itemFromReference, inventoryTotals, carryingCapacity, attackFor, migrateInventory, slotChoices, usableContent, buyItem, removeItem,
@@ -670,7 +670,7 @@ export function buildSuite(data) {
 
   test('a sparse character is filled out rather than breaking the sheet', (t) => {
     const sparse = { id: 'x', name: 'Only a name', ruleset: 'srd', levels: [{ level: 1, a: 'Rogue' }], abilities: { base: { str: 16 } } };
-    const c = fillMissing(sparse, srd);
+    const c = fillCharacter(sparse, srd);
     t.eq(c.name, 'Only a name', 'what it had is kept');
     t.eq(c.levels.length, 1);
     t.ok(Array.isArray(c.skills) && c.skills.length > 30, 'what it lacked is added');
@@ -678,6 +678,40 @@ export function buildSuite(data) {
     t.eq(c.abilities.method, 'pointBuy', 'nested parts are filled too');
     const d = derive(c, srd);
     t.eq(d.summary.label, 'Rogue 1');
+  });
+
+  test('the file keeps what is used, and filling puts the rest back', (t) => {
+    const c = blankCharacter(srd);
+    c.id = 'f1';
+    c.name = 'Grukk';
+    c.levels = [{ level: 1, a: 'Fighter' }];
+    c.skills.find((s) => s.name === 'Climb').ranks = 4;
+    const file = packCharacter(c, srd);
+    t.eq(file.skills, [{ name: 'Climb', subtype: '', ranks: 4, misc: 0 }], 'only the skill with ranks in it');
+    t.ok(file.magic === undefined && file.wealth === undefined && file.taint === undefined, 'nothing it does not use');
+    t.eq(file.modules, [], 'a plain fighter needs no module');
+    t.ok(JSON.stringify(file).length < JSON.stringify(c).length / 2, 'and the file is far smaller');
+
+    const back = fillCharacter(file, srd);
+    t.eq(back, { ...c, id: 'f1' }, 'filling is packing undone');
+
+    c.magic = { Wizard: { known: [{ name: 'Magic Missile', level: 1 }] } };
+    c.wealth = { startingGold: 90, items: [{ name: 'Rope' }], ledger: [] };
+    const both = packCharacter(c, srd);
+    t.eq(both.modules, ['spells', 'inventory'], 'a caster with gear says so');
+    t.eq(modulesIn(both), both.modules);
+    t.eq(fillCharacter(both, srd).wealth.items, [{ name: 'Rope' }]);
+  });
+
+  test('a sheet from before modules, which kept everything, still reads', (t) => {
+    const old = blankCharacter(srd);
+    old.id = 'old';
+    old.name = 'Keeper';
+    old.skills.find((s) => s.name === 'Spot').misc = 2;
+    const c = fillCharacter(JSON.parse(JSON.stringify(old)), srd);
+    t.eq(c.skills.length, old.skills.length, 'every skill row is still there');
+    t.eq(c.skills.find((s) => s.name === 'Spot').misc, 2);
+    t.eq(derive(c, srd).summary.label, derive(old, srd).summary.label);
   });
 
   /* === syncing a library between devices =============================== */

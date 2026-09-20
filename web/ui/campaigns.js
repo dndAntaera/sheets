@@ -12,10 +12,10 @@ import { VARIANT_MODULES } from '../engine/modules.js';
 import { CONTENT_TYPES } from '../engine/library.js';
 import { flattenLibrary } from '../engine/sync.js';
 import { remote, campaignLibrary } from '../store.js';
-import { avatarFor } from './profile.js';
+import { avatarFor, CAMPAIGN_ROLE_LABELS as ROLE_LABELS, keepPendingInvite, takePendingInvite } from './people.js';
 
-const ROLE_LABELS = { owner: 'Owner', gm: 'GM', player: 'Player' };
-const PENDING_INVITE = 'antaera-sheets/v1/pending-invite';
+export { takePendingInvite };
+
 const inviteLink = (code) => `${location.origin}${location.pathname}#/join/${code}`;
 
 /**
@@ -471,21 +471,11 @@ function leaveOrDelete(app, campaign, attempt) {
    ========================================================================== */
 
 /** An invitation opened while signed out is remembered until sign-in finishes. */
-export function takePendingInvite() {
-  try {
-    const code = sessionStorage.getItem(PENDING_INVITE);
-    sessionStorage.removeItem(PENDING_INVITE);
-    return code;
-  } catch {
-    return null;
-  }
-}
-
 export async function showJoin(main, app, code) {
   const { el: message, say } = messenger();
 
   if (!app.user) {
-    try { sessionStorage.setItem(PENDING_INVITE, code); } catch { /* the link can be opened again */ }
+    keepPendingInvite(code);
     const offered = Object.entries(app.providers || {}).filter(([, ready]) => ready).map(([name]) => name);
     refill(main, h('div.roster.join-page',
       h('h1', { text: 'You have been invited to a campaign' }),

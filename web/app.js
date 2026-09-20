@@ -10,38 +10,46 @@
 
 import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS, rollSheet,
-  moduleState, MODULES, BUILD_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillMissing, flattenLibrary, restedMagic, restedTrackers,
+  moduleState, MODULES, BUILD_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillCharacter, packCharacter, flattenLibrary, restedMagic, restedTrackers,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
 import {
   wizardPage, paintWizard, WIZARD_STEPS, stepForNotice, skippedSteps, finishCreator, visitStep, listed,
   beginRevision, inRevision, discardRevision,
 } from './ui/wizard.js';
-import { historyPanel } from './ui/history.js';
+import { parts, part } from './ui/lazy.js';
+import { avatarFor, ROLE_LABELS, takePendingInvite } from './ui/people.js';
 import { isHeld, isLockedPath, lockedParts, restoreLocked } from './engine/locks.js';
 import {
   identityPanel, levelsPanel, abilitiesPanel, combatPanel, skillsPanel,
   houserulesPanel, textPanel, trackersPanel, hitPointsPanel, startingWealthPanel,
   effectsPanel, contentPanel, paintEffects, paintConditions, paintContent, paintAcTable,
 } from './ui/sheet.js';
-import { inventoryPanel, equipmentPanel, shopPanel, attackCardsPanel } from './ui/inventory.js';
-import { featsPanel, abilitiesListPanel, languagesPanel } from './ui/feats.js';
-import { showContent } from './ui/content.js';
-import { showAdmin, ROLE_LABELS } from './ui/admin.js';
-import { showCampaigns, showCampaign, showJoin, takePendingInvite } from './ui/campaigns.js';
-import { showLanding } from './ui/landing.js';
-import { showReference } from './ui/reference.js';
-import { showContact, showFeedback } from './ui/feedback.js';
-import { magicPanel } from './ui/magic.js';
-import { advancedRulesPanel, classChoicesPanel, rulesInPlayPanel, variantCombatPanel, variantTracksPanel } from './ui/variants.js';
 import { referenceNow, lookUp } from './reference.js';
 import { SHEET_PAGES, pageFor, pageForNotice, sheetTabs } from './ui/sheet-pages.js';
-import { showProfile, showSettings, avatarFor } from './ui/profile.js';
 import { applyAppearance, adoptAccountAppearance, setAppearance, isDark } from './ui/appearance.js';
 import { config } from './config.js';
 import {
   local, remote, library, campaignLibrary, preferences, account, syncLibrary, save as saveEverywhere, newId,
 } from './store.js';
+
+/**
+ * A panel drawn by a part of the app that is fetched when a sheet needs it
+ * (ui/lazy.js). Until the part is here the panel is not drawn; whoever draws
+ * the page fetches what its panels need first, and `rebuildPanel` fetches
+ * anything that turns out to be missing.
+ */
+const fromPart = (name, build) => Object.assign((a) => (part(name) ? build(a, part(name)) : null), { part: name });
+
+/**
+ * The parts these panels are drawn by. The casting panel's part is left out
+ * for a character who does not cast: the whole sheet of a fighter has no
+ * spells on it, so there is nothing for it to draw.
+ */
+const partsFor = (keys) => [...new Set(keys.map((k) => PANELS[k]?.part).filter(Boolean))]
+  .filter((name) => name !== 'magic' || casts(app.character, app.derived));
+
+const casts = (character, derived) => Boolean((derived?.casting || []).length || character?.magic);
 
 const PANELS = {
   variants: () => h('section.panel', { id: 'panel-variants', dataset: { panel: 'variants' } },
@@ -51,28 +59,28 @@ const PANELS = {
   levels: levelsPanel,
   abilities: abilitiesPanel,
   combat: combatPanel,
-  attackCards: attackCardsPanel,
+  attackCards: fromPart('inventory', (a, m) => m.attackCardsPanel(a)),
   skills: skillsPanel,
-  feats: featsPanel,
-  abilitiesList: abilitiesListPanel,
-  languages: languagesPanel,
+  feats: fromPart('feats', (a, m) => m.featsPanel(a)),
+  abilitiesList: fromPart('feats', (a, m) => m.abilitiesListPanel(a)),
+  languages: fromPart('feats', (a, m) => m.languagesPanel(a)),
   hitPoints: hitPointsPanel,
   startingWealth: startingWealthPanel,
   houserules: houserulesPanel,
-  casting: (a) => magicPanel(a, { rest: restCharacter }),
+  casting: fromPart('magic', (a, m) => m.magicPanel(a, { rest: restCharacter })),
   trackers: (a) => trackersPanel(a, { rest: restCharacter, newWeek: () => restCharacter('week'), setUsed: setTrackerUsed }),
-  advancedRules: (a) => advancedRulesPanel(a, { reopen }),
-  classChoices: classChoicesPanel,
-  rulesInPlay: (a) => rulesInPlayPanel(a, { campaign: campaignOf(a.character) }),
-  variantCombat: variantCombatPanel,
-  variantTracks: variantTracksPanel,
-  equipment: equipmentPanel,
-  inventory: inventoryPanel,
-  shop: shopPanel,
+  advancedRules: fromPart('variants', (a, m) => m.advancedRulesPanel(a, { reopen })),
+  classChoices: fromPart('variants', (a, m) => m.classChoicesPanel(a)),
+  rulesInPlay: fromPart('variants', (a, m) => m.rulesInPlayPanel(a, { campaign: campaignOf(a.character) })),
+  variantCombat: fromPart('variants', (a, m) => m.variantCombatPanel(a)),
+  variantTracks: fromPart('variants', (a, m) => m.variantTracksPanel(a)),
+  equipment: fromPart('inventory', (a, m) => m.equipmentPanel(a)),
+  inventory: fromPart('inventory', (a, m) => m.inventoryPanel(a)),
+  shop: fromPart('inventory', (a, m) => m.shopPanel(a)),
   effects: effectsPanel,
   content: contentPanel,
   text: textPanel,
-  history: historyPanel,
+  history: fromPart('history', (a, m) => m.historyPanel(a)),
 };
 
 /** Where a notice about a field sends the reader. */
@@ -297,6 +305,17 @@ function shelvesFor(character) {
    Header
    ========================================================================= */
 
+/**
+ * The sheet as it is written down: only the parts this character uses
+ * (engine/sheet-modules.js). Every save goes through here, so nothing keeps a
+ * fighter's empty spell list or a skill nobody put a rank in.
+ */
+function toFile(character) {
+  const want = character.ruleset || config.defaultRuleset;
+  const rules = app.rules?.ruleset?.id === want ? app.rules : withRuleset(app.baseRules, want);
+  return packCharacter(character, rules);
+}
+
 /** Draw the header again - after a change to the account it shows, say. */
 function refreshHeader() {
   const old = document.querySelector('header.top');
@@ -480,6 +499,15 @@ function refreshDatalists() {
 
 const main = () => document.getElementById('main');
 
+/**
+ * A page drawn by a part of the app fetched on the way there (ui/lazy.js):
+ * nobody downloads the Accounts page, the campaigns or the reference until
+ * they go to one.
+ */
+const fromPage = (name, draw) => (params) => parts(name)
+  .then(([module]) => draw(module, params))
+  .catch((err) => refill(main(), h('p.empty', { text: `That page could not be loaded: ${err.message}` })));
+
 const VIEWS = [
   { match: /^sheet\/([^/]+)(?:\/([a-z]+))?$/, nav: 'roster', show: ([id, page]) => (signedIn() ? openSheet(id, { page }) : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)) },
   {
@@ -488,25 +516,29 @@ const VIEWS = [
     title: 'Create a character',
     show: ([id, step]) => (signedIn() ? openSheet(id, { wizard: step || 'resume' }) : signInPage('Characters', CHARACTERS_NEED_SIGN_IN)),
   },
-  { match: /^campaigns$/, nav: 'campaigns', title: 'Campaigns', show: () => showCampaigns(main(), app) },
-  { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: ([id]) => showCampaign(main(), app, id) },
-  { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: ([code]) => showJoin(main(), app, code) },
-  { match: /^admin$/, nav: 'admin', title: 'Accounts', show: () => showAdmin(main(), app) },
-  { match: /^feedback$/, nav: 'feedback', title: 'Feedback', show: () => showFeedback(main(), app) },
-  { match: /^contact$/, nav: 'contact', title: 'Contact Me', show: () => showContact(main(), app) },
+  { match: /^campaigns$/, nav: 'campaigns', title: 'Campaigns', show: fromPage('campaigns', (m) => m.showCampaigns(main(), app)) },
+  { match: /^campaign\/([^/]+)$/, nav: 'campaigns', title: 'Campaign', show: fromPage('campaigns', (m, [id]) => m.showCampaign(main(), app, id)) },
+  { match: /^join\/([^/]+)$/, nav: 'campaigns', title: 'Invitation', show: fromPage('campaigns', (m, [code]) => m.showJoin(main(), app, code)) },
+  { match: /^admin$/, nav: 'admin', title: 'Accounts', show: fromPage('admin', (m) => m.showAdmin(main(), app)) },
+  { match: /^feedback$/, nav: 'feedback', title: 'Feedback', show: fromPage('feedback', (m) => m.showFeedback(main(), app)) },
+  { match: /^contact$/, nav: 'contact', title: 'Contact Me', show: fromPage('feedback', (m) => m.showContact(main(), app)) },
   {
     match: /^reference(?:\/([a-z]+))?(?:\/(.+))?$/,
     nav: 'reference',
     title: 'Reference',
-    show: ([kind, name]) => (signedIn() ? showReference(main(), app, kind, name ? decodeURIComponent(name) : null) : signInPage('Reference', 'Sign in to browse the SRD reference: spells, powers, feats, classes, domains and equipment.')),
+    show: (params) => (signedIn()
+      ? fromPage('reference', (m, [kind, name]) => m.showReference(main(), app, kind, name ? decodeURIComponent(name) : null))(params)
+      : signInPage('Reference', 'Sign in to browse the SRD reference: spells, powers, feats, classes, domains and equipment.')),
   },
   {
     match: /^profile(?:\/([^/]+))?$/,
     nav: 'profile',
     title: 'Profile',
-    show: ([id]) => (app.user ? showProfile(main(), app, id) : signInPage('Profile', 'Sign in to see your profile.')),
+    show: (params) => (app.user
+      ? fromPage('profile', (m, [id]) => m.showProfile(main(), app, id))(params)
+      : signInPage('Profile', 'Sign in to see your profile.')),
   },
-  { match: /^settings$/, nav: 'settings', title: 'Settings', show: () => (app.user ? showSettings(main(), app, settingsWays()) : signInPage('Settings', 'Sign in to change your username, picture and how the site looks.')) },
+  { match: /^settings$/, nav: 'settings', title: 'Settings', show: () => (app.user ? fromPage('profile', (m) => m.showSettings(main(), app, settingsWays()))() : signInPage('Settings', 'Sign in to change your username, picture and how the site looks.')) },
   { match: /^content(?:\/([^/]+))?(?:\/([^/]+))?$/, nav: 'content', title: 'Homebrew', show: ([kind, index]) => showLibrary(null, kind, index) },
   {
     match: /^campaign\/([^/]+)\/homebrew(?:\/([^/]+))?(?:\/([^/]+))?$/,
@@ -581,6 +613,7 @@ function settingsWays() {
 async function showLibrary(campaignId, kind, index) {
   app.rules = app.baseRules;
   app.character = null;
+  const [{ showContent }] = await parts('content');
   if (!signedIn()) {
     signInPage('Content', 'Sign in to write homebrew: races, classes, feats and items that count on your sheets. It is kept in a library of your own.');
     return;
@@ -631,13 +664,13 @@ function showHome() {
   app.character = null;
   document.title = `${config.title} - ${config.tagline}`;
   const ruleset = publicRulesets()[0];
-  showLanding(main(), app, {
+  parts('landing').then(([{ showLanding }]) => showLanding(main(), app, {
     signedIn: Boolean(app.user),
     needsSignIn: remote.enabled(),
     signInButtons,
     newCharacter: () => createCharacter(ruleset),
     rulesetName: app.baseRules.rulesets[ruleset].shortName,
-  });
+  })).catch(() => {});
 }
 
 /* =========================================================================
@@ -748,7 +781,7 @@ function createCharacter(rulesetId) {
   const character = blankCharacter(rules);
   character.id = newId();
   character.meta = { ...character.meta, created: new Date().toISOString(), owner: app.user?.id || null, wizard: { step: WIZARD_STEPS[0].key } };
-  local.save(character);
+  local.save(toFile(character));
   location.hash = `#/create/${character.id}/${WIZARD_STEPS[0].key}`;
 }
 
@@ -817,7 +850,7 @@ async function openSheet(id, opts = {}) {
   const { rules, overrides, campaign } = rulesFor(app.character);
   app.rules = rules;
   app.overrides = overrides;
-  app.character = fillMissing(app.character, rules);
+  app.character = fillCharacter(app.character, rules);
   // In a campaign, the campaign's ruleset is the character's, whatever it said.
   if (campaign) app.character.ruleset = campaign.ruleset;
 
@@ -832,6 +865,8 @@ async function openSheet(id, opts = {}) {
       : WIZARD_STEPS.some((s) => s.key === saved) ? saved : WIZARD_STEPS[0].key;
     if (opts.wizard !== step) history.replaceState(null, '', `${location.pathname}${location.search}#/create/${app.character.id}/${step}`);
     app.wizard = { step };
+    // What this step's panels are drawn by, fetched before they are built.
+    await parts(...partsFor(WIZARD_STEPS.find((s) => s.key === step)?.panels || [])).catch(() => {});
     // A finished character opened in the creator again: its choices are copied first, to tell what changes.
     // Saved as it stands first, so the server holds the choices to compare the changes with.
     if (isHeld(app.character) && canEdit()) {
@@ -858,6 +893,7 @@ async function openSheet(id, opts = {}) {
   // The full sheet is every panel but the creator's own: its hit points and
   // starting wealth are parts of Combat and Gear.
   const keys = page.panels || Object.keys(PANELS).filter((k) => !['hitPoints', 'startingWealth', 'shop', 'variants', 'advancedRules', 'history'].includes(k));
+  await parts(...partsFor(keys)).catch(() => {});
   app.panels = {};
   const sheet = h('div.sheet');
   for (const key of keys) {
@@ -993,7 +1029,7 @@ function sheetToolbar() {
     canCreate() ? button('Duplicate', () => {
       const copy = claimAsNew(structuredClone(app.character));
       copy.name = `${copy.name || 'Unnamed'} (copy)`;
-      local.save(copy);
+      local.save(toFile(copy));
       location.hash = `#/sheet/${copy.id}`;
     }, { subtle: true, title: 'A copy of your own, outside any campaign.' }) : null,
     button('Print', () => {
@@ -1067,7 +1103,7 @@ function variantsStrip() {
 
 function exportCharacter() {
   const name = (app.character.name || 'character').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-  const blob = new Blob([JSON.stringify(app.character, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(toFile(app.character), null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = h('a', { href: url, download: `${name}.json` });
   document.body.append(link);
@@ -1305,6 +1341,11 @@ function paintCasting() {
 app.rebuildPanel = (key) => {
   const old = app.panels[key];
   if (!old || !PANELS[key]) return;
+  const needed = PANELS[key].part;
+  if (needed && !part(needed)) {
+    parts(needed).then(() => app.rebuildPanel(key)).catch(() => {});
+    return;
+  }
   const fresh = PANELS[key](app);
   if (!fresh) {
     old.remove();
@@ -1346,7 +1387,11 @@ async function flush() {
   app.character.meta = { ...app.character.meta, build: app.derived?.summary.label || '' };
   // What a roll needs, for the Discord bot, which runs no engine of its own.
   if (app.derived) app.character.rolls = rollSheet(app.derived, app.character);
-  const result = await saveEverywhere(app.character);
+  // The file is what is saved; the sheet in hand stays whole.
+  const file = toFile(app.character);
+  const result = await saveEverywhere(file);
+  app.character.meta = { ...app.character.meta, ...file.meta };
+  if (Array.isArray(file.history)) app.character.history = file.history;
   if (!app.status) return;
   // Signed out is a normal way to use the app, not a failure: "saved" either
   // way, and the warning color only for a signed-in save that did not arrive.
@@ -1357,7 +1402,7 @@ async function flush() {
 
 // A sheet being edited when the tab closes should still be on disk.
 window.addEventListener('beforeunload', () => {
-  if (app.character) local.save(app.character);
+  if (app.character) local.save(toFile(app.character));
 });
 
 start().catch((err) => {

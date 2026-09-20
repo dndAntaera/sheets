@@ -565,6 +565,39 @@ while signed in, and a moment after each edit. The rules:
 Signing out sends any pending edit, then takes the library off the browser; it
 comes back on the next sign-in.
 
+## Modules: a sheet keeps what it uses
+
+A character in memory is whole - every field `blankCharacter` describes. The
+file is not. `engine/sheet-modules.js` packs a character on the way out and
+fills it on the way in:
+
+- **What a new character would have anyway is left out.** A skill nobody put a
+  rank in is not a row; an empty inventory is not a field.
+- **What is left is grouped into modules** - spells, inventory, feats,
+  languages, effects, trackers, variants, taint, action points, story,
+  homebrew, history - and the file records which it has, in `modules`. A
+  fighter's file says `[]`; a wizard's says `["spells", ...]`.
+- **Nothing else changes.** `fillCharacter` puts the whole character back
+  before the sheet sees it, so no panel has to ask whether a part exists, and a
+  file from before this (which kept everything) reads exactly as it did.
+
+A blank sheet went from 3.8 KB to 169 bytes, a played 5th-level wizard from
+4.2 KB to 842 bytes. The Discord bot's roll snapshot is written for the account
+server only; this browser recomputes it on every save, so it is not in the
+local file.
+
+The same modules decide what the app fetches. `ui/lazy.js` names the parts that
+arrive only when wanted - the casting panel, the inventory, feats, the variant
+panels, the campaign, Accounts, homebrew, reference, profile and feedback pages
+- and a page fetches what its own panels are drawn by, no more. A fighter's
+sheet never downloads the casting panel; someone who never opens Accounts never
+downloads it. Around 200 KB of the interface is behind that.
+
+**Adding a panel or page** that is not needed on every sheet: name its file in
+`ui/lazy.js`, and draw it with `fromPart` (a panel) or `fromPage` (a page) in
+`app.js`. Anything a page needs is fetched before that page is drawn, so the
+panel itself is written no differently.
+
 ## Loading fast
 
 Three things keep the first load short and the next ones shorter:
@@ -999,9 +1032,12 @@ deploy workflow pins it.
       houserules   action points, taint, wealth, LA, feats, training
       derive       composes everything, and produces the notices
       character    the stored shape, blank characters, migration
+      sheet-modules what a file keeps: packing, filling, the module list
 
     web/ui/
       dom             h(), bound fields, bindForm, paint
+      lazy            the parts fetched when a sheet or page needs them
+      people          avatars, role words, a waiting invitation
       sheet           every panel
       effects-editor  the effects table used everywhere
       content         the library view

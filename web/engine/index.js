@@ -25,6 +25,7 @@ export * from './houserules.js';
 export * from './effects.js';
 export * from './library.js';
 export * from './modules.js';
+export * from './sheet-modules.js';
 export * from './sync.js';
 export * from './campaign.js';
 export * from './preferences.js';
@@ -41,7 +42,7 @@ export * from './feedback.js';
 export * from './locks.js';
 export * from './rolls.js';
 export { derive } from './derive.js';
-export { blankCharacter, migrate, fillMissing, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
+export { blankCharacter, migrate, renumberLevels, SCHEMA, DEFAULT_RULESET } from './character.js';
 
 /** The rulesets that ship with the app, in the order the toggle lists them. */
 export const RULESET_IDS = ['srd', 'antaera'];

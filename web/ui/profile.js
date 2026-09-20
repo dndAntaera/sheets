@@ -10,33 +10,15 @@
 import { h, button, refill } from './dom.js';
 import { remote } from '../store.js';
 import { config } from '../config.js';
-import { ROLE_LABELS } from './admin.js';
+import { ROLE_LABELS, CAMPAIGN_ROLE_LABELS, avatarFor } from './people.js';
+
+export { avatarFor };
 import { APPEARANCE, USERNAME_LIMITS, PICTURE_MAX_CHARS } from '../engine/preferences.js';
 import { currentAppearance, setAppearance } from './appearance.js';
 
 const PROVIDER_LABELS = { google: 'Google', discord: 'Discord' };
-const CAMPAIGN_ROLE_LABELS = { owner: 'Owner', gm: 'GM', player: 'Player' };
 
 const since = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : '');
-
-/**
- * A person's picture, or their initials on a color of their own when they have
- * none - or when the picture will not load.
- *
- * @param person  { id, name, avatar }
- * @param size    'sm' | 'md' | 'xl'
- */
-export function avatarFor(person, size = 'sm') {
-  const initials = () => {
-    const letters = String(person?.name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join('').toUpperCase();
-    const hue = [...String(person?.id || person?.name || '')].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) % 360, 7);
-    return h(`span.avatar.avatar-${size}.avatar-initials`, { 'aria-hidden': 'true', style: `--avatar-hue: ${hue}`, text: letters });
-  };
-  if (!person?.avatar) return initials();
-  const img = h(`img.avatar.avatar-${size}`, { src: person.avatar, alt: '', loading: 'lazy', referrerPolicy: 'no-referrer' });
-  img.addEventListener('error', () => img.replaceWith(initials()), { once: true });
-  return img;
-}
 
 /* ==========================================================================
    The profile
