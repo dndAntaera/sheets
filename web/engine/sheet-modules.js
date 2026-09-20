@@ -161,3 +161,41 @@ export function fillCharacter(stored, rules) {
   delete filled.modules;
   return filled;
 }
+
+/**
+ * Which of the optional data packs (DATA_PACKS in index.js) this character
+ * needs: the rules for the parts it actually uses.
+ *
+ * A name the core data does not know - "Cloistered cleric", "Aquatic elf", a
+ * spelltouched feat - is the sign that a sheet is built from Unearthed
+ * Arcana's content, whether or not its file says so. Asking for a pack that
+ * turns out not to be needed costs one fetch; missing one would quietly leave
+ * a race or a class unrecognized, so the doubtful cases ask.
+ */
+export function packsForCharacter(character, rules) {
+  const c = character || {};
+  const need = new Set();
+  const clean = (v) => String(v || '').trim();
+  const own = (kind) => new Set((c.content?.[kind] || []).map((e) => clean(e.name)));
+
+  const race = clean(c.race?.name);
+  if (race && !rules.raceByName?.has(race) && !own('races').has(race)) need.add('variants');
+  const classes = own('classes');
+  for (const row of c.levels || []) {
+    for (const name of [clean(row?.a), clean(row?.b)]) {
+      if (name && !rules.classByName?.has(name) && !classes.has(name)) need.add('variants');
+    }
+  }
+  const feats = new Set((rules.featRules || []).map((f) => clean(f.name)));
+  const ownFeats = own('feats');
+  for (const feat of c.feats || []) {
+    const name = clean(feat?.name);
+    if (name && !feats.has(name) && !ownFeats.has(name)) need.add('variants');
+  }
+  // Variant rules in play, or choices made under one.
+  if (Object.keys(c.options || {}).length || c.variants) need.add('variants');
+  if ((c.traits || []).length || (c.flaws || []).length) need.add('traits');
+  // Domains belong to the divine casters; the panel asks for them by name.
+  if (c.magic) need.add('domains');
+  return [...need];
+}

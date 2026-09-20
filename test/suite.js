@@ -14,7 +14,7 @@ import {
   hitPoints, armorClass, attacks, actionPoints, taintSeverity, wealth,
   levelAdjustment, trainingTime, blankCharacter, derive, migrate,
   resolveEffects, collectEffects, abilityTotals, moduleState, blankEntry, embed,
-  mergeLibraries, fillCharacter, packCharacter, modulesIn, applyCampaign, restedMagic, usesInSpecial, restedTrackers, VARIANT_MODULES,
+  mergeLibraries, fillCharacter, packCharacter, modulesIn, packsForCharacter, applyCampaign, restedMagic, usesInSpecial, restedTrackers, VARIANT_MODULES,
   rollAbilityArray, newAbilityRolls, placeScore, parsePrerequisites, featRuleIndex, stateAtLevel, featEligibility,
   featOptions, languagePlan, featureKey, applyCampaign as campaignRules,
   itemFromReference, inventoryTotals, carryingCapacity, attackFor, migrateInventory, slotChoices, usableContent, buyItem, removeItem,
@@ -712,6 +712,24 @@ export function buildSuite(data) {
     t.eq(c.skills.length, old.skills.length, 'every skill row is still there');
     t.eq(c.skills.find((s) => s.name === 'Spot').misc, 2);
     t.eq(derive(c, srd).summary.label, derive(old, srd).summary.label);
+  });
+
+  test('a sheet asks only for the rules data it uses', (t) => {
+    const plain = blankCharacter(srd);
+    plain.race = { ...plain.race, name: 'Human' };
+    plain.levels = [{ level: 1, a: 'Fighter' }];
+    t.eq(packsForCharacter(plain, srd), [], 'a human fighter needs none of it');
+
+    t.eq(packsForCharacter({ ...plain, race: { name: 'Aquatic elf' } }, srd), ['variants'], 'a race the core data does not know');
+    t.eq(packsForCharacter({ ...plain, levels: [{ a: 'Cloistered cleric' }] }, srd), ['variants'], 'and a class it does not know');
+    t.eq(packsForCharacter({ ...plain, options: { gestalt: true } }, srd), ['variants'], 'a variant rule in play');
+    t.eq(packsForCharacter({ ...plain, traits: [{ name: 'Quick' }] }, srd), ['traits']);
+    t.eq(packsForCharacter({ ...plain, magic: { Cleric: {} } }, srd), ['domains']);
+    t.eq(packsForCharacter({ ...plain, feats: [{ name: 'Power Attack' }] }, srd), [], 'an SRD feat is known without them');
+
+    // Homebrew the character carries is its own: it needs no pack for it.
+    const homebrew = { ...plain, race: { name: 'Skyborn' }, content: { races: [{ name: 'Skyborn' }] } };
+    t.eq(packsForCharacter(homebrew, srd), []);
   });
 
   /* === syncing a library between devices =============================== */

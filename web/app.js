@@ -10,7 +10,7 @@
 
 import {
   loadRules, withRuleset, derive, blankCharacter, migrate, RULESET_IDS, rollSheet,
-  moduleState, MODULES, BUILD_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillCharacter, packCharacter, flattenLibrary, restedMagic, restedTrackers,
+  moduleState, MODULES, BUILD_MODULES, MODULE_LABELS, CONTENT_TYPES, embed, applyCampaign, fillCharacter, packCharacter, packsForCharacter, addPacks, DATA_PACKS, flattenLibrary, restedMagic, restedTrackers,
 } from './engine/index.js';
 import { h, paint, refill, button, bindForm, setPath } from './ui/dom.js';
 import {
@@ -148,7 +148,8 @@ async function start() {
   // How this player likes the site to look, before anything is drawn.
   applyAppearance();
   registerServiceWorker();
-  app.baseRules = await loadRules('./data/', undefined, { version: config.version === 'dev' ? null : config.version });
+  // The core data now; the rest when a character turns out to need it (dataPacks).
+  app.baseRules = await loadRules('./data/', undefined, { version: dataVersion(), packs: [] });
   app.rules = app.baseRules;
 
   // Back from Google or Discord: finish signing in before drawing anything, so
@@ -304,6 +305,25 @@ function shelvesFor(character) {
 /* =========================================================================
    Header
    ========================================================================= */
+
+/** The build stamped on data files, or null on a working copy. */
+const dataVersion = () => (config.version === 'dev' ? null : config.version);
+
+/**
+ * The rules data this character needs, fetched if it is not here yet: the
+ * variant content behind an unfamiliar race or class, the traits, the domains
+ * (engine/sheet-modules.js). The creator asks for all of it, because a player
+ * choosing a race is choosing from everything.
+ */
+async function dataPacks(character, { all = false } = {}) {
+  const want = all ? Object.keys(DATA_PACKS) : packsForCharacter(character, app.baseRules);
+  if (!want.length) return;
+  try {
+    app.baseRules = await addPacks(app.baseRules, want, { version: dataVersion() });
+  } catch (err) {
+    // Offline, say: the sheet still opens, on what is already here.
+  }
+}
 
 /**
  * The sheet as it is written down: only the parts this character uses
@@ -847,6 +867,8 @@ async function openSheet(id, opts = {}) {
   // if that fails, the copy already held (or the sheet's own copies) stand in.
   const joined = campaignOf(app.character);
   if (joined) await campaignLibrary(joined.id).fetch().catch(() => {});
+  // The variant rules are listed in full in the creator and on the Rules page.
+  await dataPacks(app.character, { all: Boolean(opts.wizard) || opts.page === 'rules' });
   const { rules, overrides, campaign } = rulesFor(app.character);
   app.rules = rules;
   app.overrides = overrides;

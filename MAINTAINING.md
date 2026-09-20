@@ -586,6 +586,23 @@ A blank sheet went from 3.8 KB to 169 bytes, a played 5th-level wizard from
 server only; this browser recomputes it on every save, so it is not in the
 local file.
 
+The same modules decide what **data** is fetched. `DATA_PACKS` in
+`engine/index.js` holds the rules only some sheets need - Unearthed Arcana's
+races, classes and feats with the variant tables (110 KB), the traits and flaws
+(20 KB), the domains (13 KB) - and `loadRules` takes the packs to fetch;
+`addPacks` adds one later without fetching anything twice. `packsForCharacter`
+reads a character and says which it needs: a race or class or feat the core
+data does not know means the variant content, traits or flaws mean the traits,
+and anything with spells means the domains. The creator asks for all of it,
+because a player choosing a race is choosing from everything. Opening a Human
+Fighter's sheet now fetches 143 KB of data rather than 265 KB.
+
+Everything that reads this data already copes with its absence (`rules.traits
+|| []`, `rules.variantContent?.races`), so a pack that is not there means those
+options are not offered - never a broken sheet. **Adding a data file** that
+only some sheets need: name it in `DATA_PACKS`, and say when it is wanted in
+`packsForCharacter`.
+
 The same modules decide what the app fetches. `ui/lazy.js` names the parts that
 arrive only when wanted - the casting panel, the inventory, feats, the variant
 panels, the campaign, Accounts, homebrew, reference, profile and feedback pages
