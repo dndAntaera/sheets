@@ -20,7 +20,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: transparent;
+  background: var(--sky-far) var(--sky) fixed;
   color: var(--sky-ink);
   font: var(--text-body)/var(--leading) var(--font-body);
 }
@@ -83,26 +83,6 @@ a { color: var(--sky-link); }
 .status[data-state="saved"] { color: var(--bar-ink); }
 .status[data-state="editing"] { color: var(--bar-ink-dim); }
 .status[data-state="local"] { color: var(--bar-warn); }
-
-/* ---------------------------------------------------------------------------
-   The sky - the wiki's starfield (starfield.js), fixed behind everything. It
-   sits below the page rather than the page above it, so nothing else needs a
-   z-index. The page's own gradient shows until the script has drawn, and the
-   body is left clear, or it would cover the sky.
-   --------------------------------------------------------------------------- */
-
-html { background: var(--sky-far) var(--sky) fixed; }
-.sky {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-  background: var(--sky);
-}
-.sky canvas { position: absolute; top: 0; left: 0; will-change: transform; }
-.sky-comets { transform: none !important; z-index: 1; }
-@media print { .sky { display: none; } }
 
 /* ---------------------------------------------------------------------------
    Buttons and fields

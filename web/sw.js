@@ -14,7 +14,7 @@
 const CACHE = 'sheets-v2';
 
 // Enough to draw the app offline even on a first visit that stopped early.
-const SHELL = ['./', './index.html', './css/tokens.css', './css/sheet.css', './app.js', './config.js', './manifest.webmanifest', './icons/icon-192.png', './icons/favicon-48.png', './brand/logo-disc-96.png', './starfield.js'];
+const SHELL = ['./', './index.html', './css/tokens.css', './css/sheet.css', './app.js', './config.js', './manifest.webmanifest', './icons/icon-192.png', './icons/favicon-48.png', './brand/logo-disc-96.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).catch(() => {}));

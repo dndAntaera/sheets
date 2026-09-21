@@ -708,9 +708,10 @@ they have left:
   accent purple, the logo on a white disc (`logo-disc-96.png`, made the way the
   wiki's is) and the name in bold white. A player who picks another accent in
   Settings gets the bar in that color.
-- **The sky** is the wiki's starfield. `web/starfield.js` is the wiki's
-  `docs/javascripts/starfield.js` with this site's class names and its own
-  reduced-motion setting; change the sky in the wiki first, then copy it here.
+- **The sky** is the wiki's deep-blue gradient, painted by the page itself
+  (`body` in `sheet.css`, from the `--sky` tokens). The wiki draws stars over
+  its own; the sheets do not - a character sheet is read for a long time, and
+  the plain sky sits quieter behind a page of numbers.
 - **The colors, type and spacing** in `web/css/tokens.css` are the wiki's own
   values under this site's names.
 
