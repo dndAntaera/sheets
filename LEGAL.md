@@ -6,8 +6,11 @@ The sheets are the Antæra Wiki's sister site and share its legal page:
 (`docs/disclaimer-legal.md` in the wiki repository)
 
 That page carries the full text of the Open Game License v1.0a, its Section 15
-copyright notice for the System Reference Document, and the Fan Content Policy
-notice. Every page of the app ends with a footer that repeats the Fan Content
+copyright notices, and the Fan Content Policy notice. The app's own Terms of
+Service (`web/legal/`) repeat the Section 15 notices for everything the sheets
+draw on - the SRD, Unearthed Arcana, the Expanded Psionics Handbook, and
+Andargor's SRD 3.5 database with highmage's SQLite conversion - so the notice
+travels with the content. Add a new one in both places at once. Every page of the app ends with a footer that repeats the Fan Content
 Policy notice and links there, so the license accompanies the content wherever
 the app is used. Keep the link in `web/config.js` (`legalUrl`) pointing at it if
 the Antæra Wiki's page ever moves.

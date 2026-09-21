@@ -370,6 +370,10 @@ def sweep_safety():
     print('\nSAFETY AND THE LICENSE')
     bad = []
     email = re.compile(r'[\w.+-]+@(gmail|yahoo|outlook|hotmail|icloud|proton)\.\w+', re.I)
+    # The Open Game License asks for each work's copyright notice word for
+    # word, and one of them carries its author's address. It is published in
+    # every book that uses the database; it is not anybody here's own.
+    section15 = ('andargor@yahoo.com',)
     for path in tracked():
         if re.search(r'\.(png|jpg|ico|woff2?)$', path):
             continue
@@ -378,7 +382,8 @@ def sweep_safety():
         except (UnicodeDecodeError, OSError):
             continue
         for i, line in enumerate(text.splitlines(), 1):
-            if email.search(line):
+            found = email.search(line)
+            if found and found.group(0).lower() not in section15:
                 bad.append('%s:%d' % (rel(path), i))
     check('no personal email address is committed', bad, 'Admin and GM emails are Worker secrets, never files.')
 
