@@ -1848,3 +1848,125 @@ input.is-held, select.is-held, textarea.is-held { opacity: .85; }
 .history-changes .label { margin-right: var(--sp-1); }
 .nav-badge { display: inline-block; min-width: 1.2em; margin-left: .35em; padding: 0 .35em; border-radius: 999px; background: var(--accent, #7c5cff); color: #fff; font-size: .75em; line-height: 1.5; text-align: center; vertical-align: .1em; }
 .badge.unseen { background: var(--accent, #7c5cff); color: #fff; }
+
+/* ---------------------------------------------------------------------------
+   The catalog (ui/catalog.js): what a character may be built from, beside
+   the creator step that builds it. Two columns on a desk - the list, then the
+   entry - and one line on a phone that opens a sheet from the foot of the
+   screen, where a thumb already is.
+   --------------------------------------------------------------------------- */
+
+.catalog-controls {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--pad-y-sm) var(--pad-x) 0;
+}
+.catalog-search { flex: 1 1 12rem; min-width: 7rem; width: auto; }
+.catalog-sort { flex: 0 0 auto; width: auto; }
+
+.catalog-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  gap: var(--gap);
+  padding: var(--pad-y-sm) var(--pad-x) var(--pad-y);
+  align-items: start;
+}
+.catalog-columns > .empty { padding: var(--sp-4) 0; }
+
+.catalog-list { list-style: none; margin: 0; padding: 0; max-height: 22rem; overflow-y: auto; }
+.catalog-groups { max-height: 22rem; overflow-y: auto; }
+.catalog-group-name {
+  font-size: var(--text-tiny);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-faint);
+  margin: var(--sp-2) 0 var(--sp-1);
+}
+.catalog-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  text-align: left;
+  font: inherit;
+  padding: var(--sp-2);
+  border: var(--hair) solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.catalog-row:hover { background: var(--surface-sunk); }
+.catalog-row.is-chosen { background: var(--surface-sunk); border-color: var(--accent); }
+.catalog-row-name { font-weight: 600; }
+.catalog-row-source { font-size: var(--text-tiny); color: var(--ink-faint); }
+
+.catalog-preview-head { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+.catalog-preview-head h3 { margin: 0; font: 400 var(--text-panel-title)/1.2 var(--font-display); }
+.catalog-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-1) var(--sp-3);
+  margin: var(--sp-3) 0 0;
+}
+.catalog-facts dt { font-size: var(--text-tiny); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); }
+.catalog-facts dd { margin: 0; }
+.catalog-effects { margin-top: var(--sp-3); }
+.catalog-effects h4 { margin: 0 0 var(--sp-1); font-size: var(--text-small); }
+.catalog-effects ul { margin: 0; padding-left: var(--sp-4); font-size: var(--text-small); color: var(--ink-soft); }
+.catalog-actions { margin-top: var(--sp-3); }
+
+/* A phone: one line here, and the list in a sheet of its own. */
+.catalog-compact { padding: var(--pad-y-sm) var(--pad-x) var(--pad-y); }
+.catalog-compact .btn { width: 100%; }
+.catalog-compact .hint { margin: var(--sp-2) 0 0; }
+
+.catalog-dialog {
+  border: none;
+  padding: 0;
+  margin: 0 auto auto;
+  width: 100%;
+  max-width: 40rem;
+  max-height: 88vh;
+  height: 88vh;
+  position: fixed;
+  inset: auto 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--grain), var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+}
+.catalog-dialog::backdrop { background: rgba(6, 7, 15, .6); }
+.catalog-sheet { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.catalog-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--pad-y-sm) var(--pad-x);
+  border-bottom: var(--hair) solid var(--rule);
+}
+.catalog-sheet-head h2 { margin: 0; font: 400 var(--text-panel-title)/1 var(--font-display); flex: 1 1 auto; min-width: 0; }
+.catalog-sheet .catalog-controls { padding: var(--sp-2) var(--pad-x); }
+.catalog-sheet .catalog-list,
+.catalog-sheet .catalog-groups { max-height: none; overflow: visible; }
+.catalog-sheet > .catalog-list,
+.catalog-sheet > .catalog-groups,
+.catalog-sheet-body { overflow-y: auto; padding: 0 var(--pad-x) var(--pad-y); flex: 1 1 auto; min-height: 0; }
+.catalog-sheet-foot {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--pad-y-sm) var(--pad-x) calc(var(--pad-y) + env(safe-area-inset-bottom, 0px));
+  border-top: var(--hair) solid var(--rule);
+  background: var(--surface-raised);
+}
+.catalog-sheet-foot .btn { flex: 1 1 auto; }
+.catalog-sheet-foot .btn.subtle { flex: 0 0 auto; }
+.catalog-row { min-height: 2.5rem; }
+
+@media (max-width: 48rem) {
+  .catalog-row { min-height: 2.9rem; }
+}
+.catalog-more { list-style: none; padding: var(--sp-2); }
+.catalog-more .hint { margin: 0; }
+.catalog-facts dd p { margin: 0 0 var(--sp-1); }
+.catalog-facts dd p:last-child { margin-bottom: 0; }

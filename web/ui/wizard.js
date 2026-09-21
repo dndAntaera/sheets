@@ -28,7 +28,8 @@ const ALIGNMENTS = [
 /**
  * The steps, in order. `panels` are sheet panels drawn in the step; `notices`
  * are the notice fields the step answers for (see derive.js); `body` draws
- * anything of the wizard's own, above the panels.
+ * anything of the wizard's own, above the panels; `catalog` is the kind of
+ * content this step chooses, which the catalog beside it lists (ui/catalog.js).
  */
 export const WIZARD_STEPS = [
   {
@@ -51,6 +52,7 @@ export const WIZARD_STEPS = [
     ],
     panels: [],
     notices: ['identity'],
+    catalog: 'race',
     body: raceStep,
   },
   {
@@ -62,6 +64,7 @@ export const WIZARD_STEPS = [
     ],
     panels: ['levels', 'classChoices'],
     notices: ['levels'],
+    catalog: 'class',
   },
   {
     key: 'abilities',
@@ -82,6 +85,7 @@ export const WIZARD_STEPS = [
     ],
     panels: ['skills'],
     notices: ['skills'],
+    catalog: 'skill',
   },
   {
     key: 'feats',
@@ -92,6 +96,7 @@ export const WIZARD_STEPS = [
     ],
     panels: ['feats', 'abilitiesList', 'houserules'],
     notices: ['feats', 'houserules', 'trackers'],
+    catalog: 'feat',
   },
   {
     key: 'gear',
@@ -102,6 +107,7 @@ export const WIZARD_STEPS = [
     ],
     panels: ['hitPoints', 'startingWealth'],
     notices: ['hp', 'wealth'],
+    catalog: 'item',
   },
   {
     key: 'details',
@@ -265,6 +271,7 @@ export function wizardPage(app, key, ways) {
           h('h2', { text: step.title }),
           step.intro.map((text) => h('p', { text }))),
         step.body ? step.body(app, ways) : null,
+        step.catalog ? ways.catalog?.(step.catalog) : null,
         Object.values(panels),
         h('div.wizard-nav',
           back ? button(`Back: ${back.title}`, () => ways.go(back.key), { subtle: true }) : h('span'),

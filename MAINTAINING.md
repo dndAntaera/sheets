@@ -615,6 +615,49 @@ downloads it. Around 200 KB of the interface is behind that.
 `app.js`. Anything a page needs is fetched before that page is drawn, so the
 panel itself is written no differently.
 
+## What a sheet leaves out
+
+The rule is narrow: **a sheet keeps everything a character has, and drops only
+what it does not**. A fighter needs no spell sheet, a character who manifests
+nothing needs no powers known, a table that does not use action points needs no
+tracker for them. An empty inventory, an empty feat list and a skill with no
+ranks in it are not the same thing - they belong to the character and stay, with
+the line that says how they fill in.
+
+In practice that means a panel is drawn when it has something to say for *this*
+character: `houserulesPanel` returns null unless action points or taint are in
+play, the casting panel is skipped for a character with no casting class (and
+its part is never fetched - `partsFor` in app.js), and the Spells page tab is
+hidden the same way. A new optional system follows suit: its panel returns null
+when the character does not use it, and it is named in `SHEET_MODULES` so it is
+not written into the file either.
+
+## The catalog
+
+`ui/catalog.js` puts what a character may be built from beside the step that
+builds it: races on the Race step, classes on the Class step, feats on Feats,
+items on Hit points & wealth. Each entry is shown the way the library shows it
+- its fields, what it does on the sheet, and where it came from - and a race or
+a class can be taken straight from it.
+
+It appears only for a table with content of its own: a campaign, a ruleset
+beyond the SRD, or homebrew somebody wrote (`hasContentOfItsOwn`). On the plain
+SRD the pickers already list everything.
+
+- **Sources** are gathered in order: the character's own copies, the campaign's
+  library, the player's homebrew, the variant content, then the rules. A name
+  met twice keeps the nearest copy.
+- **Sorted** A to Z or gathered under each source, and searchable. A list longer
+  than 120 is cut short, with a line saying how many more there are.
+- **The words** come from the reference when the rules keep them there (a
+  feat's benefit, an item's description), fetched once the catalog is open.
+  Markup from the rules is shown as markup; anything a person at the table
+  wrote is shown as text, never handed to the page as markup.
+- **On a phone** the panel is one line - "Browse 39 races" - that opens a sheet
+  from the foot of the screen: the list, then the entry with a way back, and
+  the buttons at the bottom where a thumb already is. The same list and preview
+  are used in both layouts, and turning the phone redraws it.
+
 ## Loading fast
 
 Three things keep the first load short and the next ones shorter:

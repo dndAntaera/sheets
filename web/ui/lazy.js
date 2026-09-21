@@ -20,6 +20,7 @@ const LOADERS = {
   feats: () => import('./feats.js'),
   variants: () => import('./variants.js'),
   history: () => import('./history.js'),
+  catalog: () => import('./catalog.js'),
   content: () => import('./content.js'),
   campaigns: () => import('./campaigns.js'),
   admin: () => import('./admin.js'),

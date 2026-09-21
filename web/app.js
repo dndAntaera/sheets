@@ -112,8 +112,11 @@ app.saveCustomItem = (entry) => {
   library.save(shelf);
 };
 
+/** The shelves this character may take content from: its campaign's, then the player's. */
+app.shelves = () => (app.character ? shelvesFor(app.character) : []);
+
 /** Homebrew entries of a kind on the shelves this character may use. */
-app.shelfEntries = (kind) => (app.character ? shelvesFor(app.character).flatMap(({ shelf }) => shelf.list(kind)) : []);
+app.shelfEntries = (kind) => app.shelves().flatMap(({ shelf }) => shelf.list(kind));
 
 /** Copy a shelf's entry of this name onto the character, so it counts. */
 app.adopt = (kind, name) => {
@@ -888,7 +891,8 @@ async function openSheet(id, opts = {}) {
     if (opts.wizard !== step) history.replaceState(null, '', `${location.pathname}${location.search}#/create/${app.character.id}/${step}`);
     app.wizard = { step };
     // What this step's panels are drawn by, fetched before they are built.
-    await parts(...partsFor(WIZARD_STEPS.find((s) => s.key === step)?.panels || [])).catch(() => {});
+    const at = WIZARD_STEPS.find((s) => s.key === step);
+    await parts(...partsFor(at?.panels || []), ...(at?.catalog ? ['catalog'] : [])).catch(() => {});
     // A finished character opened in the creator again: its choices are copied first, to tell what changes.
     // Saved as it stands first, so the server holds the choices to compare the changes with.
     if (isHeld(app.character) && canEdit()) {
@@ -970,12 +974,32 @@ async function reopen() {
   openSheet(app.character.id, { keepScroll: true, wizard: app.wizard?.step, page: app.page?.key });
 }
 
+/**
+ * Taking something out of the catalog: the entry is copied onto the
+ * character so it counts wherever it is used, and a race or a class is put
+ * straight into the choice the step is about.
+ */
+function takeFromCatalog(kind, row) {
+  const c = app.character;
+  if (!c) return;
+  app.adopt(kind, row.name);
+  if (kind === 'race') c.race = { ...c.race, name: row.name };
+  if (kind === 'class') {
+    const empty = (c.levels || []).find((level) => !String(level.a || '').trim());
+    if (empty) empty.a = row.name;
+    else if (c.nextLevel) c.nextLevel = { ...c.nextLevel, a: row.name };
+  }
+  reopen();
+}
+
 /** What the wizard needs from the app. See ui/wizard.js. */
 function wizardWays() {
   const id = app.character.id;
   const byName = (lists) => [...new Map(lists.flat().filter((e) => e?.name).map((e) => [e.name, e])).values()];
   return {
     panels: PANELS,
+    // The catalog arrives with the step that wants it (ui/lazy.js).
+    catalog: (kind) => part('catalog')?.catalogPanel(app, { kind, pick: takeFromCatalog }) || null,
     hrefFor: (step) => `#/create/${id}/${step}`,
     fullSheetHref: `#/sheet/${id}`,
     go: async (step) => {
