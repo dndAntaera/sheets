@@ -52,6 +52,21 @@ Open Game Content; they are the owner's own.
 If content from another open source is ever added to the data files, add its
 Section 15 notice to the Antæra Wiki's legal page in the same change.
 
+## The published policies
+
+`web/legal/` carries the Privacy Policy and the Terms of Service as published,
+in numbered sections. They are written to be read as legal documents and to be
+true of this code: the Policy names the data each table holds, the processors
+(Cloudflare, GitHub Pages, Google, Discord), the retention periods and the
+rights available under the GDPR, the UK GDPR and the US state privacy laws; the
+Terms set the governing law (North Carolina), the minimum age (13, and 16 in
+the EEA and UK), the acceptable use rules, the warranty disclaimer, the
+liability cap and the Open Game License's Section 15 notices.
+
+Keep them true. A change to what is stored, who may see it, how long it is
+kept, or which third party processes it is a change to the Privacy Policy in
+the same commit. Neither document has been reviewed by a lawyer.
+
 ## Accounts and what players store
 
 Players sign in with Google or Discord. Which are offered is `SIGN_IN_WITH` in

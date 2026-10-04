@@ -373,7 +373,10 @@ def sweep_safety():
     # The Open Game License asks for each work's copyright notice word for
     # word, and one of them carries its author's address. It is published in
     # every book that uses the database; it is not anybody here's own.
-    section15 = ('andargor@yahoo.com',)
+    # The one address Section 15 carries, and the address the policies publish
+    # for privacy requests. Both are meant to be read; what this check is for
+    # is the admin and GM addresses, which belong in Worker secrets.
+    published = ('andargor@yahoo.com', 'smiledaemon77@gmail.com')
     for path in tracked():
         if re.search(r'\.(png|jpg|ico|woff2?)$', path):
             continue
@@ -383,7 +386,7 @@ def sweep_safety():
             continue
         for i, line in enumerate(text.splitlines(), 1):
             found = email.search(line)
-            if found and found.group(0).lower() not in section15:
+            if found and found.group(0).lower() not in published:
                 bad.append('%s:%d' % (rel(path), i))
     check('no personal email address is committed', bad, 'Admin and GM emails are Worker secrets, never files.')
 

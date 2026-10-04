@@ -36,73 +36,114 @@
 <main class="policy-page">
 
 <!--
-  Google and Discord link to the two cards by id, so keep
-  #privacy-policy and #terms-of-service. If what the server stores changes,
-  change the Privacy Policy in the same commit and give it a new date.
+  The Privacy Policy and the Terms of Service, as they are published.
+
+  Google and Discord link to the two cards by id, so keep #privacy-policy and
+  #terms-of-service. Both documents are numbered and cross-reference each
+  other by section number: if you add or remove a section, fix the references
+  to it (the Terms cite Privacy 14 for contact; the Policy cites the Terms for
+  definitions).
+
+  These say what the service actually does. If what the server stores, who it
+  is disclosed to, or how long it is kept ever changes - a new processor, a new
+  table, a new sharing rule - change the Privacy Policy in the same commit,
+  give both documents a new "Last updated" date, and change the effective date
+  as well where the change is material.
 -->
 
 <section class="panel policy" id="privacy-policy">
 <h2 class="panel-title">Privacy Policy</h2>
 <div class="panel-body">
 
-<p class="hint">Last updated: 14 September 2026</p>
+<p class="hint">Effective date: 4 October 2026. Last updated: 4 October 2026.</p>
 
-<p>This policy covers <strong>Sheet Tracker 3.5e</strong> at <a href="https://dndantaera.github.io/sheets">dndantaera.github.io/sheets</a>, the character sheet site that accompanies the <a href="https://dndantaera.github.io/antaera-wiki/">Antæra Wiki</a>.</p>
+<h3>1. Introduction and scope</h3>
+<p>This Privacy Policy (the &ldquo;Policy&rdquo;) describes how Sheet Tracker 3.5e (the &ldquo;Service&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo; or &ldquo;our&rdquo;), operated by the Ant&aelig;ra Dungeon Master, collects, uses, discloses and retains personal information in connection with the website at <a href="https://dndantaera.github.io/sheets">dndantaera.github.io/sheets</a> and the application programming interface that supports it.</p>
+<p>This Policy does not apply to any third-party website or service, including Google, Discord, GitHub or Cloudflare, each of which processes information under its own privacy policy. Capitalized terms not defined here have the meanings given in the <a href="#terms-of-service">Terms of Service</a>, which incorporate this Policy by reference.</p>
+<p>For the purposes of the General Data Protection Regulation (Regulation (EU) 2016/679) (&ldquo;GDPR&rdquo;) and the UK GDPR, the operator of the Service is the controller of the personal data described in this Policy. Contact details are in Section 14.</p>
 
-<h3>Using the sheets without signing in</h3>
-<p>You can make and keep characters without an account. Everything you enter is saved in your own browser's storage on your device and is never sent to us. Clearing your browser's site data deletes it.</p>
-
-<h3>Signing in</h3>
-<p>You may sign in with <strong>Google</strong> or <strong>Discord</strong>. We never see or store a password. When you sign in we receive, and keep:</p>
+<h3>2. Information we collect</h3>
+<p><strong>2.1 Information you provide directly.</strong></p>
 <ul>
-  <li>the user id Google or Discord gives your account, so we recognize you next time</li>
-  <li>your display name and the address of your avatar picture</li>
-  <li>which of the two you have linked to your account</li>
-  <li>your role on the site (player, GM or admin), and when you signed up and last signed in</li>
-  <li>a username and profile picture, if you choose your own, and how you like the site to look (theme, accent color, text size and motion)</li>
+  <li><strong>Account identifiers.</strong> When you authenticate through Google or Discord we receive and store the unique user identifier assigned to you by that provider, the display name and avatar image URL associated with that account, and a record of which providers are linked to your account.</li>
+  <li><strong>Profile information.</strong> A display name and profile image URL of your choosing, if you set them, and your interface preferences (theme, accent color, text size and motion setting).</li>
+  <li><strong>User Content.</strong> Character sheets and everything entered into them, homebrew library entries, campaign records, campaign settings and membership, and the change history the Service keeps for finished characters.</li>
+  <li><strong>Correspondence.</strong> Messages submitted through the Contact page, together with any name, Discord username or email address you choose to supply, and the date and time of submission. Where you are signed in, the message is associated with your account.</li>
 </ul>
-<p>Google also sends your email address. It is checked once, at sign-in, against the site's list of administrators, and is <strong>not stored</strong>. From Discord we ask only for the <code>identify</code> permission; we do not receive your email, your servers or your messages.</p>
-
-<h3>What you save</h3>
-<p>While signed in, the following are stored on our server under your account:</p>
+<p><strong>2.2 Information collected automatically.</strong></p>
 <ul>
-  <li>your characters, including anything you type into them</li>
-  <li>homebrew you create (races, classes, feats and the like), in a library of your own</li>
-  <li>if you run a campaign, the homebrew you write for it</li>
-  <li>campaigns you create or join, their settings and house rules, and your membership in them</li>
+  <li><strong>Authentication tokens.</strong> A session token is generated at sign-in and stored in your browser's local storage. We retain only a SHA-256 hash of that token, together with its creation and expiry timestamps.</li>
+  <li><strong>Account timestamps.</strong> The date your account was created and the date it was last used.</li>
+  <li><strong>Abuse-prevention identifiers.</strong> To rate-limit the Contact form we compute and store a one-way SHA-256 hash derived from your network address or account identifier. We do not store the network address itself, and the hash cannot be reversed to recover it.</li>
+  <li><strong>Server and host logs.</strong> Our hosting providers process technical data, which may include IP addresses, user-agent strings and request metadata, in order to deliver, secure and troubleshoot the Service. Such processing is governed by their respective privacy policies; we do not maintain analytics logs of our own.</li>
 </ul>
+<p><strong>2.3 Information from third parties.</strong> Google additionally transmits the email address associated with your Google account and whether it is verified. That address is evaluated at the moment of sign-in solely to determine whether the account is designated as an administrator or game master, and is then discarded; it is not written to our database. From Discord we request only the <code>identify</code> scope, and accordingly receive no email address, server membership or message content.</p>
+<p><strong>2.4 Information held only on your device.</strong> The Service may be used without an account. Characters and homebrew created in that state are written to your browser's local storage and are not transmitted to us. Clearing your browser's site data erases them irretrievably.</p>
+<p><strong>2.5 Categories of personal information (California).</strong> In the twelve months preceding the date of this Policy, we have collected the following statutory categories of personal information: identifiers (provider account identifier, display name, avatar URL, and any contact details you voluntarily supply); internet or other electronic network activity information (session metadata and hashed abuse-prevention identifiers); and other user-generated content described in Section 2.1. We do not collect sensitive personal information, biometric information, geolocation data, or commercial or financial information.</p>
 
-<h3>The Contact Me page</h3>
-<p>You can send a message from the Contact Me page with or without an account. We store the message, the time it was sent, and a name, Discord username or email address only if you choose to give them. If you are signed in, the message is linked to your account. To stop the form being flooded, we also keep a one-way scrambled (hashed) form of your network address, or of your account, which cannot be turned back into the address; the address itself is not stored.</p>
-<p>Messages are seen only by the site's admins, and any contact details you leave are used only to reply to you. An admin can delete a message at any time; to have one of yours deleted, say so in a new message or contact us as below.</p>
-
-<h3>Who can see it</h3>
+<h3>3. Purposes of processing and legal bases</h3>
+<p>We process personal information for the purposes below. Where the GDPR or the UK GDPR applies, the corresponding legal basis is identified in parentheses.</p>
 <ul>
-  <li><strong>Your characters and homebrew</strong> are visible only to you, except as described next.</li>
-  <li><strong>Your username and profile picture</strong> can be seen by people in campaigns you share, and by site admins. Your profile shows them the campaigns you share, and nothing you keep.</li>
-  <li><strong>Homebrew written for a campaign</strong> can be seen by everyone in that campaign, and changed by its GMs.</li>
-  <li><strong>A character you add to a campaign</strong> can be seen and edited by that campaign's GMs, and seen by its other players if the campaign allows it. Take the character out of the campaign and they lose that access.</li>
-  <li><strong>Site admins</strong> can see the list of accounts (names, roles, and how many characters, homebrew entries and campaigns each holds) in order to manage them. The site does not show admins the contents of anyone's homebrew library.</li>
-  <li>We do not sell, rent or share your information with anyone else, and we do not use it for advertising.</li>
+  <li>To create and administer your account, authenticate you, and provide the Service and its features (performance of a contract, Article 6(1)(b)).</li>
+  <li>To store, synchronize and display your User Content to you and to those with whom you have chosen to share it (performance of a contract, Article 6(1)(b)).</li>
+  <li>To operate campaign functionality, including disclosure of a character to the game masters and, where the campaign so provides, the members of a campaign you join (performance of a contract, Article 6(1)(b)).</li>
+  <li>To maintain the security and integrity of the Service, prevent abuse, and limit automated or excessive requests (legitimate interests, Article 6(1)(f)).</li>
+  <li>To respond to correspondence and support requests (legitimate interests, Article 6(1)(f), or performance of a contract where the request concerns your account).</li>
+  <li>To comply with applicable law and to establish, exercise or defend legal claims (legal obligation, Article 6(1)(c); legitimate interests, Article 6(1)(f)).</li>
 </ul>
+<p>We do not engage in automated decision-making producing legal or similarly significant effects, and we do not conduct profiling.</p>
 
-<h3>Sessions and cookies</h3>
-<p>The site sets no cookies and runs no analytics or advertising trackers. When you sign in, your browser keeps a sign-in token in its local storage; our server stores only a scrambled (hashed) form of it. Sessions last 30 days, or until you sign out.</p>
+<h3>4. Cookies and similar technologies</h3>
+<p>The Service sets no cookies. It uses your browser's local storage to hold your session token, your interface preferences and, where you use the Service without an account, your characters and homebrew. The Service employs no analytics, advertising, tracking pixels, fingerprinting or third-party trackers of any kind. Because we do not track users across third-party websites, we do not alter our practices in response to Do Not Track or Global Privacy Control signals; none is required for the practices described in this Policy.</p>
 
-<h3>Where it is kept</h3>
-<p>The site is served by <strong>GitHub Pages</strong>, and the server and its database run on <strong>Cloudflare Workers and D1</strong>. Like any web host, they may process technical information such as IP addresses to deliver and protect the service, under their own privacy policies. Sign-in is handled by Google or Discord under their own.</p>
+<h3>5. Disclosure of personal information</h3>
+<p><strong>5.1 Service providers.</strong> We disclose personal information to the following processors, each acting on our instructions under contractual terms:</p>
+<ul>
+  <li><strong>Cloudflare, Inc.</strong> &mdash; application hosting and database services (Cloudflare Workers and D1), being the location in which account data and User Content are stored;</li>
+  <li><strong>GitHub, Inc. (a Microsoft company)</strong> &mdash; static hosting of the website through GitHub Pages;</li>
+  <li><strong>Google LLC</strong> and <strong>Discord, Inc.</strong> &mdash; authentication, where you elect to sign in through them.</li>
+</ul>
+<p><strong>5.2 Other users.</strong> Your display name and profile image are visible to members of campaigns you share and to administrators. Homebrew written for a campaign is visible to that campaign's members and may be edited by its game masters. A character you add to a campaign is visible to and editable by that campaign's game masters, and visible to other members where the campaign's settings so provide; removing the character from the campaign ends that access. Your profile page displays the campaigns you share and does not display your stored content.</p>
+<p><strong>5.3 Administrators.</strong> Administrators may view the list of accounts, comprising display names, roles and the number of characters, homebrew entries and campaigns held, for the purpose of administering the Service. The Service does not expose the contents of a user's personal homebrew library to administrators.</p>
+<p><strong>5.4 Legal and protective disclosures.</strong> We may disclose personal information where we believe in good faith that disclosure is required by law, regulation, legal process or governmental request, or is necessary to enforce the Terms of Service, to investigate suspected violations, or to protect the rights, property or safety of any person.</p>
+<p><strong>5.5 Change of control.</strong> If the Service is transferred to another operator, personal information may be transferred as part of that transaction, subject to the recipient's commitment to honor this Policy or to provide notice and a reasonable opportunity to delete your account before any materially different policy takes effect.</p>
+<p><strong>5.6 No sale or sharing.</strong> We do not sell personal information, and we do not share personal information for cross-context behavioral advertising, as those terms are defined under the California Consumer Privacy Act as amended by the California Privacy Rights Act (&ldquo;CCPA&rdquo;). We have not sold or shared personal information in the preceding twelve months, including the personal information of consumers under sixteen years of age. We do not disclose personal information to third parties for their own direct marketing purposes.</p>
 
-<h3>Keeping and deleting your data</h3>
-<p>Your data is kept for as long as your account exists. You can delete any of your characters or homebrew at any time from the site, and signing out removes the sign-in token from your browser. To have your whole account deleted, along with everything stored under it, contact us as below; an admin will remove it. Characters of other players in campaigns you own are released back to their owners, not deleted.</p>
+<h3>6. International transfers</h3>
+<p>The Service is operated from the United States, and our processors maintain infrastructure in the United States and in other jurisdictions. Where personal data is transferred out of the European Economic Area, the United Kingdom or Switzerland, that transfer is made in reliance on the European Commission's Standard Contractual Clauses or an equivalent transfer mechanism maintained by the relevant processor, or on the derogation in Article 49(1)(b) of the GDPR for transfers necessary for the performance of a contract with you.</p>
 
-<h3>Children</h3>
-<p>The sheets are not directed at children under 13, and you must meet the minimum age Google or Discord sets for its accounts in order to sign in.</p>
+<h3>7. Retention</h3>
+<p>We retain account records and User Content for as long as your account remains in existence, and thereafter only as required to comply with legal obligations, resolve disputes or enforce our agreements. You may delete individual characters and homebrew entries at any time within the Service, in which case the record is removed from our database. Session records expire thirty (30) days after issue, or on sign-out, and are then deleted. Correspondence submitted through the Contact page is retained until deleted by an administrator. Hashed abuse-prevention identifiers are retained only so long as needed for rate limiting. On deletion of an account, the account record, its characters, its homebrew, its campaign memberships and its sessions are deleted; characters belonging to other users that were added to campaigns you owned are released to their owners rather than deleted.</p>
 
-<h3>Changes</h3>
-<p>If this policy changes, the new version will be posted here with a new date.</p>
+<h3>8. Security</h3>
+<p>We implement technical and organizational measures appropriate to the risk, including transport encryption (HTTPS), storage of session tokens as irreversible hashes rather than in plain form, scoped authorization checks on every request, and the omission of passwords and email addresses from our data stores. No method of transmission or storage is wholly secure, however, and we do not warrant absolute security. You are responsible for safeguarding the Google or Discord account through which you authenticate.</p>
 
-<h3>Contact</h3>
-<p>For questions or to delete your account, send a message from the <a href="../#/contact">Contact Me</a> page, open an issue at <a href="https://github.com/dndAntaera/sheets/issues">github.com/dndAntaera/sheets/issues</a>, or contact the Antæra Dungeon Master.</p>
+<h3>9. Your rights under the GDPR and UK GDPR</h3>
+<p>If you are located in the European Economic Area, the United Kingdom or Switzerland, you have the right to request access to the personal data we hold about you; to obtain rectification of inaccurate data; to obtain erasure; to obtain restriction of processing; to object to processing carried out on the basis of our legitimate interests; and to receive the personal data you have provided to us in a structured, commonly used and machine-readable format and to have it transmitted to another controller. Where processing is based on consent, you may withdraw that consent at any time without affecting the lawfulness of processing carried out before withdrawal.</p>
+<p>The Service provides direct means of exercising several of these rights: you may correct your profile within the Service, export every character and homebrew entry to a file at any time, and delete content yourself. Other requests may be made using the contact details in Section 14.</p>
+<p>You also have the right to lodge a complaint with your supervisory authority. In the United Kingdom this is the Information Commissioner's Office (<a href="https://ico.org.uk">ico.org.uk</a>).</p>
+
+<h3>10. Your rights under United States state privacy laws</h3>
+<p>If you are a resident of California, you have the right to know the categories and specific pieces of personal information collected about you, the categories of sources, the business purposes for collection, and the categories of third parties to which it is disclosed; the right to delete personal information we have collected from you; the right to correct inaccurate personal information; the right to opt out of the sale or sharing of personal information and of profiling in furtherance of automated decisions (we conduct none of these activities); and the right not to receive discriminatory treatment for exercising any of these rights. We offer no financial incentives in exchange for personal information.</p>
+<p>Residents of other states with comprehensive privacy legislation, including Virginia, Colorado, Connecticut, Utah, Texas, Oregon and Montana, hold substantially similar rights of access, correction, deletion and portability, and we honor requests from those residents on the same terms.</p>
+<p>Requests may be submitted using the contact details in Section 14. We will verify your request by reference to the authenticated account to which it relates, or by other reasonable means where you do not hold an account, and will respond within the period required by applicable law. An authorized agent may submit a request on your behalf on provision of evidence of authority.</p>
+
+<h3>11. Children's privacy</h3>
+<p>The Service is not directed to children under the age of 13, and we do not knowingly collect personal information from them. Where the GDPR or UK GDPR applies, the Service is not offered to children under the age of 16. If we learn that we have collected personal information from a child below the applicable age, we will delete that information and the associated account. A parent or guardian who believes that a child has provided personal information to us may contact us using the details in Section 14.</p>
+
+<h3>12. Third-party links</h3>
+<p>The Service links to third-party websites, including the Ant&aelig;ra Wiki, GitHub and the authentication providers. We do not control and are not responsible for the privacy practices of those websites, and we encourage you to review their policies.</p>
+
+<h3>13. Changes to this Policy</h3>
+<p>We may amend this Policy from time to time. The amended version will be posted on this page with a revised effective date. Where a change materially affects the processing of personal information already collected, we will take reasonable steps to provide additional notice. Your continued use of the Service following the effective date constitutes acceptance of the amended Policy.</p>
+
+<h3>14. Contact</h3>
+<p>Questions, requests concerning your rights, and requests for deletion of an account may be addressed to:</p>
+<ul>
+  <li>Email: <a href="mailto:smiledaemon77@gmail.com">smiledaemon77@gmail.com</a></li>
+  <li>The <a href="../#/contact">Contact Me</a> page of the Service</li>
+  <li>GitHub: <a href="https://github.com/dndAntaera/sheets/issues">github.com/dndAntaera/sheets/issues</a></li>
+</ul>
 
 </div>
 </section>
@@ -111,40 +152,65 @@
 <h2 class="panel-title">Terms of Service</h2>
 <div class="panel-body">
 
-<p class="hint">Last updated: 13 September 2026</p>
+<p class="hint">Effective date: 4 October 2026. Last updated: 4 October 2026.</p>
 
-<p>These terms apply to <strong>Sheet Tracker 3.5e</strong> at <a href="https://dndantaera.github.io/sheets">dndantaera.github.io/sheets</a>. By using it you agree to them. If you do not agree, please do not use the site.</p>
+<h3>1. Agreement to these Terms</h3>
+<p>These Terms of Service (the &ldquo;Terms&rdquo;) constitute a binding agreement between you and the operator of Sheet Tracker 3.5e (the &ldquo;Service&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo; or &ldquo;our&rdquo;) governing your access to and use of the website at <a href="https://dndantaera.github.io/sheets">dndantaera.github.io/sheets</a> and the application programming interface that supports it. By accessing or using the Service you accept these Terms and the <a href="#privacy-policy">Privacy Policy</a>, which is incorporated by reference. If you do not accept them, you must not use the Service.</p>
+<p>If you use the Service on behalf of another person or entity, you represent that you are authorized to bind that person or entity, and &ldquo;you&rdquo; refers to both.</p>
 
-<h3>The service</h3>
-<p>Sheet Tracker 3.5e is a free, unofficial fan project for building and keeping Dungeons &amp; Dragons 3.5 edition characters. It is provided <strong>as is</strong>, without warranties of any kind. It may change, be unavailable, or be shut down at any time, and we do not promise that it is free of errors, including in its calculations. Keep your own copy of anything important: the site lets you export your characters and homebrew to a file.</p>
-
-<h3>Your account</h3>
-<p>You sign in with Google or Discord, and you are responsible for what happens under your account. You must meet the minimum age those services require. How we handle your information is described in the <a href="#privacy-policy">Privacy Policy</a>.</p>
-
-<h3>What you put on the site</h3>
-<p>You keep ownership of the characters, homebrew and campaign text you create. By saving it you let us store it and show it to the people it is shared with (for example, the GMs of a campaign you add a character to).</p>
-<p>You agree <strong>not</strong> to store or share:</p>
+<h3>2. Definitions</h3>
 <ul>
-  <li>text or images copied from books or other works you do not have the right to use, beyond the Open Game Content the site already provides; describe rules in your own words</li>
-  <li>anything illegal, harassing, hateful or sexually explicit</li>
-  <li>other people's personal information</li>
-  <li>malicious code, or anything that tries to break, overload or get around the site's security</li>
+  <li><strong>&ldquo;Account&rdquo;</strong> means the record created when you authenticate through a supported identity provider.</li>
+  <li><strong>&ldquo;User Content&rdquo;</strong> means any character sheet, homebrew entry, campaign, message or other material you create, upload or store through the Service.</li>
+  <li><strong>&ldquo;Campaign&rdquo;</strong> means a shared group within the Service administered by one or more game masters.</li>
+  <li><strong>&ldquo;Open Game Content&rdquo;</strong> has the meaning given in the Open Game License v1.0a and is identified in Section 11.</li>
 </ul>
 
-<h3>Campaigns</h3>
-<p>A GM who runs a campaign may view and edit characters added to it, remove players, and delete the campaign. Be kind to the people at your table; GMs and admins may remove members who are not.</p>
+<h3>3. Eligibility</h3>
+<p>You must be at least 13 years of age to use the Service. If you are located in the European Economic Area or the United Kingdom, you must be at least 16. If you are under the age of majority where you live, you may use the Service only with the involvement of a parent or legal guardian who agrees to these Terms on your behalf. You must also satisfy the minimum age required by the identity provider through which you authenticate, and you must not be a person barred from receiving the Service under applicable law. We may terminate an Account where these requirements are not met.</p>
 
-<h3>Ending your use</h3>
-<p>You can stop using the site at any time and ask for your account to be deleted, as described in the <a href="#privacy-policy">Privacy Policy</a>. Admins may suspend or remove accounts, or delete content, that break these terms.</p>
+<h3>4. The Service</h3>
+<p>The Service is a free, unofficial fan project that assists in the creation, storage and sharing of characters for the third edition revised ruleset of the Dungeons &amp; Dragons game. It is not published, endorsed, sponsored by or affiliated with Wizards of the Coast LLC or any of its affiliates. We may modify, suspend, limit or discontinue the Service or any part of it at any time, with or without notice. We may impose limits on storage, request rates or features.</p>
+<p>The Service performs arithmetic on data you supply. Its calculations are provided for convenience only, may contain errors, and are not a substitute for your own reading of the rules or your game master's rulings. You are responsible for maintaining your own copies of material that matters to you; the Service provides an export function for that purpose.</p>
 
-<h3>Liability</h3>
-<p>To the fullest extent the law allows, the people who run this site are not liable for any loss arising from its use, including lost characters or data.</p>
+<h3>5. Accounts and security</h3>
+<p>Access to Account features requires authentication through Google or Discord. We do not issue or hold passwords. You are responsible for all activity occurring under your Account and for maintaining the security of the identity-provider account used to access it. You must notify us promptly, using the details in Section 20, of any unauthorized use of your Account. You may not transfer your Account, permit another person to use it, or maintain more than one Account for the purpose of evading a suspension.</p>
 
-<h3>Intellectual property</h3>
-<p>Sheet Tracker 3.5e is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Game rules from the System Reference Document are used under the Open Game License v1.0a; see the <a href="https://dndantaera.github.io/antaera-wiki/disclaimer-legal/">Disclaimer &amp; Legal Information</a> page on the Antæra Wiki.</p>
+<h3>6. Your Content</h3>
+<p><strong>6.1 Ownership.</strong> You retain all right, title and interest in and to your User Content. These Terms transfer no ownership in it to us.</p>
+<p><strong>6.2 License to us.</strong> You grant us a worldwide, non-exclusive, royalty-free, fully paid license to host, store, reproduce, transmit, display and create derived technical representations of your User Content, solely to the extent necessary to operate, maintain, secure and provide the Service to you and to those with whom you have chosen to share it. This license terminates when the User Content is deleted, save for copies retained in routine backups for a limited period and for copies lawfully retained by other users to whom the content was shared.</p>
+<p><strong>6.3 Your representations.</strong> You represent and warrant that you own or have the necessary rights in your User Content and that it does not infringe or misappropriate the rights of any third party, nor violate applicable law.</p>
+<p><strong>6.4 No obligation to store.</strong> We do not warrant that User Content will be preserved, and we may remove or refuse to store content that violates these Terms. We maintain no obligation of backup or recovery.</p>
 
-<h3>Open Game License: Section 15</h3>
-<p>The game rules the sheets carry are Open Game Content, used under the Open Game License v1.0a. The license asks that the copyright notice of every work drawn on be reproduced; these are the ones this site uses. The full text of the license is on the <a href="https://dndantaera.github.io/antaera-wiki/disclaimer-legal/">Disclaimer &amp; Legal Information</a> page.</p>
+<h3>7. Acceptable use</h3>
+<p>You agree not to, and not to permit any other person to:</p>
+<ul>
+  <li>store, transmit or share material that infringes copyright, trademark, trade secret or other proprietary rights, including text or images reproduced from published works beyond the Open Game Content the Service itself supplies; descriptions of rules must be in your own words;</li>
+  <li>store or transmit material that is unlawful, defamatory, harassing, abusive, hateful, threatening, sexually explicit or otherwise objectionable;</li>
+  <li>store or transmit personal information concerning another person without that person's consent;</li>
+  <li>upload or transmit malicious code, or interfere with, disrupt, overload, probe or attempt to gain unauthorized access to the Service, its infrastructure or the accounts of others;</li>
+  <li>circumvent or attempt to circumvent any access control, permission check, rate limit or other security measure;</li>
+  <li>access the Service by automated means other than those we expressly provide, or scrape, harvest or systematically copy data from it;</li>
+  <li>reverse engineer, decompile or disassemble any part of the Service, except to the extent such restriction is prohibited by applicable law;</li>
+  <li>use the Service for any commercial purpose not expressly permitted by us, or resell or redistribute access to it;</li>
+  <li>impersonate any person or misrepresent your affiliation with any person or entity;</li>
+  <li>use the Service in violation of any applicable law, regulation or sanctions program.</li>
+</ul>
+
+<h3>8. Campaigns and conduct between users</h3>
+<p>By adding a character to a Campaign you grant that Campaign's game masters the ability to view and edit it, and, where the Campaign's settings so provide, the ability of other members to view it. Removing the character from the Campaign ends that access prospectively. Game masters may admit and remove members, edit campaign homebrew and delete the Campaign. We are not a party to any arrangement between you and the other members of a Campaign, we do not supervise the conduct of users, and we disclaim responsibility for the acts and omissions of users, including the deletion or alteration of a character by a game master to whom you granted access.</p>
+
+<h3>9. Third-party services</h3>
+<p>The Service depends on and links to services operated by third parties, including Google, Discord, GitHub and Cloudflare. Your use of those services is governed by their own terms and privacy policies. We do not control them and are not responsible for their availability, content or practices.</p>
+
+<h3>10. Our intellectual property</h3>
+<p>Except for Open Game Content and User Content, the Service, including its source code, interface, text, graphics and the Ant&aelig;ra name and logo, is the property of the operator or its licensors and is protected by intellectual property law. No right or license is granted to you in respect of that material except as expressly set out in these Terms or in a separate license accompanying the source code. The Ant&aelig;ra name and logo may not be used without our prior written permission.</p>
+
+<h3>11. Open Game Content and fan content</h3>
+<p>Sheet Tracker 3.5e is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC. Game rules reproduced by the Service are Open Game Content used under the Open Game License v1.0a, the full text of which appears on the <a href="https://dndantaera.github.io/antaera-wiki/disclaimer-legal/">Disclaimer &amp; Legal Information</a> page of the Ant&aelig;ra Wiki.</p>
+
+<h3>12. Open Game License: Section 15</h3>
+<p>The Open Game License requires that the copyright notice of every work drawn upon be reproduced. The following notices apply to the Open Game Content made available through the Service.</p>
 <div class="ogl-notice">
 <p>Open Game License v 1.0a Copyright 2000, Wizards of the Coast, Inc.</p>
 <p>System Reference Document Copyright 2000-2003, Wizards of the Coast, Inc.; Authors Jonathan Tweet, Monte Cook, Skip Williams, Rich Baker, Andy Collins, David Noonan, Rich Redman, Bruce R. Cordell, John D. Rateliff, Thomas Reid, James Wyatt, based on original material by E. Gary Gygax and Dave Arneson.</p>
@@ -153,13 +219,47 @@
 <p>SRD 3.5 XML and MySQL database by Andargor &lt;andargor@yahoo.com&gt; (c) 2004-2005.</p>
 <p>SRD 3.5 SQLite conversion by highmage &lt;highmage@digital-arcanist.com&gt;.</p>
 </div>
-<p class="hint">Unearthed Arcana's variant rules are in the creator's Advanced step and in the selectors; the Expanded Psionics Handbook's powers are in the reference and on a manifester's sheet; the spells, powers, feats, classes and equipment were built from Andargor's SRD 3.5 database.</p>
+<p class="hint">Unearthed Arcana's variant rules appear in the creator's Advanced step and in its selectors; the Expanded Psionics Handbook's powers appear in the reference and on a manifester's sheet; the spells, powers, feats, classes and equipment were built from Andargor's SRD 3.5 database.</p>
 
-<h3>Changes</h3>
-<p>We may update these terms. The new version will be posted here with a new date, and continuing to use the site means you accept it.</p>
+<h3>13. Copyright complaints</h3>
+<p>We respond to notices of alleged copyright infringement concerning material stored on the Service. A notice should be sent to the address in Section 20 and should include: a physical or electronic signature of the owner or a person authorized to act on the owner's behalf; identification of the copyrighted work claimed to have been infringed; identification of the material claimed to be infringing and information reasonably sufficient to locate it; your contact details; a statement that you have a good-faith belief that the use is not authorized by the owner, its agent or the law; and a statement, made under penalty of perjury, that the information in the notice is accurate and that you are authorized to act on the owner's behalf. We may remove material in response to a valid notice and may terminate the Accounts of repeat infringers.</p>
 
-<h3>Contact</h3>
-<p>Open an issue at <a href="https://github.com/dndAntaera/sheets/issues">github.com/dndAntaera/sheets/issues</a> or contact the Antæra Dungeon Master.</p>
+<h3>14. Feedback</h3>
+<p>If you submit suggestions, ideas or other feedback concerning the Service, you grant us a perpetual, irrevocable, worldwide, royalty-free license to use and implement it without restriction, attribution or compensation. Feedback is not confidential.</p>
+
+<h3>15. Suspension and termination</h3>
+<p>You may stop using the Service at any time and may request deletion of your Account as described in the Privacy Policy. We may suspend or terminate your Account or access to the Service, and remove User Content, where we reasonably believe you have breached these Terms, where required by law, or where continued provision would expose us or another user to liability or harm. Where practicable and lawful we will give notice and an opportunity to export your User Content. Sections 6.2 (as to the limited surviving license), 10, 14, 16, 17, 18, 19 and 20 survive termination.</p>
+
+<h3>16. Disclaimer of warranties</h3>
+<p>THE SERVICE IS PROVIDED ON AN &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS, WITHOUT WARRANTY OF ANY KIND, WHETHER EXPRESS, IMPLIED OR STATUTORY. TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, WE DISCLAIM ALL IMPLIED WARRANTIES, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT, AND ANY WARRANTIES ARISING OUT OF COURSE OF DEALING OR USAGE OF TRADE. WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, SECURE OR ERROR-FREE, THAT ITS CALCULATIONS OR RULES CONTENT WILL BE ACCURATE OR COMPLETE, OR THAT USER CONTENT WILL NOT BE LOST, ALTERED OR DELETED.</p>
+<p>Some jurisdictions do not allow the exclusion of certain warranties. Where such law applies, the exclusions in this Section apply only to the extent permitted, and you may have additional rights.</p>
+
+<h3>17. Limitation of liability</h3>
+<p>TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL WE BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, GOODWILL OR DATA, ARISING OUT OF OR IN CONNECTION WITH THESE TERMS OR YOUR USE OF OR INABILITY TO USE THE SERVICE, WHETHER BASED IN CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY OR ANY OTHER THEORY, AND WHETHER OR NOT WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</p>
+<p>TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, OUR TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THESE TERMS OR THE SERVICE WILL NOT EXCEED THE GREATER OF THE AMOUNT YOU PAID US FOR THE SERVICE IN THE TWELVE MONTHS PRECEDING THE EVENT GIVING RISE TO THE CLAIM, OR TWENTY-FIVE UNITED STATES DOLLARS (US$25). THE SERVICE IS PROVIDED FREE OF CHARGE, AND THIS ALLOCATION OF RISK IS AN ESSENTIAL BASIS OF THE AGREEMENT BETWEEN US.</p>
+<p>Nothing in these Terms excludes or limits liability for death or personal injury caused by negligence, for fraud or fraudulent misrepresentation, or for any other liability that cannot lawfully be excluded or limited. Some jurisdictions do not allow the exclusion or limitation of incidental or consequential damages; where such law applies, the limitations in this Section apply only to the extent permitted.</p>
+
+<h3>18. Indemnification</h3>
+<p>To the fullest extent permitted by applicable law, you will indemnify, defend and hold harmless the operator of the Service from and against any claim, demand, liability, damage, loss, cost or expense, including reasonable legal fees, arising out of or related to your User Content, your use of the Service, your breach of these Terms, or your violation of any law or of the rights of a third party. We reserve the right to assume the exclusive defense and control of any matter subject to indemnification by you, in which case you will cooperate with us.</p>
+
+<h3>19. Governing law and dispute resolution</h3>
+<p><strong>19.1 Governing law.</strong> These Terms and any dispute arising out of or relating to them or to the Service are governed by the laws of the State of North Carolina, United States of America, without regard to its conflict of law provisions, and excluding the United Nations Convention on Contracts for the International Sale of Goods.</p>
+<p><strong>19.2 Informal resolution.</strong> Before commencing any proceeding, you agree to attempt to resolve the dispute informally by contacting us at the address in Section 20 and allowing thirty (30) days for a response.</p>
+<p><strong>19.3 Venue.</strong> Subject to Section 19.4, you and we consent to the exclusive jurisdiction and venue of the state and federal courts located in North Carolina for the resolution of any dispute not resolved informally, and waive any objection to that venue on grounds of inconvenient forum.</p>
+<p><strong>19.4 Mandatory local law.</strong> If you are a consumer resident in the European Economic Area or the United Kingdom, nothing in this Section deprives you of the protection of the mandatory provisions of the law of your country of residence, or of your right to bring proceedings in the courts of that country.</p>
+<p><strong>19.5 Time limit.</strong> To the extent permitted by applicable law, any claim arising out of or relating to these Terms or the Service must be brought within one (1) year after the claim accrues, failing which it is permanently barred.</p>
+
+<h3>20. General provisions</h3>
+<p><strong>20.1 Changes to these Terms.</strong> We may amend these Terms. The amended version will be posted on this page with a revised effective date, and material changes will be accompanied by reasonable notice where practicable. Your continued use of the Service after the effective date constitutes acceptance. If you do not accept the amended Terms, you must stop using the Service and may request deletion of your Account.</p>
+<p><strong>20.2 Entire agreement.</strong> These Terms, together with the Privacy Policy, constitute the entire agreement between you and us concerning the Service and supersede all prior agreements and understandings on that subject.</p>
+<p><strong>20.3 Severability.</strong> If any provision of these Terms is held unenforceable, that provision will be limited or severed to the minimum extent necessary and the remaining provisions will remain in full force.</p>
+<p><strong>20.4 No waiver.</strong> Our failure to enforce any provision is not a waiver of our right to do so later.</p>
+<p><strong>20.5 Assignment.</strong> You may not assign or transfer these Terms without our prior written consent. We may assign them to a successor in connection with a transfer of the Service.</p>
+<p><strong>20.6 Force majeure.</strong> We are not liable for any failure or delay in performance caused by circumstances beyond our reasonable control, including the failure of a third-party service on which the Service depends.</p>
+<p><strong>20.7 Electronic communications.</strong> You consent to receive communications from us electronically, and agree that electronic notices satisfy any legal requirement that a communication be in writing.</p>
+<p><strong>20.8 No third-party beneficiaries.</strong> These Terms confer no rights on any person other than you and us, except that Wizards of the Coast LLC and our licensors are intended beneficiaries of Sections 7, 11 and 12.</p>
+<p><strong>20.9 Headings.</strong> Headings are for convenience only and do not affect interpretation.</p>
+<p><strong>20.10 Contact.</strong> Notices to us may be sent to <a href="mailto:smiledaemon77@gmail.com">smiledaemon77@gmail.com</a>, through the <a href="../#/contact">Contact Me</a> page, or by opening an issue at <a href="https://github.com/dndAntaera/sheets/issues">github.com/dndAntaera/sheets/issues</a>.</p>
 
 </div>
 </section>
