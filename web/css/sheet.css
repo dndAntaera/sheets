@@ -184,37 +184,38 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .sheet-main { min-width: 0; }
 
 /* ---------------------------------------------------------------------------
-   The sheet is one page, not a stack of cards.
+   The page, after 5th edition's character sheet.
 
-   Its sections are ruled off from each other inside a single frame, the way a
-   printed character sheet is - which is why the panels inside it give up their
-   own borders, corners and shadows. Everywhere else in the app a panel is
-   still a card: the creator's steps, the roster, the catalog.
+   One sheet of paper, with each part of the character drawn on it as an
+   outlined, rounded block - the way that sheet draws its ability scores, its
+   armor class, its skills and its equipment. A block's name is set in small
+   capitals, a number stands large inside its box with its caption beneath, and
+   what a player writes is the only thing in a serif.
+
+   Everywhere else in the app a panel is still a card of its own: the creator's
+   steps, the roster, the catalog.
    --------------------------------------------------------------------------- */
 
 .sheet {
   display: flex;
   flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
   background: var(--grain), var(--surface);
   border: var(--line) solid var(--rule-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
 }
 .sheet > .panel {
-  background: transparent;
-  border: 0;
-  border-bottom: var(--line) solid var(--rule-strong);
-  border-radius: 0;
+  background: var(--surface);
+  border: var(--line) solid var(--rule-strong);
+  border-radius: var(--radius-lg);
   box-shadow: none;
 }
-.sheet > .panel:last-child { border-bottom: 0; }
-.sheet > .panel > .panel-title { border-radius: 0; }
 
-/* The character's own name is the largest thing on the page, as it is on
-   paper. */
+/* The character's own name, the one thing on that sheet in a hand of its own. */
 .panel [data-field="name"] {
-  font: 600 var(--text-total)/1.2 var(--font-display);
+  font: 600 var(--text-total)/1.3 var(--font-name);
   letter-spacing: .01em;
 }
 
@@ -240,10 +241,9 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   scroll-margin-top: var(--sp-4);
 }
 
-/* The name of a section, as a form prints it: set in the serif, in small
-   capitals, over the heavy rule that separates it from its rows. */
+/* The name of a block, in small capitals over the line that closes it off. */
 .panel-title {
-  font: 600 var(--text-panel-title)/1 var(--font-display);
+  font: 700 var(--text-small)/1.2 var(--font-display);
   margin: 0;
   padding: var(--pad-y-sm) var(--pad-x);
   background: var(--surface-sunk);
@@ -257,9 +257,9 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 .panel.flash { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .panel h3 {
-  font: 600 var(--text-small)/1.1 var(--font-display);
+  font: 700 var(--text-tiny)/1.1 var(--font-display);
   text-transform: uppercase;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
   color: var(--ink-soft);
   margin: 0 0 var(--sp-2);
   padding-bottom: var(--sp-1);
@@ -286,7 +286,6 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 /* A derived number: printed ink, not paper. No border, no background, and a
    cursor that does not invite typing. */
 .out {
-  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   min-height: var(--field-height);
@@ -302,22 +301,18 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
 
 .total {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;   /* the number first, its caption beneath */
   align-items: center;
   gap: .1rem;
-  padding: var(--sp-1) var(--sp-3);
+  padding: var(--sp-2) var(--sp-3) var(--sp-1);
   background: var(--surface-sunk);
-  border: var(--hair) solid var(--rule-strong);
-  border-radius: var(--radius);
-  min-width: 4.5rem;
+  border: var(--line) solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  min-width: var(--box-min);
 }
-.total .out { font-weight: 600; }
-/* The numbers a player reads first stand in a double-ruled box. */
-.total.big {
-  border-width: var(--line);
-  border-style: double;
-  padding: var(--sp-1) var(--sp-4);
-}
+.total .out { font-size: var(--text-total); font-weight: 700; line-height: 1.1; }
+.total .label { color: var(--ink-soft); }
+.total.big { padding: var(--sp-3) var(--sp-4) var(--sp-1); }
 .total.big .out { font-size: var(--text-total-lg); }
 .totals { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
 
@@ -379,9 +374,33 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   align-items: center;
 }
 .ability-name {
-  font: 600 var(--text-small)/1.2 var(--font-display);
-  letter-spacing: .04em;
+  font: 700 var(--text-tiny)/1.2 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: .1em;
   color: var(--ink-soft);
+}
+.ability-short { display: none; }
+
+/* The score stands in its box and the modifier in the circle below it - the
+   pair 5th edition's sheet prints down the left of the page. */
+.ability-grid [data-out$=".total"] {
+  font-size: var(--text-total);
+  font-weight: 700;
+  border: var(--line) solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunk);
+  min-width: 2.6rem;
+}
+.ability-grid [data-out$=".mod"] {
+  font-weight: 700;
+  border: var(--line) solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  width: 2.2rem;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  margin: 0 auto;
 }
 .ability-grid .label { text-align: center; }
 
@@ -1695,7 +1714,9 @@ textarea.text-block { width: 100%; resize: vertical; line-height: var(--leading)
   /* Every flexible column becomes minmax(0, 1fr) so it can actually shrink.
      minmax(2.8rem, 1fr) cannot: the minimum wins and the grid overflows its
      panel, which is how a phone ends up with numbers under the margin. */
-  .ability-grid { grid-template-columns: 4.4rem repeat(4, minmax(0, 1fr)) 2.9rem 2.4rem; }
+  .ability-grid { grid-template-columns: 2.6rem repeat(4, minmax(0, 1fr)) 2.9rem 2.4rem; }
+  .ability-short { display: inline; }
+  .ability-full { display: none; }
 
   /* Inherent, misc and temporary adjustments are rare. They give up their
      columns to the five in daily use; the panel still holds them on a desk. */

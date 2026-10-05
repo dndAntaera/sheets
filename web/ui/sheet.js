@@ -221,7 +221,11 @@ export function abilitiesPanel(app) {
     h('span.label', { text: 'Score' }),
     h('span.label', { text: 'Mod' }),
     ABILITIES.map((key) => frag(
-      h('span.ability-name', { text: ABILITY_NAMES[key], title: key.toUpperCase() }),
+      // Both names: the sheet shows the full one where there is room for it and
+      // the three letters where there is not, as 5th edition's sheet does.
+      h('span.ability-name', { title: ABILITY_NAMES[key] },
+        h('span.ability-short', { text: key.toUpperCase() }),
+        h('span.ability-full', { text: ABILITY_NAMES[key] })),
       baseScoreInput(app, key, method, placement, changed),
       out(`abilities.${key}.parts.racial`, { format: 'signed' }),
       out(`abilities.${key}.parts.levelUp`, { format: 'signed' }),
